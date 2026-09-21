@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { brewRatio, formatRatio } from "@/lib/domain/ratio";
-import { remainingAfter, exceedsRemaining } from "@/lib/domain/inventory";
+import { remainingAfter, restoredAfter, exceedsRemaining } from "@/lib/domain/inventory";
 import { diffBrews } from "@/lib/domain/compare";
 import { coffeeSchema, brewSchema } from "@/lib/validation/schemas";
 import { autosaveReducer } from "@/lib/drafts/store";
@@ -22,6 +22,10 @@ describe("inventory", () => {
   it("decrements approximately", () => {
     expect(remainingAfter(200, 15)).toBe(185);
   });
+  it("hands the dose back on brew deletion, mirroring creation", () => {
+    expect(restoredAfter(185, 15)).toBe(200);
+    expect(restoredAfter(137.5, 15)).toBe(152.5);
+  });
   it("warns without blocking", () => {
     expect(exceedsRemaining(10, 15)).toBe(true);
     expect(exceedsRemaining(137, 15)).toBe(false);
@@ -35,6 +39,25 @@ describe("validation", () => {
   it("brew requires coffee + dose + water only", () => {
     expect(brewSchema.safeParse({ coffeeId: "not-a-uuid", doseG: 15, waterG: 225 }).success).toBe(false);
     expect(brewSchema.safeParse({ coffeeId: "123e4567-e89b-12d3-a456-426614174000", doseG: 15, waterG: 225 }).success).toBe(true);
+  });
+
+  it("optional numerics accept empty input as unknown (final beverage stays optional)", () => {
+    const base = { coffeeId: "123e4567-e89b-12d3-a456-426614174000", doseG: 15, waterG: 225 };
+    const r = brewSchema.safeParse({ ...base, finalBeverageG: "", tempC: "", grindClicks: "", pourCount: "" });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.finalBeverageG).toBeUndefined();
+      expect(r.data.tempC).toBeUndefined();
+    }
+    // real values still validate
+    const ok = brewSchema.safeParse({ ...base, finalBeverageG: 178, tempC: 92 });
+    expect(ok.success).toBe(true);
+    // out-of-range values still rejected
+    expect(brewSchema.safeParse({ ...base, tempC: 40 }).success).toBe(false);
+  });
+
+  it("coffee weights accept empty input as unknown", () => {
+    expect(coffeeSchema.safeParse({ name: "X", initialWeightG: "", remainingWeightG: "" }).success).toBe(true);
   });
 });
 

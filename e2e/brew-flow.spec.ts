@@ -1,14 +1,26 @@
 import { test, expect } from "@playwright/test";
 
+// Private single-user app: no public signup. Authenticated flows use a
+// pre-existing dev user via E2E_EMAIL/E2E_PASSWORD; skipped without them.
+test("login page offers sign-in only, no public signup", async ({ page }) => {
+  await page.goto("/login").catch(() => {});
+  await page.waitForLoadState("domcontentloaded");
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign up" })).toHaveCount(0);
+  await expect(page.getByLabel("Email")).toBeVisible();
+  await expect(page.getByLabel("Password")).toBeVisible();
+});
+
 // ponytail: one flow covers login -> coffee -> brew -> edit -> reload -> persisted.
-// Requires .env.local with Supabase keys + migration applied; skipped otherwise.
+// Requires E2E_EMAIL/E2E_PASSWORD for an existing dev user (+ Supabase keys +
+// migration applied); skipped otherwise.
 test("brew flow persists across reload", async ({ page }) => {
-  const email = `e2e+${Date.now()}@brewlog.test`;
-  const password = "brewlog-e2e-1234";
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign up" }).click();
+  test.skip(!process.env.E2E_EMAIL || !process.env.E2E_PASSWORD, "no dev user credentials");
+  await page.goto("/login").catch(() => {});
+  await page.waitForLoadState("domcontentloaded");
+  await page.getByLabel("Email").fill(process.env.E2E_EMAIL!);
+  await page.getByLabel("Password").fill(process.env.E2E_PASSWORD!);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/coffees/, { timeout: 15_000 });
 
   await page.goto("/coffees/new");
