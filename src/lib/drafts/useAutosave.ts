@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useReducer, useRef } from "react";
 import { autosaveReducer, type DraftStore, type SaveState } from "@/lib/drafts/store";
-import { localDraftStore as defaultStore } from "@/lib/drafts/local-store";
+import { localDraftStore as defaultStore, loadDraftWithMeta, shouldRestoreDraft } from "@/lib/drafts/local-store";
+import { createSaver, type Saver } from "@/lib/drafts/debounce";
 
 type Opts<T> = {
   key: string;
@@ -10,6 +11,8 @@ type Opts<T> = {
   sync: (value: T) => Promise<void>;
   store?: DraftStore;
   debounceMs?: number;
+  // server timestamp the draft is weighed against; omitted = nothing to weigh (new record)
+  serverUpdatedAt?: string | null;
   onRestored?: (v: T) => void;
 };
 
@@ -19,51 +22,96 @@ export function useAutosave<T extends Record<string, unknown>>({
   sync,
   store = defaultStore,
   debounceMs = 900,
+  serverUpdatedAt,
   onRestored,
 }: Opts<T>) {
-  const [state, dispatch] = useReducer(autosaveReducer, "editing" as SaveState);
+  // ponytail: idle means saved. "editing" is entered only by an actual change,
+  // never by mounting an editable page.
+  const [state, dispatch] = useReducer(autosaveReducer, "saved" as SaveState);
   const syncRef = useRef(sync);
+  const valueRef = useRef(value);
   const restored = useRef(false);
   const onRestoredRef = useRef(onRestored);
+  // ponytail: JSON gate — form.watch() and setState mint new identities every
+  // render (including renders caused by our own dispatches). Unrelated renders
+  // must not reschedule persistence.
+  const snapshot = JSON.stringify(value);
+  const prevSnapshot = useRef<string | null>(null);
+  const serverStampRef = useRef(serverUpdatedAt);
+  const saverRef = useRef<Saver<T> | null>(null);
+  // ponytail: exactly one scheduler per hook instance; created in an effect so
+  // no ref is touched during render (StrictMode-safe: setup/cleanup is idempotent).
+  useEffect(() => {
+    const saver = createSaver<T>(debounceMs, (snapshotValue) => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      dispatch({ type: "SYNC_START" });
+      syncRef
+        .current(snapshotValue)
+        .then(
+          () => dispatch({ type: "SYNC_OK" }),
+          () => dispatch({ type: "SYNC_FAIL" }),
+        );
+    });
+    saverRef.current = saver;
+    return () => {
+      saver.cancel();
+      saverRef.current = null;
+    };
+  }, [debounceMs]);
 
   useEffect(() => {
     syncRef.current = sync;
+    valueRef.current = value;
     onRestoredRef.current = onRestored;
+    serverStampRef.current = serverUpdatedAt;
   });
 
-  // restore once
+  // restore once, and only when the draft is newer than the server row
   useEffect(() => {
     if (restored.current || !key) return;
     restored.current = true;
-    store.load<T>(key).then((draft) => {
-      if (draft) onRestoredRef.current?.(draft);
+    loadDraftWithMeta<T>(key).then((draft) => {
+      if (!draft) return;
+      if (shouldRestoreDraft(draft.savedAt, serverStampRef.current)) {
+        onRestoredRef.current?.(draft.value);
+      } else {
+        // stale draft would clobber fresh server state — drop it
+        store.clear(key);
+      }
     });
   }, [key, store]);
 
-  // immediate local save + debounced server sync
+  // Local UI state updates freely; only persistence is debounced. First mount
+  // records the baseline and does nothing — opening a form is not an edit.
   useEffect(() => {
     if (!key) return;
-    let cancelled = false;
-    const snapshot = value;
+    if (prevSnapshot.current === null) {
+      prevSnapshot.current = snapshot;
+      return;
+    }
+    if (snapshot === prevSnapshot.current) return;
+    prevSnapshot.current = snapshot;
+    dispatch({ type: "CHANGE" });
+    const parsed = JSON.parse(snapshot) as T;
     const offline = typeof navigator !== "undefined" && !navigator.onLine;
-    store.save(key, snapshot).then(() => {
-      if (!cancelled) dispatch({ type: "LOCAL_SAVED", offline });
+    store.save(key, parsed).then(() => {
+      dispatch({ type: "LOCAL_SAVED", offline });
     });
-    const t = setTimeout(async () => {
-      if (offline) return;
-      dispatch({ type: "SYNC_START" });
-      try {
-        await syncRef.current(snapshot);
-        if (!cancelled) dispatch({ type: "SYNC_OK" });
-      } catch {
-        if (!cancelled) dispatch({ type: "SYNC_FAIL" });
-      }
-    }, debounceMs);
+    saverRef.current?.push(parsed);
     return () => {
-      cancelled = true;
-      clearTimeout(t);
+      saverRef.current?.cancel();
     };
-  }, [key, value, store, debounceMs]);
+  }, [key, snapshot, store]);
 
-  return { state, dispatch };
+  // Explicit retry for the error badge. Same debounced-sync mechanism,
+  // callable by hand — no architecture change.
+  function retry() {
+    dispatch({ type: "SYNC_START" });
+    syncRef.current(valueRef.current).then(
+      () => dispatch({ type: "SYNC_OK" }),
+      () => dispatch({ type: "SYNC_FAIL" }),
+    );
+  }
+
+  return { state, dispatch, retry };
 }
