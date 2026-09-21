@@ -6,7 +6,7 @@ Private, mobile-first brew journal for coffee experimentation. PWA-ready, autosa
 
 1. `pnpm install`
 2. Create a Supabase project → copy URL + `anon` key → `.env.local` (see `.env.example`)
-3. Supabase SQL editor → run `supabase/migrations/0001_schema.sql`
+3. Supabase SQL editor → run migrations in order: `0001_schema.sql`, `0002_competition_settings.sql`, `0003_brewed_at.sql` (0003 backfills `brewed_at` from `created_at`; existing data is preserved)
 4. Auth → enable Email provider (disable "confirm email" for local dev)
 5. `pnpm dev` → open `/login` → sign up → `/coffees`
 
@@ -51,9 +51,37 @@ Tests: `src/lib/seed/demo-data.test.ts` covers FK integrity, recipe variation,
 validation-shape conformance, empty/partial states, and observation-vs-diagnosis
 vocabulary.
 
+## Request & caching strategy
+
+`fetch once → local state → targeted mutation → targeted invalidation`.
+No client component fetches reference data; pages load it once server-side and
+pass it as props. Typing never triggers a query: the autosave hook syncs only
+when serialized form content actually changes (debounced), and the new-brew
+form syncs nothing at all until submit. Mutations carry no `revalidatePath`
+except submit-type actions, which invalidate only the affected list. No global
+store, no blind refetching.
+
+Dev instrumentation: `src/instrumentation.ts` patches server `fetch` and the
+`sb:` badge (top-right, dev only) patches client `fetch`, counting Supabase
+requests per session — `[supabase:server] #N OP kind table · route` in the
+console (e.g. `#2 GET read brews · /brews/abc`). Tap the badge to print the
+per-interaction breakdown and reset. A healthy session: opening a brew costs
+its reads once (brew + observations + sessions + auth) and then zero while
+idle; one edit burst costs one UPDATE; rapid 70→71→72→73 collapses to one
+UPDATE with the final value; navigation reads only the target route; refresh
+repeats the open cost once. Anything repeating on a fixed cadence is a loop —
+check the log's operation column first.
+
+## Single-user auth
+
+Public signup is removed from the UI by design. To close it server-side as
+well: Supabase dashboard → Authentication → Providers → Email → turn OFF
+"Allow new users to sign up". Existing users (including dev accounts) keep
+working; only new self-registration stops. No keys or credentials involved.
+
 ## Product rules (V0)
 
 - Observation ≠ diagnosis: the app never labels "acidic" as "underextracted".
 - Unknown coffee metadata stays unknown; competition values are defaults, not rules.
-- Autosave: immediate local draft (`localStorage` behind async `DraftStore`, IndexedDB-ready) + debounced server sync + visible save state. Server wins on conflict, local kept under `:conflict`.
+- Autosave: immediate local draft (`localStorage` behind async `DraftStore`, IndexedDB-ready) + debounced server sync + visible save state. The server record is authoritative: a draft restores only when newer than the server row, otherwise it is dropped.
 - Copy-previous-brew is the primary fast path; inventory decrement is approximate and advisory.
