@@ -2,28 +2,20 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { coffeeSchema, brewSchema, observationSchema, experimentSchema, sessionSchema } from "@/lib/validation/schemas";
+import { coffeeSchema, newBrewFormSchema, observationSchema, experimentSchema, sessionSchema, competitionSettingsSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
+import { safeNext } from "@/lib/auth";
 
 // ponytail: thin zod-then-insert actions; RLS enforces ownership, user_id never from client
 
 export async function login(formData: FormData): Promise<void> {
   const db = await createClient();
+  const next = safeNext(String(formData.get("next") ?? ""));
   const { error } = await db.auth.signInWithPassword({
     email: String(formData.get("email")),
     password: String(formData.get("password")),
   });
-  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`);
-  redirect("/coffees");
-}
-
-export async function signup(formData: FormData): Promise<void> {
-  const db = await createClient();
-  const { error } = await db.auth.signUp({
-    email: String(formData.get("email")),
-    password: String(formData.get("password")),
-  });
-  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`);
-  redirect("/coffees");
+  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+  redirect(next);
 }
 
 export async function logout() {
@@ -84,13 +76,16 @@ export async function updateCoffee(id: string, formData: FormData): Promise<void
   }).eq("id", id);
   if (error) return;
   revalidatePath("/coffees");
+  redirect("/coffees");
 }
 
 export async function createBrew(prev: unknown, formData: FormData): Promise<{ error?: string; id?: string }> {
-  const parsed = brewSchema.safeParse({
+  const parsed = newBrewFormSchema.safeParse({
     coffeeId: nullish(formData.get("coffeeId")),
+    sessionId: nullish(formData.get("sessionId")),
     doseG: nullish(formData.get("doseG")),
     waterG: nullish(formData.get("waterG")),
+    brewedAt: nullish(formData.get("brewedAt")),
     tempC: nullish(formData.get("tempC")),
     grindClicks: nullish(formData.get("grindClicks")),
     grinder: nullish(formData.get("grinder")),
@@ -98,20 +93,46 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
     filter: nullish(formData.get("filter")),
     waterSource: nullish(formData.get("waterSource")),
     pourCount: nullish(formData.get("pourCount")),
-    totalTimeSec: nullish(formData.get("totalTimeSec")),
+    brewTimeMin: nullish(formData.get("brewTimeMin")),
+    brewTimeSec: nullish(formData.get("brewTimeSec")),
     finalBeverageG: nullish(formData.get("finalBeverageG")),
     notes: nullish(formData.get("notes")),
+    hotNotes: nullish(formData.get("hotNotes")),
+    warmNotes: nullish(formData.get("warmNotes")),
+    coldNotes: nullish(formData.get("coldNotes")),
+    freeformNotes: nullish(formData.get("freeformNotes")),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid brew" };
   const d = parsed.data;
+  const { toSeconds } = await import("@/lib/domain/brew-time");
+  const { toBrewedAtIso } = await import("@/lib/domain/brew-date");
   const db = await createClient();
   const { data, error } = await db.from("brews").insert({
-    coffee_id: d.coffeeId, dose_g: d.doseG, water_g: d.waterG, temp_c: d.tempC,
+    coffee_id: d.coffeeId, session_id: d.sessionId, dose_g: d.doseG, water_g: d.waterG, temp_c: d.tempC,
+    brewed_at: toBrewedAtIso(d.brewedAt) ?? new Date().toISOString(),
     grind_clicks: d.grindClicks, grinder: d.grinder, dripper: d.dripper,
     filter: d.filter, water_source: d.waterSource, pour_count: d.pourCount,
-    total_time_sec: d.totalTimeSec, final_beverage_g: d.finalBeverageG, notes: d.notes,
+    total_time_sec: toSeconds(
+      d.brewTimeMin == null ? undefined : Number(d.brewTimeMin),
+      d.brewTimeSec == null ? undefined : Number(d.brewTimeSec),
+    ),
+    final_beverage_g: d.finalBeverageG, notes: d.notes,
   }).select("id").single();
   if (error) return { error: error.message };
+  // first tasting notes ride along at creation as the brew's observation row
+  if (d.hotNotes || d.warmNotes || d.coldNotes || d.freeformNotes) {
+    const obs = observationSchema.safeParse({
+      brewId: data.id, hotNotes: d.hotNotes, warmNotes: d.warmNotes,
+      coldNotes: d.coldNotes, freeformNotes: d.freeformNotes,
+    });
+    if (!obs.success) return { error: "Brew saved, but notes were invalid." };
+    const o = obs.data;
+    const { error: obsError } = await db.from("observations").insert({
+      brew_id: o.brewId, hot_notes: o.hotNotes, warm_notes: o.warmNotes,
+      cold_notes: o.coldNotes, freeform_notes: o.freeformNotes,
+    });
+    if (obsError) return { error: "Brew saved, but notes failed to save." };
+  }
   // approximate inventory decrement, advisory only
   const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
   if (coffee?.remaining_weight_g != null) {
@@ -124,19 +145,30 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
 }
 
 export async function updateBrew(id: string, patch: Record<string, string | undefined>) {
+  const { toBrewUpdateRow } = await import("@/lib/db/brew-update");
   const db = await createClient();
-  const map: Record<string, string> = {
-    tempC: "temp_c", grindClicks: "grind_clicks", grinder: "grinder", dripper: "dripper",
-    filter: "filter", waterSource: "water_source", pourCount: "pour_count",
-    totalTimeSec: "total_time_sec", finalBeverageG: "final_beverage_g", notes: "notes",
-    doseG: "dose_g", waterG: "water_g",
-  };
-  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  for (const [k, col] of Object.entries(map)) {
-    if (patch[k] !== undefined && patch[k] !== "") row[col] = patch[k];
-  }
-  const { error } = await db.from("brews").update(row).eq("id", id);
+  const fields = toBrewUpdateRow(patch);
+  if (Object.keys(fields).length === 0) return;
+  const { error } = await db.from("brews").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) return { error: error.message };
+}
+
+// Move an existing brew into a session, or out (target ""/missing = unassign).
+// Never creates a brew — pure reassignment through RLS.
+export async function moveBrewToSession(formData: FormData): Promise<void> {
+  const { safeNext } = await import("@/lib/auth");
+  const brewId = nullish(formData.get("brewId"));
+  const target = nullish(formData.get("sessionId"));
+  if (!brewId) return;
+  const db = await createClient();
+  const { error } = await db.from("brews").update({
+    session_id: target ?? null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", brewId);
+  if (error) return;
+  revalidatePath("/sessions");
+  revalidatePath("/brews");
+  redirect(safeNext(nullish(formData.get("returnTo")) || (target ? `/sessions/${target}` : "/brews")));
 }
 
 export async function upsertObservation(patch: Record<string, string | undefined> & { brewId: string }) {
@@ -184,15 +216,127 @@ export async function createExperiment(formData: FormData): Promise<void> {
   });
   if (error) return;
   revalidatePath("/brews");
+  if (d.brewId) revalidatePath(`/brews/${d.brewId}`);
+}
+
+export async function updateExperiment(id: string, formData: FormData): Promise<void> {
+  const parsed = experimentSchema.safeParse({
+    brewId: nullish(formData.get("brewId")),
+    sessionId: nullish(formData.get("sessionId")),
+    hypothesis: nullish(formData.get("hypothesis")),
+    changedVariables: nullish(formData.get("changedVariables")),
+    expectedResult: nullish(formData.get("expectedResult")),
+    actualResult: nullish(formData.get("actualResult")),
+    conclusion: nullish(formData.get("conclusion")),
+    nextQuestion: nullish(formData.get("nextQuestion")),
+  });
+  if (!parsed.success) return;
+  const d = parsed.data;
+  const db = await createClient();
+  const { error } = await db.from("experiments").update({
+    brew_id: d.brewId, session_id: d.sessionId, hypothesis: d.hypothesis,
+    changed_variables: d.changedVariables, expected_result: d.expectedResult,
+    actual_result: d.actualResult, conclusion: d.conclusion, next_question: d.nextQuestion,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) return;
+  revalidatePath("/brews");
+  if (d.brewId) revalidatePath(`/brews/${d.brewId}`);
+  redirect(`/experiments/${id}`);
 }
 
 export async function createSession(formData: FormData): Promise<void> {
   const parsed = sessionSchema.safeParse({ title: nullish(formData.get("title")), notes: nullish(formData.get("notes")) });
   if (!parsed.success) return;
   const db = await createClient();
-  const { error } = await db.from("sessions").insert({ title: parsed.data.title, notes: parsed.data.notes });
+  const { data, error } = await db.from("sessions").insert({ title: parsed.data.title, notes: parsed.data.notes }).select("id").single();
   if (error) return;
   revalidatePath("/sessions");
+  redirect(`/sessions/${data.id}`);
+}
+
+export async function updateSession(id: string, formData: FormData): Promise<void> {
+  const parsed = sessionSchema.safeParse({ title: nullish(formData.get("title")), notes: nullish(formData.get("notes")) });
+  if (!parsed.success) return;
+  const db = await createClient();
+  const { error } = await db.from("sessions").update({
+    title: parsed.data.title, notes: parsed.data.notes, updated_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) return;
+  revalidatePath("/sessions");
+  redirect(`/sessions/${id}`);
+}
+
+export async function updateCompetitionSettings(formData: FormData): Promise<void> {
+  const parsed = competitionSettingsSchema.safeParse({
+    name: nullish(formData.get("name")),
+    minFinalBeverageG: nullish(formData.get("minFinalBeverageG")),
+  });
+  if (!parsed.success) return;
+  const db = await createClient();
+  // one row per user; user_id falls back to auth.uid() and RLS enforces ownership
+  const { error } = await db.from("competition_settings").upsert({
+    name: parsed.data.name ?? "Current competition",
+    min_final_beverage_g: parsed.data.minFinalBeverageG ?? DEFAULT_MIN_BEVERAGE_G,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
+  if (error) return;
+  revalidatePath("/account");
+  redirect("/account");
+}
+
+// --- Deletion ---------------------------------------------------------------
+// ponytail: RLS scopes every delete to the caller — no ownership checks needed
+// in code. Consequences follow the schema: observations cascade with their
+// brew; coffee delete cascades its brews; session delete keeps brews
+// (unassigned); experiment links null out (experiments survive, detached).
+// Each confirm UI states this explicitly via describeDeletion().
+
+export async function deleteBrew(id: string): Promise<void> {
+  const { restoredAfter } = await import("@/lib/domain/inventory");
+  const db = await createClient();
+  // read the dose first (RLS-scoped): deleting hands the coffee back
+  const { data: brew } = await db.from("brews").select("coffee_id, dose_g").eq("id", id).single();
+  const { error } = await db.from("brews").delete().eq("id", id);
+  if (error) return;
+  if (brew) {
+    const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", brew.coffee_id).single();
+    if (coffee?.remaining_weight_g != null) {
+      await db.from("coffees").update({
+        remaining_weight_g: restoredAfter(Number(coffee.remaining_weight_g), Number(brew.dose_g)),
+      }).eq("id", brew.coffee_id);
+    }
+  }
+  revalidatePath("/brews");
+  revalidatePath("/coffees");
+  revalidatePath("/sessions");
+  redirect("/brews");
+}
+
+export async function deleteCoffee(id: string): Promise<void> {
+  const db = await createClient();
+  const { error } = await db.from("coffees").delete().eq("id", id);
+  if (error) return;
+  revalidatePath("/coffees");
+  revalidatePath("/brews");
+  redirect("/coffees");
+}
+
+export async function deleteSession(id: string): Promise<void> {
+  const db = await createClient();
+  const { error } = await db.from("sessions").delete().eq("id", id);
+  if (error) return;
+  revalidatePath("/sessions");
+  revalidatePath("/brews");
+  redirect("/sessions");
+}
+
+export async function deleteExperiment(id: string, brewId: string | null): Promise<void> {
+  const db = await createClient();
+  const { error } = await db.from("experiments").delete().eq("id", id);
+  if (error) return;
+  revalidatePath("/brews");
+  redirect(brewId ? `/brews/${brewId}` : "/brews");
 }
 
 // --- Development seed -------------------------------------------------------
@@ -266,6 +410,7 @@ export async function seedDevData(): Promise<void> {
         grinder: b.grinder, dripper: b.dripper, filter: b.filter, water_source: b.waterSource,
         pour_count: b.pourCount, total_time_sec: b.totalTimeSec,
         final_beverage_g: b.finalBeverageG, notes: b.notes, created_at: daysAgoIso(b.daysAgo),
+        brewed_at: daysAgoIso(b.daysAgo),
       })
       .select("id").single();
     if (error) redirect(`/coffees?error=${encodeURIComponent(error.message)}`);

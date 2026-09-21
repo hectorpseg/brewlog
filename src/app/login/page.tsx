@@ -1,15 +1,24 @@
-import { login, signup } from "@/app/actions";
+import { login } from "@/app/actions";
+import { safeNext } from "@/lib/auth";
 import { Button, Card, Input, Label } from "@/components/ui/controls";
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function LoginPage({ searchParams }: {
+  searchParams: Promise<{ error?: string; next?: string }>;
+}) {
   const sp = await searchParams;
+  const next = safeNext(sp.next);
   return (
     <div className="pt-10">
-      <h1 className="text-2xl font-semibold">BrewLog</h1>
-      <p className="mb-4 text-sm text-zinc-600">Private brew journal. Sign in to continue.</p>
-      {sp.error ? <p className="mb-3 text-sm text-red-600">{sp.error}</p> : null}
+      <h1 className="font-display text-3xl">BrewLog</h1>
+      <p className="mb-4 mt-1 text-sm text-ink2">A private brew notebook. Sign in to continue.</p>
+      {sp.error ? (
+        <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
+          {sp.error}
+        </p>
+      ) : null}
       <Card>
         <form className="flex flex-col gap-3">
+          <input type="hidden" name="next" value={next} />
           <div>
             <Label htmlFor="email">Email</Label>
             <Input id="email" name="email" type="email" required autoComplete="email" />
@@ -20,7 +29,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </div>
           <div className="flex gap-2">
             <Button formAction={login}>Sign in</Button>
-            <Button variant="ghost" formAction={signup}>Sign up</Button>
           </div>
         </form>
       </Card>

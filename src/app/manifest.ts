@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "BrewLog",
     short_name: "BrewLog",
     description: "Private brew journal",
-    start_url: "/coffees",
+    start_url: "/brews",
     display: "standalone",
     background_color: "#fafafa",
     theme_color: "#18181b",

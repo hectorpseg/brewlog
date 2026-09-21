@@ -239,3 +239,21 @@ Ask:
 5. Does it belong in the current phase?
 
 If not, do not implement it.
+
+---
+
+## Domain Modeling Restraint
+
+- Prefer a field/value over creating a new database entity.
+- Extract a concept into a first-class entity only when it has its own lifecycle, is independently browsed/edited, or has meaningful relationships that cannot be represented naturally as fields.
+- Do not normalize hypothetical future requirements.
+- Do not create CRUD screens merely because something can be modeled as a table.
+- Repeated values are not automatically entities.
+- Equipment such as drippers, grinders, filters, and water should remain fields on Brew unless a concrete product requirement later proves that they need independent lifecycle/relationships.
+- Do NOT create a Dripper entity.
+- Do NOT create Grinder, Filter, WaterProfile, or generic Method entities for the current product scope.
+- A Session may contain contextual information about equipment/method in notes or existing Brew fields, but equipment is not managed as independent Session resources.
+- Prefer the smallest domain model that accurately supports the current brewing workflow.
+- When a new entity is proposed, first explain what independent lifecycle, browsing/editing need, or relationship requires it. If none exists, keep it as a field.
+
+The product should feel like a focused personal coffee notebook, not an enterprise inventory or workflow management system.
