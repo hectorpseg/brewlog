@@ -1,0 +1,45 @@
+{
+  "name": "brewlog",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Private mobile-first brew logging for coffee experimentation",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.95.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.556.0",
+    "next": "16.3.5",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-hook-form": "^7.68.0",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "supabase": "^2.117.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@11.8.0"
+}
