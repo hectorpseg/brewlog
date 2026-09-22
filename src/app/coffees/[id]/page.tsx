@@ -1,23 +1,27 @@
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { loginUrl } from "@/lib/auth";
-import { getCoffee, listBrews } from "@/lib/db/queries";
-import { deleteCoffee, updateCoffee } from "@/app/actions";
-import { Button, Card, Input, Label, SectionHeader } from "@/components/ui/controls";
+import { notFound } from "next/navigation";
+import { requireUser } from "@/lib/supabase/require-user";
+import { getCoffee, listBrews, listCuppings } from "@/lib/db/queries";
+import { createCupping, deleteCoffee, deleteCupping, updateCoffee, updateCupping } from "@/app/actions";
+import { Button, Card, Input, Label, SectionHeader, Textarea } from "@/components/ui/controls";
+import { CoffeeEditor } from "@/components/coffee-editor";
+import { BackLink } from "@/components/back-link";
+import { CuppingEditor, type CuppingRow } from "@/components/cupping-editor";
 import { DeleteButton } from "@/components/delete-button";
-import { BrewCard } from "@/components/brew-card";
+import { BrewHistoryRow } from "@/components/brew-history-row";
 import { EmptyState } from "@/components/states";
 import { describeDeletion } from "@/lib/domain/deletion";
+import { formatBrewDate, formatReceived, defaultBrewedDate } from "@/lib/domain/brew-date";
 
 export default async function CoffeeDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = await createClient();
-  const { data } = await db.auth.getUser();
-  if (!data.user) redirect(loginUrl(`/coffees/${id}`));
+  await requireUser(`/coffees/${id}`);
   const coffee = await getCoffee(id).catch(() => null);
   if (!coffee) notFound();
-  const brews = await listBrews(id).catch(() => []);
+  // independent reads, one round trip instead of two sequential ones
+  const [brews, cuppings] = await Promise.all([
+    listBrews(id).catch(() => []),
+    listCuppings(id).catch(() => []),
+  ]);
   const update = updateCoffee.bind(null, id);
   const noted = brews.filter((b: { observations?: unknown }) => {
     const o = b.observations;
@@ -25,30 +29,24 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
   }).length;
   const del = describeDeletion("coffee", { brews: brews.length, observations: noted });
   const remove = deleteCoffee.bind(null, id);
+  const today = defaultBrewedDate();
   return (
     <div className="flex flex-col gap-4">
       <div>
+        <BackLink href="/coffees" label="Coffees" />
         <h1 className="font-display text-2xl">{coffee.name}</h1>
         <p className="tnum mt-1 text-sm text-ink2">
           {[coffee.origin, coffee.process].filter(Boolean).join(" · ") || "origin/process unknown"}
-          {" · "}~{coffee.remaining_weight_g ?? "?"} g remaining
         </p>
+        <p className="tnum mt-0.5 text-sm text-ink2">
+          ~{coffee.remaining_weight_g ?? "?"} g remaining · Received {formatReceived(coffee.received_date)}
+        </p>
+        <CoffeeEditor
+          coffee={coffee}
+          update={update}
+          brewAgainHref={brews.length > 0 ? `/brews/new?coffee=${id}&copy=1` : `/brews/new?coffee=${id}`}
+        />
       </div>
-      {brews.length > 0 ? (
-        <Link
-          href={`/brews/new?coffee=${id}&copy=1`}
-          className="min-h-11 rounded-[10px] bg-ember px-4 py-2 text-center font-medium text-white"
-        >
-          Copy last brew
-        </Link>
-      ) : (
-        <Link
-          href={`/brews/new?coffee=${id}`}
-          className="min-h-11 rounded-[10px] bg-ember px-4 py-2 text-center font-medium text-white"
-        >
-          + First brew of this coffee
-        </Link>
-      )}
       <div>
         <SectionHeader>Brews ({brews.length})</SectionHeader>
         {brews.length === 0 ? (
@@ -64,24 +62,89 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
           <ul className="mt-2 flex flex-col gap-2">
             {brews.map((b: {
               id: string; dose_g: number; water_g: number; temp_c: number | null;
-              grind_clicks: number | null; total_time_sec: number | null; filter: string | null;
+              grind_clicks: number | null; total_time_sec: number | null;
+              brewed_at: string | null; created_at: string; session_id: string | null;
+              session: { title: string } | null; observations: unknown;
             }) => (
-              <li key={b.id}><BrewCard brew={b} showCoffee={false} /></li>
+              <li key={b.id}><BrewHistoryRow brew={b} /></li>
             ))}
           </ul>
         )}
       </div>
-      <details>
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-ink2">Edit coffee</summary>
-        <Card>
-          <form action={update} className="flex flex-col gap-3">
-            <div><Label>Name</Label><Input name="name" defaultValue={coffee.name} /></div>
-            <div><Label>Remaining g</Label><Input name="remainingWeightG" type="number" inputMode="decimal" defaultValue={coffee.remaining_weight_g ?? ""} /></div>
-            <div><Label>Received</Label><Input name="receivedDate" type="date" defaultValue={coffee.received_date ?? ""} /></div>
-            <Button>Save coffee</Button>
-          </form>
-        </Card>
-      </details>
+      <div>
+        <SectionHeader>Cupping ({cuppings.length})</SectionHeader>
+        <p className="mt-1 text-sm text-ink2">
+          Taste {coffee.name} before spending brew doses — a baseline for what follows.
+        </p>
+        {cuppings.length > 0 ? (
+          <ul className="mt-2 flex flex-col gap-2">
+            {(cuppings as CuppingRow[]).map((c) => {
+              const edit = updateCupping.bind(null, c.id, id);
+              const removeCupping = deleteCupping.bind(null, c.id, id);
+              const cdel = describeDeletion("cupping", {});
+              const grindLabel =
+                [c.grinder, c.grind_clicks != null ? `${c.grind_clicks}` : null]
+                  .filter(Boolean)
+                  .join(" ") || c.grind;
+              const hasNotes = Boolean(c.hot_notes || c.warm_notes || c.cold_notes || c.notes);
+              return (
+                <li key={c.id} className="rounded-[10px] border border-line bg-card px-3 py-2">
+                  <div className="tnum flex items-baseline justify-between gap-2 text-sm">
+                    <span className="font-medium">
+                      {c.dose_g ?? "?"} g / {c.water_g ?? "?"} g{grindLabel ? ` · ${grindLabel}` : ""}
+                    </span>
+                    <span className="shrink-0 text-xs text-ink3">{formatBrewDate(c.cupped_at)}</span>
+                  </div>
+                  {hasNotes ? (
+                    <>
+                      {[["Hot", c.hot_notes], ["Warm", c.warm_notes], ["Cold", c.cold_notes]].map(([stage, text]) =>
+                        text ? (
+                          <p key={stage as string} className="mt-1 text-sm text-ink2">
+                            <span className="font-medium text-ink">{stage}: </span>{text as string}
+                          </p>
+                        ) : null,
+                      )}
+                      {c.notes ? <p className="mt-1 text-sm text-ink2">{c.notes}</p> : null}
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm text-ink3">No tasting notes recorded.</p>
+                  )}
+                  <div className="mt-2 flex gap-2">
+                    <CuppingEditor cupping={c} update={edit} />
+                    <DeleteButton
+                      label="Delete"
+                      title={cdel.title}
+                      body={cdel.body}
+                      confirmLabel={cdel.confirm}
+                      action={removeCupping}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        <details className="mt-2">
+          <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Log a cupping</summary>
+          <Card>
+            <form action={createCupping} className="flex flex-col gap-3">
+              <input type="hidden" name="coffeeId" value={id} />
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label htmlFor="cupping-date">Date</Label><Input id="cupping-date" name="cuppedAt" type="date" defaultValue={today} /></div>
+                <div><Label htmlFor="cupping-dose">Dose g</Label><Input id="cupping-dose" name="doseG" type="number" inputMode="decimal" placeholder="10" /></div>
+                <div><Label htmlFor="cupping-water">Water g</Label><Input id="cupping-water" name="waterG" type="number" inputMode="decimal" placeholder="200" /></div>
+                <div><Label htmlFor="cupping-grinder">Grinder</Label><Input id="cupping-grinder" name="grinder" placeholder="K-Ultra" /></div>
+                <div><Label htmlFor="cupping-clicks">Grind clicks</Label><Input id="cupping-clicks" name="grindClicks" type="number" inputMode="numeric" placeholder="85" /></div>
+              </div>
+              <div><Label htmlFor="cupping-hot">Hot notes</Label><Textarea id="cupping-hot" name="hotNotes" rows={2} /></div>
+              <div><Label htmlFor="cupping-warm">Warm notes</Label><Textarea id="cupping-warm" name="warmNotes" rows={2} /></div>
+              <div><Label htmlFor="cupping-cold">Cold notes</Label><Textarea id="cupping-cold" name="coldNotes" rows={2} /></div>
+              <div><Label htmlFor="cupping-notes">Notes</Label><Textarea id="cupping-notes" name="notes" rows={2} /></div>
+              <Button>Save cupping</Button>
+            </form>
+          </Card>
+        </details>
+      </div>
       <DeleteButton
         label="Delete coffee"
         title={del.title}
