@@ -174,6 +174,17 @@ export async function moveBrewToSession(formData: FormData): Promise<void> {
   redirect(safeNext(nullish(formData.get("returnTo")) || (target ? `/sessions/${target}` : "/brews")));
 }
 
+// Unassign-only variant with serializable args, so delete-style client
+// components can `.bind` it like every other action. Delegates to
+// moveBrewToSession — no duplicated update logic.
+export async function removeBrewFromSession(brewId: string, returnTo: string): Promise<void> {
+  const formData = new FormData();
+  formData.set("brewId", brewId);
+  formData.set("sessionId", "");
+  formData.set("returnTo", returnTo);
+  return moveBrewToSession(formData);
+}
+
 export async function upsertObservation(patch: Record<string, string | undefined> & { brewId: string }) {
   const parsed = observationSchema.safeParse({
     brewId: patch.brewId,

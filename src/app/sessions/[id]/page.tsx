@@ -2,12 +2,11 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getSession, listBrewCandidates, listSessionBrews } from "@/lib/db/queries";
 import { excludeSessionBrews, formatCandidateLabel, type CandidateRow } from "@/lib/domain/sessions";
-import { deleteSession, moveBrewToSession, updateSession } from "@/app/actions";
+import { deleteSession, moveBrewToSession, removeBrewFromSession, updateSession } from "@/app/actions";
 import { Button, Card, Label, SectionHeader, Select } from "@/components/ui/controls";
 import { DeleteButton } from "@/components/delete-button";
 import { SessionEditor } from "@/components/session-editor";
 import { BackLink } from "@/components/back-link";
-import { InlineConfirm } from "@/components/inline-confirm";
 import { BrewCard } from "@/components/brew-card";
 import { EmptyState } from "@/components/states";
 import { describeDeletion } from "@/lib/domain/deletion";
@@ -65,16 +64,13 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
                   brew={b}
                   action={
                     <div className="mt-1 flex justify-end">
-                      <InlineConfirm
+                      <DeleteButton
                         label="Remove from session"
-                        question="Remove this brew from the session? The brew itself stays in history."
+                        title="Remove this brew from the session?"
+                        body="The brew itself stays in history."
                         confirmLabel="Remove"
-                        action={moveBrewToSession}
-                      >
-                        <input type="hidden" name="brewId" value={b.id} />
-                        <input type="hidden" name="sessionId" value="" />
-                        <input type="hidden" name="returnTo" value={`/sessions/${id}`} />
-                      </InlineConfirm>
+                        action={removeBrewFromSession.bind(null, b.id, `/sessions/${id}`)}
+                      />
                     </div>
                   }
                 />
