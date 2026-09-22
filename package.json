@@ -11,7 +11,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "brewlog:backup": "jiti scripts/brewlog-backup.ts",
+    "brewlog:export": "jiti scripts/brewlog-export.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

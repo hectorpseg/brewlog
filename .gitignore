@@ -37,6 +37,10 @@ Thumbs.db
 logs/
 *.log
 
+# local backups and exports (data, never committed)
+/backups/
+/exports/
+
 # supabase local state
 supabase/.temp/
 supabase/.branches/

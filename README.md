@@ -18,6 +18,21 @@ never committed; `.env.example` is the tracked template with placeholders only.
 - `pnpm dev` / `pnpm build` / `pnpm start`
 - `pnpm lint` · `pnpm typecheck` · `pnpm test` (vitest) · `pnpm e2e` (playwright)
 
+## Backup & export
+
+Run before/after real coffee practice. Both commands sign in as you
+(`BREWLOG_EMAIL` + `BREWLOG_PASSWORD` in the environment, Supabase keys from
+`.env.local`) and only ever touch your own rows through RLS. Files are
+gitignored by design — they contain your data.
+
+- `pnpm brewlog:backup` — timestamped data-only SQL under `backups/`
+  (e.g. `backups/brewlog-2026-09-22T18-30-00.sql`). Schema lives in
+  `supabase/migrations/*`; to recover, apply the migrations on an empty
+  database, then run the backup file. This is the current recovery mechanism.
+- `pnpm brewlog:export` — timestamped portable JSON under `exports/`
+  (versioned `brewlog-export` envelope with ids, timestamps, and foreign
+  keys preserved). JSON import is NOT implemented yet.
+
 ## Manual Supabase setup still required
 
 - Project creation, keys, email provider — all in dashboard (no CLI vendored in V0).
