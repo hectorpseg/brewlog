@@ -3,13 +3,14 @@ import { useState } from "react";
 import { updateBrew, upsertObservation } from "@/app/actions";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
+import { brewEditorDefaults, SENSORY_KEYS } from "@/lib/db/brew-update";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { splitSeconds, toSeconds } from "@/lib/domain/brew-time";
-import { defaultBrewedDate, toDateInputValue } from "@/lib/domain/brew-date";
+import { defaultBrewedDate } from "@/lib/domain/brew-date";
 import { SaveStateBadge } from "@/components/save-state";
 
-const SENSORY = ["acidity", "sweetness", "body", "clarity", "bitterness", "astringency", "intensity", "balance", "finish"] as const;
+const SENSORY = SENSORY_KEYS;
 const LEVELS = ["", "low", "med-low", "medium", "med-high", "high"];
 const NOTE_FIELDS = [
   { key: "hotNotes", label: "Hot notes" },
@@ -24,20 +25,12 @@ export function BrewEditor({ userId, brew, observation, sessions }: {
   observation: Record<string, string | null> | null;
   sessions: { id: string; title: string }[];
 }) {
-  const initialTime = splitSeconds(brew.total_time_sec != null ? Number(brew.total_time_sec) : undefined);
-  const [form, setForm] = useState<Record<string, string>>({
-    doseG: String(brew.dose_g ?? ""), waterG: String(brew.water_g ?? ""),
-    brewedAt: toDateInputValue(typeof brew.brewed_at === "string" ? brew.brewed_at : null),
-    tempC: String(brew.temp_c ?? ""), grindClicks: String(brew.grind_clicks ?? ""),
-    sessionId: String(brew.session_id ?? ""),
-    finalBeverageG: String(brew.final_beverage_g ?? ""),
-    brewTimeMin: initialTime.minutes != null ? String(initialTime.minutes) : "",
-    brewTimeSec: initialTime.seconds != null ? String(initialTime.seconds) : "",
-    notes: String(brew.notes ?? ""),
-    ...Object.fromEntries(SENSORY.map((k) => [k, String((observation as Record<string, string> | null)?.[k] ?? "")])),
-    hotNotes: String(observation?.hot_notes ?? ""), warmNotes: String(observation?.warm_notes ?? ""),
-    coldNotes: String(observation?.cold_notes ?? ""), freeformNotes: String(observation?.freeform_notes ?? ""),
-  });
+  const [form, setForm] = useState<Record<string, string>>(() =>
+    brewEditorDefaults(
+      brew as Record<string, unknown>,
+      observation as Record<string, unknown> | null,
+    ),
+  );
   const key = draftKey(userId, "brew-edit", String(brew.id));
   // Server is authoritative once synchronized: weigh any local draft against
   // the freshest server timestamp so a stale draft can never clobber it.

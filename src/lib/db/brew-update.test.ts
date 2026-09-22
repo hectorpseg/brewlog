@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBrewUpdateRow } from "@/lib/db/brew-update";
+import { brewEditorDefaults, toBrewUpdateRow } from "@/lib/db/brew-update";
 
 describe("toBrewUpdateRow", () => {
   it("maps form keys to columns and skips empty values", () => {
@@ -25,5 +25,55 @@ describe("toBrewUpdateRow", () => {
     });
     expect(toBrewUpdateRow({ brewedAt: "" })).toEqual({});
     expect(toBrewUpdateRow({ brewedAt: "yesterday" })).toEqual({});
+  });
+});
+
+describe("brewEditorDefaults", () => {
+  const brew = {
+    id: "b1",
+    dose_g: 15,
+    water_g: 250,
+    brewed_at: "2026-09-21T12:00:00.000Z",
+    temp_c: 92,
+    grind_clicks: 70,
+    grinder: "K-Ultra",
+    dripper: "Origami",
+    filter: "Abaca",
+    water_source: "Scala",
+    pour_count: 4,
+    total_time_sec: 150,
+    final_beverage_g: 180,
+    notes: "good",
+    session_id: null,
+  };
+  const observation = { acidity: "medium", hot_notes: "Sweet." };
+
+  it("carries every persisted gear field into the editor (regression: empty gear on reopen)", () => {
+    const f = brewEditorDefaults(brew, observation);
+    expect(f.grinder).toBe("K-Ultra");
+    expect(f.dripper).toBe("Origami");
+    expect(f.filter).toBe("Abaca");
+    expect(f.waterSource).toBe("Scala");
+    expect(f.pourCount).toBe("4");
+  });
+
+  it("maps recipe, time, notes, and observations alongside gear", () => {
+    const f = brewEditorDefaults(brew, observation);
+    expect(f.doseG).toBe("15");
+    expect(f.tempC).toBe("92");
+    expect(f.brewedAt).toBe("2026-09-21");
+    expect(f.brewTimeMin).toBe("2");
+    expect(f.brewTimeSec).toBe("30");
+    expect(f.notes).toBe("good");
+    expect(f.acidity).toBe("medium");
+    expect(f.hotNotes).toBe("Sweet.");
+  });
+
+  it("renders unknown values as empty strings without crashing on null observation", () => {
+    const f = brewEditorDefaults({ ...brew, grinder: null, pour_count: null }, null);
+    expect(f.grinder).toBe("");
+    expect(f.pourCount).toBe("");
+    expect(f.acidity).toBe("");
+    expect(f.hotNotes).toBe("");
   });
 });
