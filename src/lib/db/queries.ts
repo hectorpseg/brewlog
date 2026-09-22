@@ -165,3 +165,15 @@ export async function getExperiment(id: string) {
   if (error) throw new Error(error.message);
   return data;
 }
+
+export async function listCuppings(coffeeId: string) {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("cuppings")
+    .select("*")
+    .eq("coffee_id", coffeeId)
+    .order("cupped_at", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data;
+}

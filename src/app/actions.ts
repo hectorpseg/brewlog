@@ -2,7 +2,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { coffeeSchema, newBrewFormSchema, observationSchema, experimentSchema, sessionSchema, competitionSettingsSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
+import { coffeeSchema, newBrewFormSchema, observationSchema, experimentSchema, sessionSchema, competitionSettingsSchema, cuppingSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
+import { toBrewedAtIso } from "@/lib/domain/brew-date";
 import { safeNext } from "@/lib/auth";
 
 // ponytail: thin zod-then-insert actions; RLS enforces ownership, user_id never from client
@@ -337,6 +338,75 @@ export async function deleteExperiment(id: string, brewId: string | null): Promi
   if (error) return;
   revalidatePath("/brews");
   redirect(brewId ? `/brews/${brewId}` : "/brews");
+}
+
+function cuppedAtIso(dateStr?: string | null): string {
+  return toBrewedAtIso(dateStr) ?? new Date().toISOString();
+}
+
+export async function createCupping(formData: FormData): Promise<void> {
+  const parsed = cuppingSchema.safeParse({
+    coffeeId: nullish(formData.get("coffeeId")),
+    cuppedAt: nullish(formData.get("cuppedAt")),
+    doseG: nullish(formData.get("doseG")),
+    waterG: nullish(formData.get("waterG")),
+    grind: nullish(formData.get("grind")),
+    grinder: nullish(formData.get("grinder")),
+    grindClicks: nullish(formData.get("grindClicks")),
+    notes: nullish(formData.get("notes")),
+    hotNotes: nullish(formData.get("hotNotes")),
+    warmNotes: nullish(formData.get("warmNotes")),
+    coldNotes: nullish(formData.get("coldNotes")),
+  });
+  if (!parsed.success) return;
+  const d = parsed.data;
+  const db = await createClient();
+  const { error } = await db.from("cuppings").insert({
+    coffee_id: d.coffeeId, cupped_at: cuppedAtIso(d.cuppedAt),
+    dose_g: d.doseG, water_g: d.waterG, grind: d.grind,
+    grinder: d.grinder, grind_clicks: d.grindClicks, notes: d.notes,
+    hot_notes: d.hotNotes, warm_notes: d.warmNotes, cold_notes: d.coldNotes,
+  });
+  if (error) return;
+  revalidatePath(`/coffees/${d.coffeeId}`);
+  redirect(`/coffees/${d.coffeeId}`);
+}
+
+export async function updateCupping(id: string, coffeeId: string, formData: FormData): Promise<void> {
+  const parsed = cuppingSchema.safeParse({
+    coffeeId,
+    cuppedAt: nullish(formData.get("cuppedAt")),
+    doseG: nullish(formData.get("doseG")),
+    waterG: nullish(formData.get("waterG")),
+    grind: nullish(formData.get("grind")),
+    grinder: nullish(formData.get("grinder")),
+    grindClicks: nullish(formData.get("grindClicks")),
+    notes: nullish(formData.get("notes")),
+    hotNotes: nullish(formData.get("hotNotes")),
+    warmNotes: nullish(formData.get("warmNotes")),
+    coldNotes: nullish(formData.get("coldNotes")),
+  });
+  if (!parsed.success) return;
+  const d = parsed.data;
+  const db = await createClient();
+  const { error } = await db.from("cuppings").update({
+    cupped_at: d.cuppedAt ? cuppedAtIso(d.cuppedAt) : undefined,
+    dose_g: d.doseG, water_g: d.waterG, grind: d.grind,
+    grinder: d.grinder, grind_clicks: d.grindClicks, notes: d.notes,
+    hot_notes: d.hotNotes, warm_notes: d.warmNotes, cold_notes: d.coldNotes,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) return;
+  revalidatePath(`/coffees/${coffeeId}`);
+  redirect(`/coffees/${coffeeId}`);
+}
+
+export async function deleteCupping(id: string, coffeeId: string): Promise<void> {
+  const db = await createClient();
+  const { error } = await db.from("cuppings").delete().eq("id", id);
+  if (error) return;
+  revalidatePath(`/coffees/${coffeeId}`);
+  redirect(`/coffees/${coffeeId}`);
 }
 
 // --- Development seed -------------------------------------------------------

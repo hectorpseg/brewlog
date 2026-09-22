@@ -2,7 +2,7 @@
 // states exactly what dies, what survives, and what gets unlinked — records
 // are never silently orphaned.
 
-export type DeletionKind = "coffee" | "brew" | "session" | "experiment";
+export type DeletionKind = "coffee" | "brew" | "session" | "experiment" | "cupping";
 
 export function describeDeletion(
   kind: DeletionKind,
@@ -34,6 +34,12 @@ export function describeDeletion(
         title: "Delete this experiment?",
         body: "The linked brew is kept. This cannot be undone.",
         confirm: "Delete experiment",
+      };
+    case "cupping":
+      return {
+        title: "Delete this cupping?",
+        body: "Only this tasting record is removed. The coffee and its brews are kept. This cannot be undone.",
+        confirm: "Delete cupping",
       };
   }
 }
