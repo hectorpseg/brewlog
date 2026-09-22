@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isFutureDateString } from "@/lib/domain/brew-date";
 
 // ponytail: form fields arrive as "" when cleared. Without this, coerce turns
 // "" into 0/NaN and every *optional* numeric behaves as required-or-crashing.
@@ -6,13 +7,16 @@ import { z } from "zod";
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 const optNum = (schema: z.ZodTypeAny) => z.preprocess(emptyToUndefined, schema.nullish());
 
+// Historical logging never records future dates. Non-date free text (e.g. an
+// old received-date note) passes through; ISO days must not be in the future.
+
 // Unknown stays unknown: everything optional except identifiers.
 export const coffeeSchema = z.object({
   name: z.string().min(1, "Name is required").max(120),
   origin: z.string().max(120).nullish(),
   process: z.string().max(120).nullish(),
   roastDate: z.string().max(20).nullish(),
-  receivedDate: z.string().max(20).nullish(),
+  receivedDate: z.preprocess(emptyToUndefined, z.string().max(20).refine((s) => !isFutureDateString(s), "Received date cannot be in the future").nullish()),
   initialWeightG: optNum(z.coerce.number().positive().max(5000)),
   remainingWeightG: optNum(z.coerce.number().min(0).max(5000)),
   notes: z.string().max(2000).nullish(),
@@ -26,7 +30,7 @@ export const brewSchema = z.object({
   doseG: z.coerce.number().positive().max(200),
   waterG: z.coerce.number().positive().max(2000),
   // preparation date, distinct from created_at: "2026-09-21" from <input type="date">
-  brewedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid brew date").nullish()),
+  brewedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid brew date").refine((s) => !isFutureDateString(s), "Brew date cannot be in the future").nullish()),
   tempC: optNum(z.coerce.number().min(50).max(100)),
   grindClicks: optNum(z.coerce.number().int().min(0).max(300)),
   grinder: z.string().max(80).nullish(),
@@ -108,7 +112,7 @@ export type CompetitionSettingsInput = z.infer<typeof competitionSettingsSchema>
 // readable for old rows. Sensory rides on hot/warm/cold + notes.
 export const cuppingSchema = z.object({
   coffeeId: z.string().uuid(),
-  cuppedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date").nullish()),
+  cuppedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date").refine((s) => !isFutureDateString(s), "Cupping date cannot be in the future").nullish()),
   doseG: optNum(z.coerce.number().positive().max(200)),
   waterG: optNum(z.coerce.number().positive().max(2000)),
   grind: z.string().max(80).nullish(),

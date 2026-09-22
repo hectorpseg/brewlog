@@ -6,7 +6,7 @@ import { draftKey } from "@/lib/drafts/local-store";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { splitSeconds, toSeconds } from "@/lib/domain/brew-time";
-import { toDateInputValue } from "@/lib/domain/brew-date";
+import { defaultBrewedDate, toDateInputValue } from "@/lib/domain/brew-date";
 import { SaveStateBadge } from "@/components/save-state";
 
 const SENSORY = ["acidity", "sweetness", "body", "clarity", "bitterness", "astringency", "intensity", "balance", "finish"] as const;
@@ -101,7 +101,7 @@ export function BrewEditor({ userId, brew, observation, sessions }: {
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Dose g</Label><Input value={form.doseG} inputMode="decimal" onChange={(e) => set("doseG", e.target.value)} /></div>
           <div><Label>Water g</Label><Input value={form.waterG} inputMode="decimal" onChange={(e) => set("waterG", e.target.value)} /></div>
-          <div><Label>Brew date</Label><Input type="date" value={form.brewedAt ?? ""} onChange={(e) => set("brewedAt", e.target.value)} /></div>
+          <div><Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} value={form.brewedAt ?? ""} onChange={(e) => set("brewedAt", e.target.value)} /></div>
           <div><Label>Temp C</Label><Input value={form.tempC} inputMode="decimal" onChange={(e) => set("tempC", e.target.value)} /></div>
           <div><Label>Grind clicks</Label><Input value={form.grindClicks} inputMode="numeric" onChange={(e) => set("grindClicks", e.target.value)} /></div>
         </div>
@@ -144,7 +144,7 @@ export function BrewEditor({ userId, brew, observation, sessions }: {
         </Card>
       </details>
       <details open>
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Observations — what you perceived, never a diagnosis</summary>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Observations - what you perceived, never a diagnosis</summary>
         <Card>
           <form onSubmit={saveSensory}>
           <div className="grid grid-cols-2 gap-3">
@@ -152,7 +152,7 @@ export function BrewEditor({ userId, brew, observation, sessions }: {
               <div key={k}>
                 <Label htmlFor={`obs-${k}`}>{k}</Label>
                 <Select id={`obs-${k}`} value={form[k] ?? ""} onChange={(e) => set(k, e.target.value)}>
-                  {LEVELS.map((l) => <option key={l} value={l}>{l === "" ? "—" : l}</option>)}
+                  {LEVELS.map((l) => <option key={l} value={l}>{l === "" ? "-" : l}</option>)}
                 </Select>
               </div>
             ))}

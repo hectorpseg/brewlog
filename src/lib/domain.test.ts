@@ -14,7 +14,7 @@ describe("ratio", () => {
   it("returns null on invalid input", () => {
     expect(brewRatio(0, 225)).toBeNull();
     expect(brewRatio(-1, 225)).toBeNull();
-    expect(formatRatio(0, 0)).toBe("—");
+    expect(formatRatio(0, 0)).toBe("-");
   });
 });
 

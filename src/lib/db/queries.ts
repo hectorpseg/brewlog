@@ -177,3 +177,15 @@ export async function listCuppings(coffeeId: string) {
   if (error) throw new Error(error.message);
   return data;
 }
+
+// Cuppings index: every tasting with its coffee, newest first.
+export async function listAllCuppings() {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("cuppings")
+    .select("*, coffees(id, name)")
+    .order("cupped_at", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data;
+}

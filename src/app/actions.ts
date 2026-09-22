@@ -147,6 +147,8 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
 
 export async function updateBrew(id: string, patch: Record<string, string | undefined>) {
   const { toBrewUpdateRow } = await import("@/lib/db/brew-update");
+  const { isFutureDateString } = await import("@/lib/domain/brew-date");
+  if (isFutureDateString(patch.brewedAt)) return { error: "Brew date cannot be in the future" };
   const db = await createClient();
   const fields = toBrewUpdateRow(patch);
   if (Object.keys(fields).length === 0) return;

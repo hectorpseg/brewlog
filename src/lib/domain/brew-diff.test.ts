@@ -41,8 +41,8 @@ describe("toComparableBrew", () => {
 
   it("marks missing values as unknown, identically on both sides", () => {
     const c = toComparableBrew({ ...base, temp_c: null, observations: [] });
-    expect(c.Temperature).toBe("—");
-    expect(c.Acidity).toBe("—");
+    expect(c.Temperature).toBe("-");
+    expect(c.Acidity).toBe("-");
   });
 });
 

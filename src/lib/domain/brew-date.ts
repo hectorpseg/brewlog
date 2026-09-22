@@ -24,9 +24,9 @@ export function defaultBrewedDate(d = new Date()): string {
 
 // Stored instant → "Sep 21". Time-of-day is never shown: this is a day field.
 export function formatBrewDate(iso?: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return "—";
+  if (!Number.isFinite(t)) return "-";
   return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
@@ -36,6 +36,12 @@ export function formatReceived(v?: string | null): string {
   if (v == null || v === "") return "unknown";
   if (DATE_RE.test(v)) return formatBrewDate(`${v}T12:00:00.000Z`);
   return v;
+}
+
+// Historical logging never accepts future dates. Compares calendar-day
+// strings so "today" is allowed in every timezone.
+export function isFutureDateString(s: unknown): boolean {
+  return typeof s === "string" && DATE_RE.test(s) && s > defaultBrewedDate();
 }
 
 // Stored instant → "2026-09-21" for <input type="date"> values.

@@ -8,7 +8,7 @@ import { formatDuration } from "@/lib/domain/brew-time";
 export type BrewRow = Record<string, unknown>;
 
 function str(v: unknown): string {
-  if (v == null || v === "") return "—";
+  if (v == null || v === "") return "-";
   return String(v);
 }
 
@@ -28,18 +28,18 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
   return {
     Coffee: (coffee?.name as string) ?? "Unknown coffee",
     Session: (session?.title as string) ?? "No session",
-    Dose: brew.dose_g != null ? `${brew.dose_g} g` : "—",
-    Water: brew.water_g != null ? `${brew.water_g} g` : "—",
-    Ratio: ratio == null ? "—" : `1:${ratio}`,
-    Temperature: brew.temp_c != null && brew.temp_c !== "" ? `${brew.temp_c}°C` : "—",
-    Grind: brew.grind_clicks != null && brew.grind_clicks !== "" ? `${brew.grind_clicks} clicks` : "—",
+    Dose: brew.dose_g != null ? `${brew.dose_g} g` : "-",
+    Water: brew.water_g != null ? `${brew.water_g} g` : "-",
+    Ratio: ratio == null ? "-" : `1:${ratio}`,
+    Temperature: brew.temp_c != null && brew.temp_c !== "" ? `${brew.temp_c}°C` : "-",
+    Grind: brew.grind_clicks != null && brew.grind_clicks !== "" ? `${brew.grind_clicks} clicks` : "-",
     Grinder: str(brew.grinder),
     Dripper: str(brew.dripper),
     Filter: str(brew.filter),
     "Water source": str(brew.water_source),
-    Pours: brew.pour_count != null && brew.pour_count !== "" ? `${brew.pour_count}` : "—",
-    "Brew time": time ?? "—",
-    "Final beverage": brew.final_beverage_g != null && brew.final_beverage_g !== "" ? `${brew.final_beverage_g} g` : "—",
+    Pours: brew.pour_count != null && brew.pour_count !== "" ? `${brew.pour_count}` : "-",
+    "Brew time": time ?? "-",
+    "Final beverage": brew.final_beverage_g != null && brew.final_beverage_g !== "" ? `${brew.final_beverage_g} g` : "-",
     "Process notes": str(brew.notes),
     Acidity: str(obs.acidity),
     Sweetness: str(obs.sweetness),

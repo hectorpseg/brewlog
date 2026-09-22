@@ -7,5 +7,5 @@ export function brewRatio(doseG: number, waterG: number): number | null {
 
 export function formatRatio(doseG: number, waterG: number): string {
   const r = brewRatio(doseG, waterG);
-  return r == null ? "—" : `1:${r}`;
+  return r == null ? "-" : `1:${r}`;
 }
