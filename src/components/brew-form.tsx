@@ -48,6 +48,9 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
     resolver: zodResolver(newBrewFormSchema) as unknown as Resolver<NewBrewFormInput>,
     defaultValues: defaults(recipeFrom, initialCoffeeId),
   });
+  // react-hook-form sits outside the compiler's memoization model on purpose:
+  // this form re-renders per keystroke by design, so there is nothing to memoize.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const values = form.watch();
   const key = draftKey(userId, "brew", recipeFrom ? `copy-${(recipeFrom as { id?: string }).id ?? "new"}` : "new");
 
