@@ -1,56 +1,51 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { loginUrl } from "@/lib/auth";
-import { getBrew, listBrews } from "@/lib/db/queries";
+import { getBrew, listBrewIds } from "@/lib/db/queries";
+import { requireUser } from "@/lib/supabase/require-user";
 import { diffBrews } from "@/lib/domain/compare";
 import { resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
-import { formatRatio } from "@/lib/domain/ratio";
-import { formatBrewDate } from "@/lib/domain/brew-date";
 import { Card, SectionHeader } from "@/components/ui/controls";
-import { CompareSelectors } from "@/components/compare-selectors";
 import { ErrorState } from "@/components/states";
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string }> }) {
-  const db = await createClient();
-  const { data } = await db.auth.getUser();
-  if (!data.user) redirect(loginUrl("/brews"));
+  await requireUser("/brews/compare");
   const sp = await searchParams;
-  // one list query feeds the selectors; the two compared brews load targeted.
-  const all = await listBrews().catch(() => []);
-  const options = all.map((b: {
-    id: string; dose_g: number; water_g: number; brewed_at: string | null;
-    created_at: string; coffees: { name: string } | { name: string }[] | null;
-  }) => {
-    const coffee = Array.isArray(b.coffees) ? b.coffees[0]?.name : b.coffees?.name;
-    return {
-      id: b.id,
-      label: `${formatRatio(Number(b.dose_g), Number(b.water_g))} · ${coffee ?? "Coffee"} · ${formatBrewDate(b.brewed_at ?? b.created_at)}`,
-    };
-  });
-  const ids = options.map((o) => o.id);
-  // defaults: latest two. Explicit params win when they point at real brews.
-  const resolved = resolveCompareIds(ids, sp.a, sp.b);
-  if (!resolved) {
-    return (
-      <ErrorState
-        title="Need two brews"
-        body="Log at least two brews before comparing."
-        backHref="/brews"
-        backLabel="Back to brews"
-      />
-    );
-  }
-  const { aId, bId } = resolved;
-  const [rawA, rawB] = await Promise.all([getBrew(aId).catch(() => null), getBrew(bId).catch(() => null)]);
+  // Common path (dropdown change, deep link): fetch exactly the two compared
+  // brews. The 50-row selector dataset lives in the layout and is not
+  // reloaded here. Identical ?a=&b= collapses to A-only so B re-derives.
+  const wantA = sp.a ?? null;
+  const wantB = sp.b && sp.b !== sp.a ? sp.b : null;
+  const [firstA, firstB] = await Promise.all([
+    wantA ? getBrew(wantA).catch(() => null) : Promise.resolve(null),
+    wantB ? getBrew(wantB).catch(() => null) : Promise.resolve(null),
+  ]);
+  let rawA = firstA;
+  let rawB = firstB;
   if (!rawA || !rawB) {
-    return (
-      <ErrorState
-        title="Brews not found"
-        body="One of them may have been deleted."
-        backHref="/brews"
-        backLabel="Back to brews"
-      />
-    );
+    // Missing params or a stale/deleted id: fall back like before, keeping
+    // whichever side (if any) still resolves. The id list is scalars only.
+    const ids = await listBrewIds().catch(() => [] as string[]);
+    const resolved = resolveCompareIds(ids, rawA ? wantA : null, rawB ? wantB : null);
+    if (!resolved) {
+      return (
+        <ErrorState
+          title="Need two brews"
+          body="Log at least two brews before comparing."
+          backHref="/brews"
+          backLabel="Back to brews"
+        />
+      );
+    }
+    const { aId, bId } = resolved;
+    [rawA, rawB] = await Promise.all([getBrew(aId).catch(() => null), getBrew(bId).catch(() => null)]);
+    if (!rawA || !rawB) {
+      return (
+        <ErrorState
+          title="Brews not found"
+          body="One of them may have been deleted."
+          backHref="/brews"
+          backLabel="Back to brews"
+        />
+      );
+    }
   }
   // ponytail: relations resolved to names before diffing — the diff only ever
   // sees scalar strings, so UUIDs and [object Object] cannot reach the UI.
@@ -60,13 +55,11 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="font-display text-2xl">Compare</h1>
         <p className="tnum mt-1 text-sm text-ink2">
           {a.Coffee} · {a.Ratio} → {b.Ratio}
           {" · "}{diff.changed.length} change{diff.changed.length === 1 ? "" : "s"}
         </p>
       </div>
-      <CompareSelectors brews={options} aId={aId} bId={bId} />
       <div>
         <SectionHeader>What changed</SectionHeader>
         {diff.changed.length === 0 ? (

@@ -1,4 +1,5 @@
-import { brewRatio } from "@/lib/domain/ratio";
+import { brewRatio, formatRatio } from "@/lib/domain/ratio";
+import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatDuration } from "@/lib/domain/brew-time";
 
 // ponytail: compare works on pre-resolved scalar strings, never on joined rows.
@@ -53,6 +54,24 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
     "Warm notes": str(obs.warm_notes),
     "Cold notes": str(obs.cold_notes),
     "Tasting notes": str(obs.freeform_notes),
+  };
+}
+
+// Selector option for the compare dropdowns: ratio · coffee · day.
+export type CompareOptionRow = {
+  id: string;
+  dose_g: number;
+  water_g: number;
+  brewed_at: string | null;
+  created_at: string;
+  coffees: { name: string } | { name: string }[] | null;
+};
+
+export function toCompareOption(b: CompareOptionRow): { id: string; label: string } {
+  const coffee = Array.isArray(b.coffees) ? b.coffees[0]?.name : b.coffees?.name;
+  return {
+    id: b.id,
+    label: `${formatRatio(Number(b.dose_g), Number(b.water_g))} · ${coffee ?? "Coffee"} · ${formatBrewDate(b.brewed_at ?? b.created_at)}`,
   };
 }
 
