@@ -1,27 +1,20 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { loginUrl } from "@/lib/auth";
+import { requireUser } from "@/lib/supabase/require-user";
 import { listSessions } from "@/lib/db/queries";
-import { createSession } from "@/app/actions";
-import { Button, Card, Input, Label, SectionHeader, Textarea } from "@/components/ui/controls";
+import { Card, SectionHeader } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import Link from "next/link";
 
 export default async function SessionsPage() {
-  const db = await createClient();
-  const { data } = await db.auth.getUser();
-  if (!data.user) redirect(loginUrl("/sessions"));
+  await requireUser("/sessions");
   const sessions = await listSessions().catch(() => null);
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="font-display text-2xl">Sessions</h1>
-      <Card>
-        <form action={createSession} className="flex flex-col gap-3">
-          <div><Label>Title *</Label><Input name="title" required maxLength={120} placeholder="e.g. Phase 1 Origami exploration" /></div>
-          <div><Label>Notes</Label><Textarea name="notes" rows={2} /></div>
-          <Button>Save session</Button>
-        </form>
-      </Card>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-2xl">Sessions</h1>
+        <Link href="/sessions/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">
+          + Session
+        </Link>
+      </div>
       <div>
         <SectionHeader>Past sessions</SectionHeader>
         {sessions === null ? (
@@ -29,10 +22,10 @@ export default async function SessionsPage() {
         ) : sessions.length === 0 ? (
           <div className="mt-2">
             <EmptyState
-              title="No sessions yet"
-              body="Group related brews — a cupping, an exploration phase, a filter test."
-              actionHref="/brews"
-              actionLabel="Go to brews"
+              title="No sessions yet."
+              body="Use a session to group related experiments."
+              actionHref="/sessions/new"
+              actionLabel="Create session"
             />
           </div>
         ) : (
