@@ -1,9 +1,9 @@
-import Link from "next/link";
+"use client";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
-import { Card } from "./ui/controls";
+import { EntityCard } from "./entity-card";
 import { cn } from "./ui/utils";
 
 export type BrewCardData = {
@@ -37,8 +37,7 @@ export function BrewCard({ brew, action, showCoffee = true }: {
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
   return (
     <div>
-      <Link href={`/brews/${brew.id}`} aria-label={`Brew ${formatRatio(dose, water)}`}>
-        <Card>
+      <EntityCard href={`/brews/${brew.id}`} label={`Brew ${formatRatio(dose, water)}`}>
           <div className="tnum text-xs text-ink3">{formatBrewDate(brew.brewed_at ?? brew.created_at)}</div>
           <div className="font-display text-3xl leading-none">{formatRatio(dose, water)}</div>
           <div className="tnum mt-1 text-sm text-ink2">
@@ -57,8 +56,7 @@ export function BrewCard({ brew, action, showCoffee = true }: {
             {BREW_LIFECYCLE_LABEL[status]}
             {warnings.length > 0 ? ` · ${warnings.join(" · ")}` : ""}
           </div>
-        </Card>
-      </Link>
+      </EntityCard>
       {action}
     </div>
   );
