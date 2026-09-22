@@ -373,14 +373,30 @@ export async function createCupping(formData: FormData): Promise<void> {
   });
   if (!parsed.success) return;
   const d = parsed.data;
+  const { remainingAfter } = await import("@/lib/domain/inventory");
   const db = await createClient();
-  const { error } = await db.from("cuppings").insert({
+  const { data: inserted, error } = await db.from("cuppings").insert({
     coffee_id: d.coffeeId, cupped_at: cuppedAtIso(d.cuppedAt),
     dose_g: d.doseG, water_g: d.waterG, grind: d.grind,
     grinder: d.grinder, grind_clicks: d.grindClicks, notes: d.notes,
     hot_notes: d.hotNotes, warm_notes: d.warmNotes, cold_notes: d.coldNotes,
-  });
-  if (error) return;
+  }).select("id").single();
+  if (error || !inserted) return;
+  // tasting consumes coffee like brewing does: same advisory decrement,
+  // clamped at zero, skipped when remaining is unknown.
+  if (d.doseG != null) {
+    const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
+    if (coffee?.remaining_weight_g != null) {
+      const { error: invError } = await db.from("coffees").update({
+        remaining_weight_g: Math.max(0, remainingAfter(Number(coffee.remaining_weight_g), Number(d.doseG))),
+      }).eq("id", d.coffeeId);
+      if (invError) {
+        // compensate: no cupping without its inventory move
+        await db.from("cuppings").delete().eq("id", inserted.id);
+        return;
+      }
+    }
+  }
   revalidatePath(`/coffees/${d.coffeeId}`);
   redirect(`/coffees/${d.coffeeId}`);
 }
@@ -401,7 +417,21 @@ export async function updateCupping(id: string, coffeeId: string, formData: Form
   });
   if (!parsed.success) return;
   const d = parsed.data;
+  const { applyInventoryDelta, cuppingDoseDelta } = await import("@/lib/domain/inventory");
   const db = await createClient();
+  // read the old dose first (RLS-scoped): inventory moves by the delta only
+  const { data: current } = await db.from("cuppings").select("dose_g").eq("id", id).single();
+  if (!current) return;
+  const delta = cuppingDoseDelta(current.dose_g, d.doseG);
+  if (delta !== 0) {
+    const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
+    if (coffee?.remaining_weight_g != null) {
+      const { error: invError } = await db.from("coffees").update({
+        remaining_weight_g: applyInventoryDelta(Number(coffee.remaining_weight_g), delta),
+      }).eq("id", d.coffeeId);
+      if (invError) return;
+    }
+  }
   const { error } = await db.from("cuppings").update({
     cupped_at: d.cuppedAt ? cuppedAtIso(d.cuppedAt) : undefined,
     dose_g: d.doseG, water_g: d.waterG, grind: d.grind,
@@ -409,15 +439,53 @@ export async function updateCupping(id: string, coffeeId: string, formData: Form
     hot_notes: d.hotNotes, warm_notes: d.warmNotes, cold_notes: d.coldNotes,
     updated_at: new Date().toISOString(),
   }).eq("id", id);
-  if (error) return;
+  if (error) {
+    // reverse the inventory move when the row update did not persist
+    if (delta !== 0) {
+      const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
+      if (coffee?.remaining_weight_g != null) {
+        await db.from("coffees").update({
+          remaining_weight_g: applyInventoryDelta(Number(coffee.remaining_weight_g), -delta),
+        }).eq("id", d.coffeeId);
+      }
+    }
+    return;
+  }
   revalidatePath(`/coffees/${coffeeId}`);
   redirect(`/coffees/${coffeeId}`);
 }
 
 export async function deleteCupping(id: string, coffeeId: string): Promise<void> {
+  const { restoredAfter } = await import("@/lib/domain/inventory");
   const db = await createClient();
+  // read the dose first (RLS-scoped): deleting hands the coffee back, exactly
+  // what this cupping consumed — never derived from current stock.
+  const { data: cupping } = await db.from("cuppings").select("dose_g, coffee_id").eq("id", id).single();
+  if (!cupping) return;
+  const dose = Number((cupping.dose_g as number | null) ?? 0);
+  const ownerId = (cupping.coffee_id as string) ?? coffeeId;
+  if (dose > 0) {
+    const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", ownerId).single();
+    if (coffee?.remaining_weight_g != null) {
+      const { error: invError } = await db.from("coffees").update({
+        remaining_weight_g: restoredAfter(Number(coffee.remaining_weight_g), dose),
+      }).eq("id", ownerId);
+      if (invError) return;
+    }
+  }
   const { error } = await db.from("cuppings").delete().eq("id", id);
-  if (error) return;
+  if (error) {
+    // reverse the restore when the delete did not happen
+    if (dose > 0) {
+      const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", ownerId).single();
+      if (coffee?.remaining_weight_g != null) {
+        await db.from("coffees").update({
+          remaining_weight_g: Math.max(0, Number(coffee.remaining_weight_g) - dose),
+        }).eq("id", ownerId);
+      }
+    }
+    return;
+  }
   revalidatePath(`/coffees/${coffeeId}`);
   redirect(`/coffees/${coffeeId}`);
 }

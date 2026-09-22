@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { brewRatio, formatRatio } from "@/lib/domain/ratio";
-import { remainingAfter, restoredAfter, exceedsRemaining } from "@/lib/domain/inventory";
+import { applyInventoryDelta, cuppingDoseDelta, remainingAfter, restoredAfter, exceedsRemaining } from "@/lib/domain/inventory";
 import { diffBrews } from "@/lib/domain/compare";
 import { coffeeSchema, brewSchema } from "@/lib/validation/schemas";
 import { autosaveReducer } from "@/lib/drafts/store";
@@ -29,6 +29,43 @@ describe("inventory", () => {
   it("warns without blocking", () => {
     expect(exceedsRemaining(10, 15)).toBe(true);
     expect(exceedsRemaining(137, 15)).toBe(false);
+  });
+});
+
+describe("cupping inventory", () => {
+  it("create consumes the dose: 200 - 15 = 185", () => {
+    expect(applyInventoryDelta(200, -15)).toBe(185);
+  });
+  it("delete restores exactly what the cupping consumed: 185 + 15 = 200", () => {
+    expect(cuppingDoseDelta(15, null)).toBe(15);
+    expect(applyInventoryDelta(185, cuppingDoseDelta(15, null))).toBe(200);
+  });
+  it("increasing the dose consumes only the difference: 15 -> 20 takes 5 more", () => {
+    expect(cuppingDoseDelta(15, 20)).toBe(-5);
+    expect(applyInventoryDelta(185, -5)).toBe(180);
+  });
+  it("decreasing the dose restores only the difference: 20 -> 15 gives 5 back", () => {
+    expect(cuppingDoseDelta(20, 15)).toBe(5);
+    expect(applyInventoryDelta(180, 5)).toBe(185);
+  });
+  it("editing unrelated fields (same dose) moves nothing", () => {
+    expect(cuppingDoseDelta(15, 15)).toBe(0);
+    expect(cuppingDoseDelta(null, null)).toBe(0);
+    expect(cuppingDoseDelta(null, undefined)).toBe(0);
+  });
+  it("null doses count as zero on either side", () => {
+    expect(cuppingDoseDelta(null, 10)).toBe(-10);
+    expect(cuppingDoseDelta(10, null)).toBe(10);
+    expect(cuppingDoseDelta("15", 20)).toBe(-5);
+  });
+  it("never goes negative: insufficient coffee clamps at zero, advisory like brews", () => {
+    expect(applyInventoryDelta(10, -15)).toBe(0);
+    expect(applyInventoryDelta(0, -15)).toBe(0);
+    expect(exceedsRemaining(10, 15)).toBe(true);
+  });
+  it("delta application is exactly reversible (failed writes roll back cleanly)", () => {
+    const after = applyInventoryDelta(185, -5);
+    expect(applyInventoryDelta(after, 5)).toBe(185);
   });
 });
 
