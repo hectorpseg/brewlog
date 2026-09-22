@@ -7,7 +7,7 @@ import { TriangleAlert } from "lucide-react";
 import { newBrewFormSchema, type NewBrewFormInput } from "@/lib/validation/schemas";
 import { splitSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate, formatReceived } from "@/lib/domain/brew-date";
-import { COMPETITION_DEFAULTS } from "@/lib/domain/defaults";
+import { recipeStartingValues } from "@/lib/domain/recipe-start";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
@@ -30,48 +30,26 @@ type Props = {
   sessions: { id: string; title: string }[];
   minBeverageG: number | null;
   initialCoffeeId?: string;
-  copyFrom?: Record<string, unknown> | null;
+  recipeFrom?: Record<string, unknown> | null;
 };
 
-function defaults(copyFrom?: Record<string, unknown> | null, coffeeId?: string): NewBrewFormInput {
-  const c = (copyFrom ?? {}) as Record<string, string | number | undefined>;
-  const copied = splitSeconds(c.total_time_sec != null ? Number(c.total_time_sec) : undefined);
-  return {
-    coffeeId: (c.coffee_id as string) ?? coffeeId ?? "",
-    // a copy is a new preparation: the brew date always starts at today
-    brewedAt: defaultBrewedDate(),
-    // tasting notes never copy: each brew is tasted fresh
-    sessionId: (c.session_id as string) ?? undefined,
-    doseG: Number(c.dose_g ?? COMPETITION_DEFAULTS.doseG),
-    waterG: Number(c.water_g ?? COMPETITION_DEFAULTS.waterG),
-    tempC: c.temp_c != null ? Number(c.temp_c) : COMPETITION_DEFAULTS.tempC,
-    grindClicks: c.grind_clicks != null ? Number(c.grind_clicks) : COMPETITION_DEFAULTS.grindClicks,
-    grinder: (c.grinder as string) ?? COMPETITION_DEFAULTS.grinder,
-    dripper: (c.dripper as string) ?? COMPETITION_DEFAULTS.dripper,
-    filter: (c.filter as string) ?? COMPETITION_DEFAULTS.filter,
-    waterSource: (c.water_source as string) ?? COMPETITION_DEFAULTS.waterSource,
-    pourCount: c.pour_count != null ? Number(c.pour_count) : COMPETITION_DEFAULTS.pourCount,
-    brewTimeMin: copied.minutes,
-    brewTimeSec: copied.seconds,
-    finalBeverageG: c.final_beverage_g != null ? Number(c.final_beverage_g) : undefined,
-    notes: (c.notes as string) ?? undefined,
-    hotNotes: undefined,
-    warmNotes: undefined,
-    coldNotes: undefined,
-    freeformNotes: undefined,
-  };
+function defaults(recipeFrom?: Record<string, unknown> | null, coffeeId?: string): NewBrewFormInput {
+  return recipeStartingValues(
+    (recipeFrom ?? null) as Record<string, string | number | undefined> | null,
+    coffeeId ?? "",
+  );
 }
 
-export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffeeId, copyFrom }: Props) {
+export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffeeId, recipeFrom }: Props) {
   const router = useRouter();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<NewBrewFormInput>({
     // ponytail: zodResolver only here (complex form); simple forms use server actions
     resolver: zodResolver(newBrewFormSchema) as unknown as Resolver<NewBrewFormInput>,
-    defaultValues: defaults(copyFrom, initialCoffeeId),
+    defaultValues: defaults(recipeFrom, initialCoffeeId),
   });
   const values = form.watch();
-  const key = draftKey(userId, "brew", copyFrom ? `copy-${(copyFrom as { id?: string }).id ?? "new"}` : "new");
+  const key = draftKey(userId, "brew", recipeFrom ? `copy-${(recipeFrom as { id?: string }).id ?? "new"}` : "new");
 
   const { state, retry } = useAutosave({
     key,
@@ -139,7 +117,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
         </div>
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
-      {copyFrom ? <Card><p className="text-sm text-ink2">Copied from the last brew — change only what changed.</p></Card> : null}
+      {recipeFrom ? <Card><p className="text-sm text-ink2">Starting from the last recipe — change only what changed.</p></Card> : null}
       <Card>
         <Label htmlFor="coffeeId">Coffee *</Label>
         <Select id="coffeeId" {...form.register("coffeeId")}>
