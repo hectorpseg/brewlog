@@ -1,17 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { loginUrl } from "@/lib/auth";
+import { requireUser } from "@/lib/supabase/require-user";
 import { listCoffees } from "@/lib/db/queries";
-import { logout, resetDevData, seedDevData } from "@/app/actions";
+import { resetDevData, seedDevData } from "@/app/actions";
 import { Button, Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 
 export default async function CoffeesPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const db = await createClient();
-  const { data } = await db.auth.getUser();
-  if (!data.user) redirect(loginUrl("/coffees"));
+  await requireUser("/coffees");
   const sp = await searchParams;
   const coffees = await listCoffees().catch(() => null);
   const devSeed = process.env.ALLOW_DEV_SEED === "true";
@@ -19,10 +15,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl">Coffees</h1>
-        <div className="flex gap-2">
-          <Link href="/coffees/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">+ Coffee</Link>
-          <form action={logout}><Button variant="ghost">Out</Button></form>
-        </div>
+        <Link href="/coffees/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">+ Coffee</Link>
       </div>
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
@@ -42,10 +35,10 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
         <Card><p className="text-sm">Supabase is not reachable. Check your connection, then reload.</p></Card>
       ) : coffees.length === 0 ? (
         <EmptyState
-          title="No coffees yet"
-          body="Log your first bag to start the notebook. Origin and process can stay unknown."
+          title="No coffees yet."
+          body="Add a coffee to start logging brews."
           actionHref="/coffees/new"
-          actionLabel="+ Log first coffee"
+          actionLabel="+ Coffee"
         />
       ) : (
         <ul className="flex flex-col gap-2">
