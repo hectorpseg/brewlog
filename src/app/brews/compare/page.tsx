@@ -80,9 +80,20 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       </div>
       <div>
         <SectionHeader>What stayed the same</SectionHeader>
-        <p className="tnum mt-2 text-sm text-ink2">
-          {diff.same.join(" · ") || "nothing"}
-        </p>
+        {diff.same.length === 0 ? (
+          <p className="mt-2 text-sm text-ink2">Nothing - every attribute differs.</p>
+        ) : (
+          <Card className="mt-2">
+            <ul className="flex flex-col gap-2 text-sm">
+              {diff.same.map((k) => (
+                <li key={k} className="tnum flex items-baseline justify-between gap-2">
+                  <span className="text-ink2">{k}</span>
+                  <span className="text-right font-medium">{a[k]}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
     </div>
   );

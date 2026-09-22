@@ -57,7 +57,7 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
   };
 }
 
-// Selector option for the compare dropdowns: ratio · coffee · day.
+// Selector option for the compare dropdowns: ratio · coffee · day · session.
 export type CompareOptionRow = {
   id: string;
   dose_g: number;
@@ -65,14 +65,19 @@ export type CompareOptionRow = {
   brewed_at: string | null;
   created_at: string;
   coffees: { name: string } | { name: string }[] | null;
+  sessions: { title: string } | { title: string }[] | null;
 };
 
 export function toCompareOption(b: CompareOptionRow): { id: string; label: string } {
   const coffee = Array.isArray(b.coffees) ? b.coffees[0]?.name : b.coffees?.name;
-  return {
-    id: b.id,
-    label: `${formatRatio(Number(b.dose_g), Number(b.water_g))} · ${coffee ?? "Coffee"} · ${formatBrewDate(b.brewed_at ?? b.created_at)}`,
-  };
+  const session = Array.isArray(b.sessions) ? b.sessions[0]?.title : b.sessions?.title;
+  const parts = [
+    formatRatio(Number(b.dose_g), Number(b.water_g)),
+    coffee ?? "Coffee",
+    formatBrewDate(b.brewed_at ?? b.created_at),
+  ];
+  if (session) parts.push(session);
+  return { id: b.id, label: parts.join(" · ") };
 }
 
 // URL state for independent selection: explicit params win when they point at

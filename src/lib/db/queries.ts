@@ -56,12 +56,12 @@ export async function listBrewIds(): Promise<string[]> {
   return (data ?? []).map((b: { id: string }) => b.id);
 }
 
-// Compare selector options: label fields only, no observations/sessions payload.
+// Compare selector options: label fields only, no observations payload.
 export async function listBrewOptions() {
   const db = await createClient();
   const { data, error } = await db
     .from("brews")
-    .select("id, dose_g, water_g, brewed_at, created_at, coffees(name)")
+    .select("id, dose_g, water_g, brewed_at, created_at, coffees(name), sessions(title)")
     .order("brewed_at", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(50);
