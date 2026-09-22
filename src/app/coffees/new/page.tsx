@@ -1,13 +1,9 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { loginUrl } from "@/lib/auth";
+import { requireUser } from "@/lib/supabase/require-user";
 import { createCoffee } from "@/app/actions";
 import { Button, Card, Input, Label, Textarea } from "@/components/ui/controls";
 
 export default async function NewCoffeePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const db = await createClient();
-  const { data } = await db.auth.getUser();
-  if (!data.user) redirect(loginUrl("/coffees/new"));
+  await requireUser("/coffees/new");
   const sp = await searchParams;
   return (
     <div>
