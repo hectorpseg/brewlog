@@ -102,3 +102,21 @@ export const competitionSettingsSchema = z.object({
   minFinalBeverageG: optNum(z.coerce.number().positive().max(2000)),
 });
 export type CompetitionSettingsInput = z.infer<typeof competitionSettingsSchema>;
+
+// Minimal cupping: dated tasting of a coffee. Grinder + clicks are plain
+// fields (never entities), mirroring Brew; legacy free-text `grind` stays
+// readable for old rows. Sensory rides on hot/warm/cold + notes.
+export const cuppingSchema = z.object({
+  coffeeId: z.string().uuid(),
+  cuppedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date").nullish()),
+  doseG: optNum(z.coerce.number().positive().max(200)),
+  waterG: optNum(z.coerce.number().positive().max(2000)),
+  grind: z.string().max(80).nullish(),
+  grinder: z.string().max(80).nullish(),
+  grindClicks: optNum(z.coerce.number().int().min(0).max(300)),
+  notes: z.string().max(2000).nullish(),
+  hotNotes: z.string().max(1000).nullish(),
+  warmNotes: z.string().max(1000).nullish(),
+  coldNotes: z.string().max(1000).nullish(),
+});
+export type CuppingInput = z.infer<typeof cuppingSchema>;

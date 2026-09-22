@@ -27,6 +27,18 @@ test("brew flow persists across reload", async ({ page }) => {
   await page.getByLabel("Name *").fill("E2E Coffee");
   await page.getByRole("button", { name: "Save coffee" }).click();
   await expect(page).toHaveURL(/coffees\//, { timeout: 15_000 });
+  // coffee detail offers "Brew again" (never "Copy last brew")
+  await expect(page.getByRole("link", { name: "Brew again" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Copy last brew" })).toHaveCount(0);
+
+  // coffee edit mode keeps the primary action compact: opening Edit must not
+  // stretch "Brew again" into a tall block beside the form.
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Save coffee" })).toBeVisible();
+  const brewAgainHeight = await page.getByRole("link", { name: "Brew again" }).evaluate(
+    (el) => el.getBoundingClientRect().height,
+  );
+  expect(brewAgainHeight).toBeLessThanOrEqual(60);
 
   await page.goto("/brews/new");
   await page.getByLabel("Coffee *").selectOption({ index: 1 });

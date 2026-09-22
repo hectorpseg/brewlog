@@ -1,15 +1,11 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { loginUrl } from "@/lib/auth";
+import { requireUser } from "@/lib/supabase/require-user";
 import { getCompetitionSettings } from "@/lib/db/queries";
 import { DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
 import { logout, updateCompetitionSettings } from "@/app/actions";
 import { Button, Card, Input, Label, SectionHeader } from "@/components/ui/controls";
 
 export default async function AccountPage() {
-  const db = await createClient();
-  const { data } = await db.auth.getUser();
-  if (!data.user) redirect(loginUrl("/account"));
+  const user = await requireUser("/account");
   const settings = await getCompetitionSettings().catch(() => null);
   const minBeverage = settings?.min_final_beverage_g != null
     ? Number(settings.min_final_beverage_g)
@@ -19,7 +15,7 @@ export default async function AccountPage() {
       <h1 className="font-display text-2xl">Account</h1>
       <Card>
         <div className="text-sm text-ink2">Signed in as</div>
-        <div className="font-medium">{data.user.email}</div>
+        <div className="font-medium">{user.email}</div>
         <form action={logout} className="mt-3">
           <Button variant="ghost">Sign out</Button>
         </form>

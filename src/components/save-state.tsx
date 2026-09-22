@@ -25,7 +25,7 @@ export function SaveStateBadge({ state, onRetry }: { state: SaveState; onRetry?:
         <>
           <span aria-hidden>●</span> Sync failed
           {onRetry ? (
-            <button type="button" onClick={onRetry} className="min-h-8 font-medium underline">
+            <button type="button" onClick={onRetry} className="-my-2 min-h-11 px-2 font-medium underline">
               Retry
             </button>
           ) : null}

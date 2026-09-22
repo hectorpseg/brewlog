@@ -27,7 +27,9 @@ function isSupabaseUrl(url: string): boolean {
 
 // POSTGREST: GET/HEAD = read; POST/PUT/PATCH/DELETE = mutation. supabase-js
 // sends upserts as POST with Prefer: resolution=merge-duplicates — still a mutation.
-function describe(url: string, method: string, route: string): Omit<RequestEntry, "n" | "scope"> {
+// The select columns ride along (truncated) so a slim projection is
+// distinguishable from a full-row reload in the dev console.
+export function describe(url: string, method: string, route: string): Omit<RequestEntry, "n" | "scope"> {
   const path = url.replace(/^https?:\/\/[^/]+/, "");
   if (path.startsWith("/auth/v1/")) {
     return { method, kind: "auth", operation: method, resource: "auth", route };
@@ -35,7 +37,12 @@ function describe(url: string, method: string, route: string): Omit<RequestEntry
   const rest = path.match(/^\/rest\/v1\/([^/?]+)/);
   if (rest) {
     const kind = method === "GET" || method === "HEAD" ? "read" : "mutation";
-    return { method, kind, operation: method, resource: rest[1], route };
+    let resource = rest[1];
+    if (kind === "read") {
+      const select = new URL(url).searchParams.get("select") ?? "";
+      if (select) resource += `[${select.slice(0, 100)}]`;
+    }
+    return { method, kind, operation: method, resource, route };
   }
   if (path.startsWith("/storage/v1/")) {
     const kind = method === "GET" || method === "HEAD" ? "read" : "mutation";

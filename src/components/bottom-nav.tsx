@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleUserRound } from "lucide-react";
 import { cn } from "./ui/utils";
 
 const TABS = [
@@ -10,6 +9,8 @@ const TABS = [
   { href: "/sessions", label: "Sessions" },
 ];
 
+// One interaction language: text destinations, one ember action, one quiet
+// secondary link. No iconography, no bounce — press states only.
 export function BottomNav() {
   const path = usePathname();
   const active = TABS.find((t) => path === t.href || path.startsWith(`${t.href}/`));
@@ -26,7 +27,7 @@ export function BottomNav() {
             href={t.href}
             aria-current={active?.href === t.href ? "page" : undefined}
             className={cn(
-              "min-h-11 px-3 py-2",
+              "min-h-11 px-3 py-2 transition-colors duration-150 active:scale-[0.97]",
               active?.href === t.href ? "font-semibold text-ink" : "text-ink2",
             )}
           >
@@ -35,17 +36,19 @@ export function BottomNav() {
         ))}
         <Link
           href="/brews/new"
-          className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white active:scale-[0.98]"
+          className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white transition-transform duration-150 active:scale-[0.95]"
         >
           + Brew
         </Link>
         <Link
           href="/account"
-          aria-label="Account"
           aria-current={onAccount ? "page" : undefined}
-          className={cn("flex min-h-11 min-w-11 items-center justify-center", onAccount ? "text-ink" : "text-ink2")}
+          className={cn(
+            "min-h-11 px-3 py-2 text-sm transition-colors duration-150 active:scale-[0.97]",
+            onAccount ? "font-semibold text-ink" : "text-ink2",
+          )}
         >
-          <CircleUserRound size={22} aria-hidden />
+          Account
         </Link>
       </div>
     </nav>

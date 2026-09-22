@@ -1,10 +1,13 @@
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { loginUrl } from "@/lib/auth";
-import { getSession, listBrews, listSessionBrews } from "@/lib/db/queries";
+import { notFound } from "next/navigation";
+import { requireUser } from "@/lib/supabase/require-user";
+import { getSession, listBrewCandidates, listSessionBrews } from "@/lib/db/queries";
+import { excludeSessionBrews, formatCandidateLabel, type CandidateRow } from "@/lib/domain/sessions";
 import { deleteSession, moveBrewToSession, updateSession } from "@/app/actions";
-import { Button, Card, Input, Label, SectionHeader, Select, Textarea } from "@/components/ui/controls";
+import { Button, Card, Label, SectionHeader, Select } from "@/components/ui/controls";
 import { DeleteButton } from "@/components/delete-button";
+import { SessionEditor } from "@/components/session-editor";
+import { BackLink } from "@/components/back-link";
+import { InlineConfirm } from "@/components/inline-confirm";
 import { BrewCard } from "@/components/brew-card";
 import { EmptyState } from "@/components/states";
 import { describeDeletion } from "@/lib/domain/deletion";
@@ -22,24 +25,26 @@ type BrewRow = {
 
 export default async function SessionDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = await createClient();
-  const { data } = await db.auth.getUser();
-  if (!data.user) redirect(loginUrl(`/sessions/${id}`));
+  await requireUser(`/sessions/${id}`);
   const session = await getSession(id).catch(() => null);
   if (!session) notFound();
+  // member brews (full rows for cards) + slim candidate rows for the dropdown —
+  // candidates no longer reload the 50-row full join with observations.
   const [brews, allBrews] = await Promise.all([
     listSessionBrews(id).catch(() => [] as BrewRow[]),
-    listBrews().catch(() => [] as BrewRow[]),
+    listBrewCandidates().catch(() => [] as CandidateRow[]),
   ]);
   const update = updateSession.bind(null, id);
-  const candidates = (allBrews as BrewRow[]).filter((b) => b.session_id !== id);
+  const candidates = excludeSessionBrews(allBrews as CandidateRow[], id);
   const del = describeDeletion("session", { brews: brews.length });
   const remove = deleteSession.bind(null, id);
   return (
     <div className="flex flex-col gap-4">
       <div>
+        <BackLink href="/sessions" label="Sessions" />
         <h1 className="font-display text-2xl">{session.title}</h1>
         {session.notes ? <p className="mt-1 text-sm text-ink2">{session.notes}</p> : null}
+        <SessionEditor session={session} update={update} />
       </div>
       <div>
         <SectionHeader>Brews ({brews.length})</SectionHeader>
@@ -59,14 +64,18 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
                 <BrewCard
                   brew={b}
                   action={
-                    <form action={moveBrewToSession} className="mt-1 flex justify-end">
-                      <input type="hidden" name="brewId" value={b.id} />
-                      <input type="hidden" name="sessionId" value="" />
-                      <input type="hidden" name="returnTo" value={`/sessions/${id}`} />
-                      <Button variant="ghost" className="px-3 py-1 text-sm">
-                        Remove from session
-                      </Button>
-                    </form>
+                    <div className="mt-1 flex justify-end">
+                      <InlineConfirm
+                        label="Remove from session"
+                        question="Remove this brew from the session? The brew itself stays in history."
+                        confirmLabel="Remove"
+                        action={moveBrewToSession}
+                      >
+                        <input type="hidden" name="brewId" value={b.id} />
+                        <input type="hidden" name="sessionId" value="" />
+                        <input type="hidden" name="returnTo" value={`/sessions/${id}`} />
+                      </InlineConfirm>
+                    </div>
                   }
                 />
               </li>
@@ -86,7 +95,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
                   <option value="">Pick a brew…</option>
                   {candidates.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.dose_g}g / {b.water_g}g · {b.temp_c ?? "?"}°C · {b.grind_clicks ?? "?"} clicks
+                      {formatCandidateLabel(b)}
                     </option>
                   ))}
                 </Select>
@@ -96,16 +105,6 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
           </Card>
         </div>
       ) : null}
-      <details>
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-ink2">Edit session</summary>
-        <Card>
-          <form action={update} className="flex flex-col gap-3">
-            <div><Label>Title</Label><Input name="title" defaultValue={session.title} required maxLength={120} /></div>
-            <div><Label>Notes</Label><Textarea name="notes" rows={2} defaultValue={session.notes ?? ""} /></div>
-            <Button>Save session</Button>
-          </form>
-        </Card>
-      </details>
       <DeleteButton
         label="Delete session"
         title={del.title}

@@ -39,6 +39,61 @@ export async function getBrew(id: string) {
   return data;
 }
 
+// ponytail: selector-only projections — dropdowns and id resolution fetch
+// scalars, never full rows with observation joins.
+
+// Latest brew ids in compare order, for default/fallback resolution without
+// loading the 50-row selector dataset.
+export async function listBrewIds(): Promise<string[]> {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("brews")
+    .select("id")
+    .order("brewed_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((b: { id: string }) => b.id);
+}
+
+// Compare selector options: label fields only, no observations/sessions payload.
+export async function listBrewOptions() {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("brews")
+    .select("id, dose_g, water_g, brewed_at, created_at, coffees(name)")
+    .order("brewed_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// "Add an existing brew" candidates: label + filter fields only.
+export async function listBrewCandidates() {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("brews")
+    .select("id, dose_g, water_g, temp_c, grind_clicks, session_id, brewed_at, created_at")
+    .order("brewed_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// Session dropdown options (brew form, brew detail): id + title only.
+export async function listSessionOptions() {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("sessions")
+    .select("id, title")
+    .order("created_at", { ascending: false })
+    .limit(30);
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export async function latestBrewForCoffee(coffeeId: string) {
   const db = await createClient();
   const { data } = await db.from("brews").select("*").eq("coffee_id", coffeeId).order("brewed_at", { ascending: false }).order("created_at", { ascending: false }).limit(1).single();
@@ -107,6 +162,18 @@ export async function getExperiment(id: string) {
     .select("*, brews(id, dose_g, water_g, coffee_id, coffees(name))")
     .eq("id", id)
     .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function listCuppings(coffeeId: string) {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("cuppings")
+    .select("*")
+    .eq("coffee_id", coffeeId)
+    .order("cupped_at", { ascending: false })
+    .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;
 }

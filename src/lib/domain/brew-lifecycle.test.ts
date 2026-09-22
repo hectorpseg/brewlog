@@ -80,4 +80,9 @@ describe("describeDeletion", () => {
     const d = describeDeletion("experiment", {});
     expect(d.body).toContain("linked brew is kept");
   });
+  it("states cupping consequences: only the tasting record goes", () => {
+    const d = describeDeletion("cupping", {});
+    expect(d.body).toContain("Only this tasting record is removed");
+    expect(d.confirm).toBe("Delete cupping");
+  });
 });

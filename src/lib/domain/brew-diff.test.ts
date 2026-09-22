@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
+import { resolveCompareIds, toComparableBrew, toCompareOption } from "@/lib/domain/brew-diff";
 import { diffBrews } from "@/lib/domain/compare";
 import { formatDuration } from "@/lib/domain/brew-time";
 
@@ -74,6 +74,27 @@ describe("resolveCompareIds", () => {
   it("returns null when there is nothing to compare", () => {
     expect(resolveCompareIds([])).toBeNull();
     expect(resolveCompareIds(["a"])).toBeNull();
+  });
+});
+
+describe("toCompareOption", () => {
+  const row = {
+    id: "a",
+    dose_g: 15,
+    water_g: 225,
+    brewed_at: "2026-09-20T12:00:00.000Z",
+    created_at: "2026-09-20T12:00:00.000Z",
+    coffees: { name: "Competencia" },
+  };
+  it("labels options ratio · coffee without loading full rows", () => {
+    const o = toCompareOption(row);
+    expect(o.id).toBe("a");
+    expect(o.label).toContain("1:15");
+    expect(o.label).toContain("Competencia");
+  });
+  it("handles array relations and unknown coffee", () => {
+    expect(toCompareOption({ ...row, coffees: [{ name: "Washed" }] }).label).toContain("Washed");
+    expect(toCompareOption({ ...row, coffees: null }).label).toContain("Coffee");
   });
 });
 

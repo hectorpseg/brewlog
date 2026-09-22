@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { loginUrl } from "@/lib/auth";
-import { getBrew, listExperimentsForBrew, listSessions } from "@/lib/db/queries";
+import { notFound } from "next/navigation";
+import { requireUser } from "@/lib/supabase/require-user";
+import { getBrew, listExperimentsForBrew, listSessionOptions } from "@/lib/db/queries";
 import { createExperiment, deleteBrew } from "@/app/actions";
 import { BrewEditor } from "@/components/brew-editor";
+import { BackLink } from "@/components/back-link";
 import { DeleteButton } from "@/components/delete-button";
 import { Button, Card, Input, Label, SectionHeader, Textarea } from "@/components/ui/controls";
 import { formatRatio } from "@/lib/domain/ratio";
@@ -16,13 +16,14 @@ import { experimentStatus } from "@/lib/domain/experiments";
 
 export default async function BrewDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = await createClient();
-  const { data } = await db.auth.getUser();
-  if (!data.user) redirect(loginUrl(`/brews/${id}`));
+  const user = await requireUser(`/brews/${id}`);
   const brew = await getBrew(id).catch(() => null);
   if (!brew) notFound();
-  const sessions = await listSessions().catch(() => []);
-  const experiments = await listExperimentsForBrew(id).catch(() => []);
+  // independent reads, one round trip instead of two sequential ones
+  const [sessions, experiments] = await Promise.all([
+    listSessionOptions().catch(() => []),
+    listExperimentsForBrew(id).catch(() => []),
+  ]);
   const obs = Array.isArray(brew.observations) ? brew.observations[0] ?? null : brew.observations ?? null;
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
   const brewSession = Array.isArray(brew.sessions) ? brew.sessions[0] : brew.sessions;
@@ -36,6 +37,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
   return (
     <div className="flex flex-col gap-4">
       <div>
+        <BackLink href="/brews" label="Brews" />
         <p className="text-sm text-ink2">{coffeeName ?? "Brew"}</p>
         <h1 className="tnum font-display text-4xl leading-none">
           {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
@@ -64,7 +66,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
         <SectionHeader>Recipe</SectionHeader>
         <div className="mt-2">
           <BrewEditor
-        userId={data.user.id}
+        userId={user.id}
         brew={brew}
         observation={obs}
         sessions={sessions.map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))}
@@ -73,6 +75,11 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
       </div>
       <div>
         <SectionHeader>Experiments ({experiments.length})</SectionHeader>
+        {experiments.length === 0 ? (
+          <p className="mt-1 text-sm text-ink2">
+            No experiments yet. Turn a brewing question into a test and connect the brews you use to answer it.
+          </p>
+        ) : null}
         {experiments.length > 0 ? (
           <ul className="mt-2 flex flex-col gap-2">
             {experiments.map((e: {

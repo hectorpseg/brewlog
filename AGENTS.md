@@ -257,3 +257,27 @@ If not, do not implement it.
 - When a new entity is proposed, first explain what independent lifecycle, browsing/editing need, or relationship requires it. If none exists, keep it as a field.
 
 The product should feel like a focused personal coffee notebook, not an enterprise inventory or workflow management system.
+
+---
+
+## Modal Restraint
+
+Avoid modal dialogs by default.
+
+Prefer:
+- inline confirmation
+- inline validation
+- contextual feedback
+- undo where safe
+
+Use explicit confirmation for genuinely destructive operations when needed.
+
+Never use browser alert/confirm dialogs.
+
+The app should feel like a notebook, not a sequence of popups.
+
+---
+
+## Agent workflow
+
+After completing a task, write the final report to `output.txt` in the project root (overwrite).
