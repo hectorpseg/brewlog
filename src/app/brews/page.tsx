@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
 import { listBrews } from "@/lib/db/queries";
-import { BrewCard } from "@/components/brew-card";
+import { BrewList } from "@/components/brew-list";
 import { Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 
@@ -24,14 +24,7 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
           actionLabel="+ Brew"
         />
       ) : (
-        <ul className="flex flex-col gap-2">
-          {brews.map((b: {
-            id: string; dose_g: number; water_g: number; temp_c: number | null;
-            grind_clicks: number | null; total_time_sec: number | null; filter: string | null;
-          }) => (
-            <li key={b.id}><BrewCard brew={b} /></li>
-          ))}
-        </ul>
+        <BrewList brews={brews} />
       )}
       {brews !== null && brews.length >= 2 ? (
         <Link href={`/brews/compare?a=${brews[0].id}&b=${brews[1].id}`} className="mt-4 inline-block min-h-11 px-2 py-2 text-sm font-medium text-ember underline">

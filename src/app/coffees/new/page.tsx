@@ -1,5 +1,7 @@
 import { requireUser } from "@/lib/supabase/require-user";
 import { createCoffee } from "@/app/actions";
+import { defaultBrewedDate } from "@/lib/domain/brew-date";
+import { BackLink } from "@/components/back-link";
 import { Button, Card, Input, Label, Textarea } from "@/components/ui/controls";
 
 export default async function NewCoffeePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -7,6 +9,7 @@ export default async function NewCoffeePage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   return (
     <div>
+      <BackLink href="/coffees" label="Coffees" />
       <h1 className="mb-3 font-display text-2xl">New coffee</h1>
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
@@ -22,7 +25,7 @@ export default async function NewCoffeePage({ searchParams }: { searchParams: Pr
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label htmlFor="initialWeightG">Initial g</Label><Input id="initialWeightG" name="initialWeightG" type="number" inputMode="decimal" /></div>
-            <div><Label htmlFor="receivedDate">Received</Label><Input id="receivedDate" name="receivedDate" type="date" /></div>
+            <div><Label htmlFor="receivedDate">Received</Label><Input id="receivedDate" name="receivedDate" type="date" max={defaultBrewedDate()} /></div>
           </div>
           <div><Label htmlFor="notes">Notes</Label><Textarea id="notes" name="notes" rows={3} /></div>
           <Button>Save coffee</Button>

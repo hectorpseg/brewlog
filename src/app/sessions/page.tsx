@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/supabase/require-user";
 import { listSessions } from "@/lib/db/queries";
+import { EntityCard } from "@/components/entity-card";
 import { Card, SectionHeader } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import Link from "next/link";
@@ -32,12 +33,10 @@ export default async function SessionsPage() {
           <ul className="mt-2 flex flex-col gap-2">
             {sessions.map((s: { id: string; title: string; notes: string | null }) => (
               <li key={s.id}>
-                <Link href={`/sessions/${s.id}`}>
-                  <Card>
-                    <div className="font-medium">{s.title}</div>
-                    {s.notes ? <div className="mt-0.5 text-sm text-ink2">{s.notes}</div> : null}
-                  </Card>
-                </Link>
+                <EntityCard href={`/sessions/${s.id}`} label={s.title}>
+                  <div className="font-medium">{s.title}</div>
+                  {s.notes ? <div className="mt-0.5 text-sm text-ink2">{s.notes}</div> : null}
+                </EntityCard>
               </li>
             ))}
           </ul>

@@ -41,8 +41,8 @@ describe("toComparableBrew", () => {
 
   it("marks missing values as unknown, identically on both sides", () => {
     const c = toComparableBrew({ ...base, temp_c: null, observations: [] });
-    expect(c.Temperature).toBe("—");
-    expect(c.Acidity).toBe("—");
+    expect(c.Temperature).toBe("-");
+    expect(c.Acidity).toBe("-");
   });
 });
 
@@ -85,16 +85,21 @@ describe("toCompareOption", () => {
     brewed_at: "2026-09-20T12:00:00.000Z",
     created_at: "2026-09-20T12:00:00.000Z",
     coffees: { name: "Competencia" },
+    sessions: { title: "Phase 1" },
   };
   it("labels options ratio · coffee without loading full rows", () => {
     const o = toCompareOption(row);
     expect(o.id).toBe("a");
     expect(o.label).toContain("1:15");
     expect(o.label).toContain("Competencia");
+    expect(o.label).toContain("Phase 1");
   });
   it("handles array relations and unknown coffee", () => {
     expect(toCompareOption({ ...row, coffees: [{ name: "Washed" }] }).label).toContain("Washed");
     expect(toCompareOption({ ...row, coffees: null }).label).toContain("Coffee");
+  });
+  it("omits the session segment when unassigned", () => {
+    expect(toCompareOption({ ...row, sessions: null }).label).not.toContain("Phase 1");
   });
 });
 

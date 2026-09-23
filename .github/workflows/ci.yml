@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      # Build-safe placeholders: all pages are dynamic, so the build never
+      # contacts Supabase. Real keys stay in .env.local / repo secrets.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+      # Failure contract for the backup CLI: without credentials it must
+      # fail clearly with a non-zero exit and create no new files
+      # (before/after comparison, so a pre-existing exports/ dir is fine).
+      - name: backup CLI failure contract
+        run: |
+          before=$(ls exports 2>/dev/null | wc -l)
+          if BREWLOG_EMAIL=nobody@example.com BREWLOG_PASSWORD=wrong-password-123 pnpm brewlog:export; then
+            echo "brewlog:export should have failed without valid credentials"
+            exit 1
+          fi
+          after=$(ls exports 2>/dev/null | wc -l)
+          [ "$before" = "$after" ]
+
+  audit:
+    runs-on: ubuntu-latest
+    # Advisory only: reports vulnerable deps without breaking builds.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level=high
+
+  migration-drift:
+    runs-on: ubuntu-latest
+    # Compares supabase/migrations against the hosted database. Job-level
+    # `if:` cannot read `secrets`, so gating happens in the first step and
+    # everything else is conditioned on its output. Needs
+    # SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF repo secrets; without them
+    # the job succeeds having done nothing. Any diff output fails the job.
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: gate
+        env:
+          PROBE_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROBE_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          if [ -n "$PROBE_TOKEN" ] && [ -n "$PROBE_REF" ]; then
+            echo "has-secrets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-secrets=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: SUPABASE_ACCESS_TOKEN / SUPABASE_PROJECT_REF not set."
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.has-secrets == 'true'
+        with:
+          version: 11.8.0
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.has-secrets == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - if: steps.gate.outputs.has-secrets == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.gate.outputs.has-secrets == 'true'
+        run: pnpm dlx supabase@2.117.0 link --project-ref "$SUPABASE_PROJECT_REF"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      - name: check for migration drift
+        if: steps.gate.outputs.has-secrets == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          DIFF_FILE="$(mktemp)"
+          pnpm dlx supabase@2.117.0 db diff --linked --schema public -f "$DIFF_FILE" > /dev/null
+          if [ -s "$DIFF_FILE" ]; then
+            echo "Migration drift detected: supabase/migrations is behind the hosted database."
+            cat "$DIFF_FILE"
+            exit 1
+          fi
+          echo "No migration drift."
+
+  e2e:
+    runs-on: ubuntu-latest
+    # Real user + Supabase project required. Same step-level gating as above:
+    # without E2E_EMAIL / E2E_PASSWORD the job succeeds having done nothing.
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: gate
+        env:
+          PROBE_EMAIL: ${{ secrets.E2E_EMAIL }}
+          PROBE_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          if [ -n "$PROBE_EMAIL" ] && [ -n "$PROBE_PASSWORD" ]; then
+            echo "has-secrets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-secrets=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: E2E_EMAIL / E2E_PASSWORD not set."
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.has-secrets == 'true'
+        with:
+          version: 11.8.0
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.has-secrets == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - if: steps.gate.outputs.has-secrets == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.gate.outputs.has-secrets == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - if: steps.gate.outputs.has-secrets == 'true'
+        run: pnpm e2e
+        env:
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: upload e2e traces
+        if: failure() && steps.gate.outputs.has-secrets == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

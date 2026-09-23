@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { requireUser } from "@/lib/supabase/require-user";
 import { listCoffees } from "@/lib/db/queries";
+import { CoffeeList } from "@/components/coffee-list";
 import { resetDevData, seedDevData } from "@/app/actions";
 import { Button, Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
@@ -41,25 +41,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           actionLabel="+ Coffee"
         />
       ) : (
-        <ul className="flex flex-col gap-2">
-          {coffees.map((c: { id: string; name: string; remaining_weight_g: number | null }) => (
-            <li key={c.id}>
-              <Link href={`/coffees/${c.id}`} aria-label={`${c.name} — view and edit`}>
-                <Card>
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <div className="font-medium">{c.name}</div>
-                      <div className="tnum text-sm text-ink2">
-                        {c.remaining_weight_g != null ? `~${c.remaining_weight_g} g remaining` : "remaining unknown"}
-                      </div>
-                    </div>
-                    <ChevronRight size={20} aria-hidden className="shrink-0 text-ink3" />
-                  </div>
-                </Card>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <CoffeeList coffees={coffees} />
       )}
     </div>
   );

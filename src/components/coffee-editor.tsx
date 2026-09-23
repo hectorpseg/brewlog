@@ -1,21 +1,14 @@
-"use client";
-import { useState } from "react";
 import Link from "next/link";
 import { Button, Card, Input, Label } from "./ui/controls";
+import { defaultBrewedDate } from "@/lib/domain/brew-date";
 
-// Owns the coffee action row AND the edit form below it, so opening edit mode
-// never distorts the primary Brew action. Structure when editing:
-//
-//   [Brew again] [Cancel]
-//   [Coffee edit form: Save coffee, Cancel]
-//
-// When idle: [Brew again] [Edit]. No disclosure triangles.
+// The detail screen is the form: action row on top, fields below, no edit
+// gate. Opening the coffee goes straight to its editable representation.
 export function CoffeeEditor({ coffee, update, brewAgainHref }: {
   coffee: { name: string; remaining_weight_g: number | null; received_date: string | null };
   update: (formData: FormData) => Promise<void>;
   brewAgainHref: string;
 }) {
-  const [editing, setEditing] = useState(false);
   return (
     <div>
       <div className="mt-3 flex gap-2">
@@ -25,25 +18,17 @@ export function CoffeeEditor({ coffee, update, brewAgainHref }: {
         >
           Brew again
         </Link>
-        <Button variant="ghost" onClick={() => setEditing((v) => !v)}>
-          {editing ? "Cancel" : "Edit"}
-        </Button>
       </div>
-      {editing ? (
-        <Card className="mt-3">
-          <form action={update} className="flex flex-col gap-3">
-            <div><Label>Name</Label><Input name="name" defaultValue={coffee.name} /></div>
-            <div><Label>Remaining g</Label><Input name="remainingWeightG" type="number" inputMode="decimal" defaultValue={coffee.remaining_weight_g ?? ""} /></div>
-            <div><Label>Received</Label><Input name="receivedDate" type="date" defaultValue={coffee.received_date ?? ""} /></div>
-            <div className="flex gap-2">
-              <Button>Save coffee</Button>
-              <Button variant="ghost" type="button" onClick={() => setEditing(false)}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </Card>
-      ) : null}
+      <Card className="mt-3">
+        <form action={update} className="flex flex-col gap-3">
+          <div><Label>Name</Label><Input name="name" defaultValue={coffee.name} /></div>
+          <div><Label>Remaining g</Label><Input name="remainingWeightG" type="number" inputMode="decimal" defaultValue={coffee.remaining_weight_g ?? ""} /></div>
+          <div><Label>Received</Label><Input name="receivedDate" type="date" max={defaultBrewedDate()} defaultValue={coffee.received_date ?? ""} /></div>
+          <div>
+            <Button>Save coffee</Button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }

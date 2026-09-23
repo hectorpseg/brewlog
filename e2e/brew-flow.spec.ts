@@ -31,10 +31,10 @@ test("brew flow persists across reload", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Brew again" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Copy last brew" })).toHaveCount(0);
 
-  // coffee edit mode keeps the primary action compact: opening Edit must not
-  // stretch "Brew again" into a tall block beside the form.
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  // coffee detail is the form: no Edit gate, the save action is visible
+  // directly and the primary action stays compact beside it.
   await expect(page.getByRole("button", { name: "Save coffee" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
   const brewAgainHeight = await page.getByRole("link", { name: "Brew again" }).evaluate(
     (el) => el.getBoundingClientRect().height,
   );

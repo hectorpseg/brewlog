@@ -1,11 +1,13 @@
 import { requireUser } from "@/lib/supabase/require-user";
 import { createSession } from "@/app/actions";
+import { BackLink } from "@/components/back-link";
 import { Button, Card, Input, Label, Textarea } from "@/components/ui/controls";
 
 export default async function NewSessionPage() {
   await requireUser("/sessions/new");
   return (
     <div>
+      <BackLink href="/sessions" label="Sessions" />
       <h1 className="mb-3 font-display text-2xl">New session</h1>
       <Card>
         <form action={createSession} className="flex flex-col gap-3">

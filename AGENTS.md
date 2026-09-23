@@ -281,3 +281,9 @@ The app should feel like a notebook, not a sequence of popups.
 ## Agent workflow
 
 After completing a task, write the final report to `output.txt` in the project root (overwrite).
+
+---
+
+## Typography
+
+Never use em dashes (—). Prefer a normal hyphen (-), parentheses, commas, or separate sentences.

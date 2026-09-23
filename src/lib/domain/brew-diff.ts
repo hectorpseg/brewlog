@@ -8,7 +8,7 @@ import { formatDuration } from "@/lib/domain/brew-time";
 export type BrewRow = Record<string, unknown>;
 
 function str(v: unknown): string {
-  if (v == null || v === "") return "—";
+  if (v == null || v === "") return "-";
   return String(v);
 }
 
@@ -28,18 +28,18 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
   return {
     Coffee: (coffee?.name as string) ?? "Unknown coffee",
     Session: (session?.title as string) ?? "No session",
-    Dose: brew.dose_g != null ? `${brew.dose_g} g` : "—",
-    Water: brew.water_g != null ? `${brew.water_g} g` : "—",
-    Ratio: ratio == null ? "—" : `1:${ratio}`,
-    Temperature: brew.temp_c != null && brew.temp_c !== "" ? `${brew.temp_c}°C` : "—",
-    Grind: brew.grind_clicks != null && brew.grind_clicks !== "" ? `${brew.grind_clicks} clicks` : "—",
+    Dose: brew.dose_g != null ? `${brew.dose_g} g` : "-",
+    Water: brew.water_g != null ? `${brew.water_g} g` : "-",
+    Ratio: ratio == null ? "-" : `1:${ratio}`,
+    Temperature: brew.temp_c != null && brew.temp_c !== "" ? `${brew.temp_c}°C` : "-",
+    Grind: brew.grind_clicks != null && brew.grind_clicks !== "" ? `${brew.grind_clicks} clicks` : "-",
     Grinder: str(brew.grinder),
     Dripper: str(brew.dripper),
     Filter: str(brew.filter),
     "Water source": str(brew.water_source),
-    Pours: brew.pour_count != null && brew.pour_count !== "" ? `${brew.pour_count}` : "—",
-    "Brew time": time ?? "—",
-    "Final beverage": brew.final_beverage_g != null && brew.final_beverage_g !== "" ? `${brew.final_beverage_g} g` : "—",
+    Pours: brew.pour_count != null && brew.pour_count !== "" ? `${brew.pour_count}` : "-",
+    "Brew time": time ?? "-",
+    "Final beverage": brew.final_beverage_g != null && brew.final_beverage_g !== "" ? `${brew.final_beverage_g} g` : "-",
     "Process notes": str(brew.notes),
     Acidity: str(obs.acidity),
     Sweetness: str(obs.sweetness),
@@ -57,7 +57,7 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
   };
 }
 
-// Selector option for the compare dropdowns: ratio · coffee · day.
+// Selector option for the compare dropdowns: ratio · coffee · day · session.
 export type CompareOptionRow = {
   id: string;
   dose_g: number;
@@ -65,14 +65,19 @@ export type CompareOptionRow = {
   brewed_at: string | null;
   created_at: string;
   coffees: { name: string } | { name: string }[] | null;
+  sessions: { title: string } | { title: string }[] | null;
 };
 
 export function toCompareOption(b: CompareOptionRow): { id: string; label: string } {
   const coffee = Array.isArray(b.coffees) ? b.coffees[0]?.name : b.coffees?.name;
-  return {
-    id: b.id,
-    label: `${formatRatio(Number(b.dose_g), Number(b.water_g))} · ${coffee ?? "Coffee"} · ${formatBrewDate(b.brewed_at ?? b.created_at)}`,
-  };
+  const session = Array.isArray(b.sessions) ? b.sessions[0]?.title : b.sessions?.title;
+  const parts = [
+    formatRatio(Number(b.dose_g), Number(b.water_g)),
+    coffee ?? "Coffee",
+    formatBrewDate(b.brewed_at ?? b.created_at),
+  ];
+  if (session) parts.push(session);
+  return { id: b.id, label: parts.join(" · ") };
 }
 
 // URL state for independent selection: explicit params win when they point at

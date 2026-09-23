@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
-import { Button, Card, Input, Label, Textarea } from "./ui/controls";
-import { toDateInputValue } from "@/lib/domain/brew-date";
+import { Button, Card, Input, Label, Select, Textarea } from "./ui/controls";
+import { defaultBrewedDate, toDateInputValue } from "@/lib/domain/brew-date";
 
 export type CuppingRow = {
   id: string;
+  coffee_id?: string | null;
   cupped_at: string | null;
   dose_g: number | null;
   water_g: number | null;
@@ -17,40 +17,47 @@ export type CuppingRow = {
   cold_notes: string | null;
 };
 
-// Inline edit toggle for one cupping row. Same pattern as CoffeeEditor:
-// explicit Edit button, Cancel to back out, no modal.
-export function CuppingEditor({ cupping, update }: {
-  cupping: CuppingRow;
-  update: (formData: FormData) => Promise<void>;
+// Single cupping form for create and edit. No edit gate: the form itself is
+// the representation, shown inline or inside a disclosure. Server actions
+// validate (including no-future-dates); `max` mirrors it in the UI.
+export function CuppingForm({ action, cupping, coffees, initialCoffeeId, submitLabel, idPrefix }: {
+  action: (formData: FormData) => Promise<void>;
+  cupping?: CuppingRow | null;
+  coffees?: { id: string; name: string }[];
+  initialCoffeeId?: string;
+  submitLabel: string;
+  idPrefix: string;
 }) {
-  const [editing, setEditing] = useState(false);
-  if (!editing) {
-    return (
-      <Button variant="ghost" className="px-3 py-1 text-sm" onClick={() => setEditing(true)}>
-        Edit
-      </Button>
-    );
-  }
+  const today = defaultBrewedDate();
+  const coffeeId = cupping?.coffee_id ?? initialCoffeeId ?? "";
   return (
     <Card>
-      <form action={update} className="flex flex-col gap-3">
+      <form action={action} className="flex flex-col gap-3">
+        {coffees ? (
+          <div>
+            <Label htmlFor={`${idPrefix}-coffee`}>Coffee *</Label>
+            <Select id={`${idPrefix}-coffee`} name="coffeeId" defaultValue={coffeeId} required>
+              <option value="">Pick a coffee…</option>
+              {coffees.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </div>
+        ) : (
+          <input type="hidden" name="coffeeId" value={coffeeId} />
+        )}
         <div className="grid grid-cols-2 gap-3">
-          <div><Label htmlFor={`cup-date-${cupping.id}`}>Date</Label><Input id={`cup-date-${cupping.id}`} name="cuppedAt" type="date" defaultValue={toDateInputValue(cupping.cupped_at)} /></div>
-          <div><Label htmlFor={`cup-grinder-${cupping.id}`}>Grinder</Label><Input id={`cup-grinder-${cupping.id}`} name="grinder" defaultValue={cupping.grinder ?? ""} placeholder="K-Ultra" /></div>
-          <div><Label htmlFor={`cup-clicks-${cupping.id}`}>Grind clicks</Label><Input id={`cup-clicks-${cupping.id}`} name="grindClicks" type="number" inputMode="numeric" defaultValue={cupping.grind_clicks ?? ""} placeholder="85" /></div>
-          <div><Label htmlFor={`cup-dose-${cupping.id}`}>Dose g</Label><Input id={`cup-dose-${cupping.id}`} name="doseG" type="number" inputMode="decimal" defaultValue={cupping.dose_g ?? ""} /></div>
-          <div><Label htmlFor={`cup-water-${cupping.id}`}>Water g</Label><Input id={`cup-water-${cupping.id}`} name="waterG" type="number" inputMode="decimal" defaultValue={cupping.water_g ?? ""} /></div>
+          <div><Label htmlFor={`${idPrefix}-date`}>Date</Label><Input id={`${idPrefix}-date`} name="cuppedAt" type="date" max={today} defaultValue={cupping ? toDateInputValue(cupping.cupped_at) : today} /></div>
+          <div><Label htmlFor={`${idPrefix}-dose`}>Dose g</Label><Input id={`${idPrefix}-dose`} name="doseG" type="number" inputMode="decimal" placeholder="10" defaultValue={cupping?.dose_g ?? ""} /></div>
+          <div><Label htmlFor={`${idPrefix}-water`}>Water g</Label><Input id={`${idPrefix}-water`} name="waterG" type="number" inputMode="decimal" placeholder="200" defaultValue={cupping?.water_g ?? ""} /></div>
+          <div><Label htmlFor={`${idPrefix}-grinder`}>Grinder</Label><Input id={`${idPrefix}-grinder`} name="grinder" placeholder="K-Ultra" defaultValue={cupping?.grinder ?? ""} /></div>
+          <div><Label htmlFor={`${idPrefix}-clicks`}>Grind clicks</Label><Input id={`${idPrefix}-clicks`} name="grindClicks" type="number" inputMode="numeric" placeholder="85" defaultValue={cupping?.grind_clicks ?? ""} /></div>
         </div>
-        <div><Label htmlFor={`cup-hot-${cupping.id}`}>Hot notes</Label><Textarea id={`cup-hot-${cupping.id}`} name="hotNotes" rows={2} defaultValue={cupping.hot_notes ?? ""} /></div>
-        <div><Label htmlFor={`cup-warm-${cupping.id}`}>Warm notes</Label><Textarea id={`cup-warm-${cupping.id}`} name="warmNotes" rows={2} defaultValue={cupping.warm_notes ?? ""} /></div>
-        <div><Label htmlFor={`cup-cold-${cupping.id}`}>Cold notes</Label><Textarea id={`cup-cold-${cupping.id}`} name="coldNotes" rows={2} defaultValue={cupping.cold_notes ?? ""} /></div>
-        <div><Label htmlFor={`cup-notes-${cupping.id}`}>Notes</Label><Textarea id={`cup-notes-${cupping.id}`} name="notes" rows={2} defaultValue={cupping.notes ?? ""} /></div>
-        <div className="flex gap-2">
-          <Button>Save cupping</Button>
-          <Button variant="ghost" type="button" onClick={() => setEditing(false)}>
-            Cancel
-          </Button>
-        </div>
+        <div><Label htmlFor={`${idPrefix}-hot`}>Hot notes</Label><Textarea id={`${idPrefix}-hot`} name="hotNotes" rows={2} defaultValue={cupping?.hot_notes ?? ""} /></div>
+        <div><Label htmlFor={`${idPrefix}-warm`}>Warm notes</Label><Textarea id={`${idPrefix}-warm`} name="warmNotes" rows={2} defaultValue={cupping?.warm_notes ?? ""} /></div>
+        <div><Label htmlFor={`${idPrefix}-cold`}>Cold notes</Label><Textarea id={`${idPrefix}-cold`} name="coldNotes" rows={2} defaultValue={cupping?.cold_notes ?? ""} /></div>
+        <div><Label htmlFor={`${idPrefix}-take`}>Final take</Label><Textarea id={`${idPrefix}-take`} name="notes" rows={2} defaultValue={cupping?.notes ?? ""} /></div>
+        <Button>{submitLabel}</Button>
       </form>
     </Card>
   );

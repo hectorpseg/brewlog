@@ -19,8 +19,8 @@ describe("brew date", () => {
   });
   it("formats for history display and date inputs", () => {
     expect(formatBrewDate("2026-09-21T12:00:00.000Z")).toMatch(/Sep.*21|21.*Sep/);
-    expect(formatBrewDate(null)).toBe("—");
-    expect(formatBrewDate("garbage")).toBe("—");
+    expect(formatBrewDate(null)).toBe("-");
+    expect(formatBrewDate("garbage")).toBe("-");
     expect(toDateInputValue("2026-09-21T12:00:00.000Z")).toBe("2026-09-21");
     expect(toDateInputValue(null)).toBe("");
   });
