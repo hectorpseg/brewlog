@@ -19,7 +19,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
         with:
@@ -54,7 +54,7 @@ jobs:
     # Advisory only: reports vulnerable deps without breaking builds.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
         with:
@@ -76,7 +76,7 @@ jobs:
     # SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF repo secrets; without them
     # the job succeeds having done nothing. Any diff output fails the job.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: gate
         env:
@@ -128,7 +128,7 @@ jobs:
     # without E2E_EMAIL / E2E_PASSWORD the job succeeds having done nothing.
     needs: checks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: gate
         env:
