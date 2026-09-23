@@ -38,12 +38,12 @@ export type CliConfig = {
 export function resolveConfig(env: NodeJS.ProcessEnv, files: Record<string, string>): CliConfig {
   const pick = (k: string) => env[k] ?? files[k] ?? "";
   const url = pick("NEXT_PUBLIC_SUPABASE_URL");
-  const anonKey = pick("NEXT_PUBLIC_SUPABASE_ANON_KEY") || pick("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+  const anonKey = pick("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") || pick("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   const email = env.BREWLOG_EMAIL ?? "";
   const password = env.BREWLOG_PASSWORD ?? "";
   const missing = [
     url ? null : "NEXT_PUBLIC_SUPABASE_URL (.env.local)",
-    anonKey ? null : "NEXT_PUBLIC_SUPABASE_ANON_KEY (.env.local)",
+    anonKey ? null : "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (.env.local)",
     email ? null : "BREWLOG_EMAIL (environment)",
     password ? null : "BREWLOG_PASSWORD (environment)",
   ].filter((v): v is string => v !== null);
