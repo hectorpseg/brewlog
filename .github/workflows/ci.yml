@@ -19,13 +19,13 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.8.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -54,13 +54,13 @@ jobs:
     # Advisory only: reports vulnerable deps without breaking builds.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.8.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -76,7 +76,7 @@ jobs:
     # SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF repo secrets; without them
     # the job succeeds having done nothing. Any diff output fails the job.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: gate
         env:
@@ -90,12 +90,12 @@ jobs:
             echo "Skipping: SUPABASE_ACCESS_TOKEN / SUPABASE_PROJECT_REF not set."
           fi
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.gate.outputs.has-secrets == 'true'
         with:
           version: 11.8.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.gate.outputs.has-secrets == 'true'
         with:
           node-version: 22
@@ -128,7 +128,7 @@ jobs:
     # without E2E_EMAIL / E2E_PASSWORD the job succeeds having done nothing.
     needs: checks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: gate
         env:
@@ -142,12 +142,12 @@ jobs:
             echo "Skipping: E2E_EMAIL / E2E_PASSWORD not set."
           fi
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.gate.outputs.has-secrets == 'true'
         with:
           version: 11.8.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.gate.outputs.has-secrets == 'true'
         with:
           node-version: 22
@@ -167,7 +167,7 @@ jobs:
 
       - name: upload e2e traces
         if: failure() && steps.gate.outputs.has-secrets == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-traces
           path: |
