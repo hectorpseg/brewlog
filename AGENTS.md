@@ -278,6 +278,12 @@ The app should feel like a notebook, not a sequence of popups.
 
 ---
 
+## Environment
+
+Always run Node.js commands in this project with Node 22 via nvm (`source ~/.nvm/nvm.sh && nvm use 22`). The default system Node (18) cannot build Next.js here.
+
+---
+
 ## Agent workflow
 
 After completing a task, write the final report to `output.txt` in the project root (overwrite).
