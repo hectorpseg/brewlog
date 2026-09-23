@@ -1,10 +1,22 @@
 version: 2
 updates:
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
+  # Personal project: version updates at the lowest supported frequency,
+  # grouped into as few PRs as practical. Security updates are unaffected
+  # by schedule/groups and keep arriving as needed. No automerge: every
+  # update stays a normal PR for review before merging.
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
+      interval: yearly
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: yearly
+    groups:
+      actions:
+        patterns:
+          - "*"
