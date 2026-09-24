@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { experimentStatus } from "@/lib/domain/experiments";
+import {
+  EXPERIMENT_STATUS_LABEL,
+  experimentStatus,
+  experimentTitle,
+  formatExperimentSummary,
+  isExperimentStatus,
+  mergeExperimentBrews,
+} from "@/lib/domain/experiments";
 import { cuppingSchema, experimentSchema } from "@/lib/validation/schemas";
 
 describe("experimentStatus", () => {
@@ -30,6 +37,118 @@ describe("experimentSchema", () => {
       nextQuestion: "Ratio next?",
     });
     expect(r.success).toBe(true);
+  });
+  it("accepts the Wave 4 fields: title, status, notes", () => {
+    const r = experimentSchema.safeParse({
+      title: "Dialing in Origami pulse pattern",
+      status: "in_progress",
+      hypothesis: "Pulse pours even out extraction.",
+      changedVariables: "3 vs 4 pulses",
+      notes: "Same coffee, same grind.",
+      conclusion: null,
+    });
+    expect(r.success).toBe(true);
+  });
+  it("accepts all three statuses and rejects anything else", () => {
+    for (const status of ["planned", "in_progress", "evaluated"]) {
+      expect(experimentSchema.safeParse({ status }).success).toBe(true);
+    }
+    expect(experimentSchema.safeParse({ status: "open" }).success).toBe(false);
+    expect(experimentSchema.safeParse({ status: "answered" }).success).toBe(false);
+    expect(experimentSchema.safeParse({ status: "" }).success).toBe(false);
+  });
+  it("rejects overlong titles but allows empty ones (untitled draft)", () => {
+    expect(experimentSchema.safeParse({ title: "x".repeat(121) }).success).toBe(false);
+    expect(experimentSchema.safeParse({ title: "" }).success).toBe(true);
+  });
+});
+
+describe("isExperimentStatus", () => {
+  it("accepts only the three explicit states", () => {
+    expect(isExperimentStatus("planned")).toBe(true);
+    expect(isExperimentStatus("in_progress")).toBe(true);
+    expect(isExperimentStatus("evaluated")).toBe(true);
+    expect(isExperimentStatus("open")).toBe(false);
+    expect(isExperimentStatus(null)).toBe(false);
+    expect(isExperimentStatus(undefined)).toBe(false);
+  });
+  it("labels every status for display", () => {
+    expect(EXPERIMENT_STATUS_LABEL.planned).toBe("planned");
+    expect(EXPERIMENT_STATUS_LABEL.in_progress).toBe("in progress");
+    expect(EXPERIMENT_STATUS_LABEL.evaluated).toBe("evaluated");
+  });
+});
+
+describe("experimentTitle", () => {
+  it("prefers the explicit title", () => {
+    expect(experimentTitle({ title: "Pulse pattern", hypothesis: "H" })).toBe("Pulse pattern");
+  });
+  it("falls back to the hypothesis excerpt for legacy rows", () => {
+    expect(experimentTitle({ title: null, hypothesis: "Finer grind extracts more." })).toBe(
+      "Finer grind extracts more.",
+    );
+    expect(experimentTitle({ title: "  ", hypothesis: null })).toBe("Untitled experiment");
+    expect(experimentTitle({})).toBe("Untitled experiment");
+  });
+});
+
+describe("mergeExperimentBrews", () => {
+  const a = { id: "a" };
+  const b = { id: "b" };
+  it("merges junction links with the legacy single link, deduped", () => {
+    expect(mergeExperimentBrews([a, b], b)).toEqual([a, b]);
+    expect(mergeExperimentBrews([], a)).toEqual([a]);
+    expect(mergeExperimentBrews([a], null)).toEqual([a]);
+    expect(mergeExperimentBrews([], undefined)).toEqual([]);
+  });
+  it("accepts a legacy array join the way Supabase returns it", () => {
+    expect(mergeExperimentBrews([a], [b])).toEqual([a, b]);
+  });
+});
+
+describe("formatExperimentSummary", () => {
+  it("renders stored data only, in a fixed order", () => {
+    const text = formatExperimentSummary({
+      title: "Pulse pattern",
+      status: "in progress",
+      hypothesis: "Pulse pours even out extraction.",
+      changed_variables: "3 vs 4 pulses",
+      notes: "Same coffee.",
+      conclusion: "4 pulses confirmed.",
+      brews: [
+        { dose_g: 15, water_g: 225, coffees: { name: "Comp Lot" } },
+        { dose_g: 15, water_g: 225, coffees: [{ name: "Comp Lot" }] },
+      ],
+    });
+    expect(text).toBe(
+      [
+        "Experiment",
+        "Title: Pulse pattern",
+        "Status: in progress",
+        "Hypothesis: Pulse pours even out extraction.",
+        "Variables: 3 vs 4 pulses",
+        "Brews: 2",
+        "- Comp Lot · 15 g / 225 g",
+        "- Comp Lot · 15 g / 225 g",
+        "Notes: Same coffee.",
+        "Conclusion: 4 pulses confirmed.",
+      ].join("\n"),
+    );
+  });
+  it("omits an empty conclusion and reports zero brews", () => {
+    const text = formatExperimentSummary({
+      title: "Grind test",
+      status: "planned",
+      hypothesis: "Finer is sweeter.",
+      brews: [],
+      conclusion: "  ",
+    });
+    expect(text).not.toContain("Conclusion:");
+    expect(text).toContain("Brews: 0");
+  });
+  it("never invents data for historical rows without new fields", () => {
+    const text = formatExperimentSummary({ hypothesis: "Old question." });
+    expect(text).toBe(["Experiment", "Title: Old question.", "Hypothesis: Old question.", "Brews: 0"].join("\n"));
   });
 });
 

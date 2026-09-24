@@ -113,4 +113,8 @@ describe("formatBrewSummary", () => {
     expect(text).not.toContain("Tasting");
     expect(text).toContain("Experiments: 1 (open)");
   });
+  it("omits the experiments line for historical brews with none linked", () => {
+    const text = formatBrewSummary({ brew, observation });
+    expect(text).not.toContain("Experiments");
+  });
 });

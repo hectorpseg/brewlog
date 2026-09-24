@@ -81,9 +81,9 @@ describe("describeDeletion", () => {
     const d = describeDeletion("session", { brews: 4 });
     expect(d.body).toContain("stay in history, unassigned");
   });
-  it("states experiment consequences: brew kept", () => {
+  it("states experiment consequences: brews kept", () => {
     const d = describeDeletion("experiment", {});
-    expect(d.body).toContain("linked brew is kept");
+    expect(d.body).toContain("Linked brews are kept in history");
   });
   it("states cupping consequences: only the tasting record goes", () => {
     const d = describeDeletion("cupping", {});

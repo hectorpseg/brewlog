@@ -96,12 +96,15 @@ export type ObservationInput = z.infer<typeof observationSchema>;
 export const experimentSchema = z.object({
   brewId: z.string().uuid().nullish(),
   sessionId: z.string().uuid().nullish(),
+  title: z.string().max(120).nullish(),
+  status: z.enum(["planned", "in_progress", "evaluated"]).nullish(),
   hypothesis: z.string().max(1000).nullish(),
   changedVariables: z.string().max(1000).nullish(),
   expectedResult: z.string().max(1000).nullish(),
   actualResult: z.string().max(1000).nullish(),
   conclusion: z.string().max(1000).nullish(),
   nextQuestion: z.string().max(1000).nullish(),
+  notes: z.string().max(2000).nullish(),
 });
 export type ExperimentInput = z.infer<typeof experimentSchema>;
 
