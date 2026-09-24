@@ -32,7 +32,7 @@ export function describeDeletion(
     case "experiment":
       return {
         title: "Delete this experiment?",
-        body: "The linked brew is kept. This cannot be undone.",
+        body: "Linked brews are kept in history, unlinked. This cannot be undone.",
         confirm: "Delete experiment",
       };
     case "cupping":

@@ -6,9 +6,9 @@ describe("navigation", () => {
     expect(PRIMARY_TABS.map((t) => t.href)).toEqual(["/brews", "/coffees", "/cuppings"]);
   });
 
-  it("keeps experiments out of permanent navigation", () => {
-    const hrefs = [...PRIMARY_TABS, ...MORE_LINKS].map((l) => l.href);
-    expect(hrefs.some((h) => h.startsWith("/experiments"))).toBe(false);
+  it("keeps experiments out of the primary tabs, one tap deep under More", () => {
+    expect(PRIMARY_TABS.map((t) => t.href).some((h) => h.startsWith("/experiments"))).toBe(false);
+    expect(MORE_LINKS.map((l) => l.href)).toContain("/experiments");
   });
 
   it("keeps compare and sessions one tap deep under More", () => {

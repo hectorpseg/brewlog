@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
-import { getBrew, listExperimentsForBrew, listSessionOptions, listTastings, listPours } from "@/lib/db/queries";
+import { getBrew, listExperimentsForBrew, countExperimentBrews, listSessionOptions, listTastings, listPours } from "@/lib/db/queries";
 import { createExperiment, deleteBrew } from "@/app/actions";
 import { BrewEditor } from "@/components/brew-editor";
 import { BackLink } from "@/components/back-link";
@@ -16,7 +16,7 @@ import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatBrewSummary } from "@/lib/domain/brew-summary";
 import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
 import { describeDeletion } from "@/lib/domain/deletion";
-import { experimentStatus } from "@/lib/domain/experiments";
+import { experimentStatus, experimentTitle, isExperimentStatus, EXPERIMENT_STATUS_LABEL } from "@/lib/domain/experiments";
 
 export default async function BrewDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,6 +30,9 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     listTastings(id).catch(() => []),
     listPours(id).catch(() => []),
   ]);
+  const brewCounts = await countExperimentBrews(
+    (experiments as { id: string }[]).map((e) => e.id),
+  ).catch(() => new Map<string, number>());
   const obs = Array.isArray(brew.observations) ? brew.observations[0] ?? null : brew.observations ?? null;
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
   const brewSession = Array.isArray(brew.sessions) ? brew.sessions[0] : brew.sessions;
@@ -109,27 +112,37 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
         {experiments.length > 0 ? (
           <ul className="mt-2 flex flex-col gap-2">
             {experiments.map((e: {
-              id: string; hypothesis: string | null; conclusion: string | null;
+              id: string; title: string | null; hypothesis: string | null;
+              status: string | null; conclusion: string | null;
               actual_result: string | null; next_question: string | null;
-            }) => (
+            }) => {
+              const n = brewCounts.get(e.id) ?? 0;
+              const label = isExperimentStatus(e.status)
+                ? EXPERIMENT_STATUS_LABEL[e.status]
+                : experimentStatus(e);
+              return (
               <li key={e.id}>
                 <Link href={`/experiments/${e.id}`}>
                   <Card>
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-medium">
-                        {e.hypothesis ? String(e.hypothesis).slice(0, 90) : "Untitled experiment"}
+                        {experimentTitle(e)}
                       </div>
                       <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-xs text-ink2">
-                        {experimentStatus(e)}
+                        {label}
                       </span>
                     </div>
+                    {n > 0 ? (
+                      <div className="mt-0.5 text-sm text-ink2">{n} {n === 1 ? "brew" : "brews"}</div>
+                    ) : null}
                     {e.next_question ? (
                       <div className="mt-0.5 text-sm text-ink2">Next: {e.next_question}</div>
                     ) : null}
                   </Card>
                 </Link>
               </li>
-            ))}
+              );
+            })}
           </ul>
         ) : null}
         <details className="mt-2">
@@ -139,6 +152,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
           <Card className="mt-2">
           <form action={createExperiment} className="flex flex-col gap-3">
             <input type="hidden" name="brewId" value={brew.id} />
+            <div><Label>Title</Label><Input name="title" maxLength={120} placeholder="e.g. Dialing in grind" /></div>
             <div><Label>Hypothesis</Label><Textarea name="hypothesis" rows={2} /></div>
             <div><Label>Changed variables (prefer one)</Label><Input name="changedVariables" placeholder="e.g. grind 70 → 68" /></div>
             <div><Label>Expected result</Label><Textarea name="expectedResult" rows={2} /></div>
