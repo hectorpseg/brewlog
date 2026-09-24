@@ -193,7 +193,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           </div>
         </Card>
       </details>
-      <details>
+      <details open>
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Pours (optional)</summary>
         <Card>
           <PourEditor

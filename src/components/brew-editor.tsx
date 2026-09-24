@@ -130,7 +130,7 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
           </div>
         </Card>
       </details>
-      <details>
+      <details open>
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Pours - timed additions, optional</summary>
         <Card>
           <PourEditor
