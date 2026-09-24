@@ -7,9 +7,11 @@ import { BackLink } from "@/components/back-link";
 import { CuppingForm, type CuppingRow } from "@/components/cupping-editor";
 import { CollectionAction, EntityDisclosure } from "@/components/entity-card";
 import { DeleteButton } from "@/components/delete-button";
+import { CopySummaryButton } from "@/components/copy-summary";
 import { BrewHistoryRow } from "@/components/brew-history-row";
 import { EmptyState } from "@/components/states";
 import { describeDeletion } from "@/lib/domain/deletion";
+import { formatCuppingSummary } from "@/lib/domain/cupping-summary";
 import { coffeeDetailLine, coffeeMetaLine } from "@/lib/domain/coffee-meta";
 import { formatBrewDate, formatReceived } from "@/lib/domain/brew-date";
 
@@ -122,6 +124,9 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
                       }
                     >
                       <CuppingForm action={edit} cupping={{ ...c, coffee_id: id }} submitLabel="Save cupping" idPrefix={`cup-${c.id}`} />
+                      <CopySummaryButton
+                        text={formatCuppingSummary({ cupping: c as Record<string, unknown>, coffeeName: coffee.name })}
+                      />
                       <DeleteButton
                         label="Delete cupping"
                         title={cdel.title}

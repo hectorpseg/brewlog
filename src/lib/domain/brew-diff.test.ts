@@ -71,6 +71,10 @@ describe("resolveCompareIds", () => {
   it("defaults to the latest two", () => {
     expect(resolveCompareIds(ids)).toEqual({ aId: "a", bId: "b" });
   });
+  it("opens a Compare-this-brew deep link (?a= only) with the brew as A", () => {
+    expect(resolveCompareIds(ids, "c", null)).toEqual({ aId: "c", bId: "a" });
+    expect(resolveCompareIds(ids, "c", undefined)).toEqual({ aId: "c", bId: "a" });
+  });
   it("honors explicit, valid, distinct params", () => {
     expect(resolveCompareIds(ids, "c", "a")).toEqual({ aId: "c", bId: "a" });
   });

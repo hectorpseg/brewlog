@@ -89,6 +89,17 @@ describe("formatBrewSummary", () => {
     expect(formatBrewSummary({ brew, pours: [] })).not.toContain("Pours:");
     expect(formatBrewSummary({ brew, pours: [{ sequence: 1 }] })).not.toContain("Pours:");
   });
+
+  it("orders tastings deterministically regardless of input order", () => {
+    const shuffled = [
+      { stage: "warm", attribute: "sweetness", value: 8 },
+      { stage: "hot", attribute: "finish", value: 2 },
+      { stage: "hot", attribute: "body", value: 4 },
+    ];
+    const text = formatBrewSummary({ brew, tastings: shuffled });
+    expect(text).toContain("Tasting — Hot: body 4, finish 2; Warm: sweetness 8");
+    expect(formatBrewSummary({ brew, tastings: [...shuffled].reverse() })).toBe(text);
+  });
   it("skips garbage tasting rows and reports open experiments plainly", () => {
     const text = formatBrewSummary({
       brew,
@@ -101,5 +112,9 @@ describe("formatBrewSummary", () => {
     });
     expect(text).not.toContain("Tasting");
     expect(text).toContain("Experiments: 1 (open)");
+  });
+  it("omits the experiments line for historical brews with none linked", () => {
+    const text = formatBrewSummary({ brew, observation });
+    expect(text).not.toContain("Experiments");
   });
 });

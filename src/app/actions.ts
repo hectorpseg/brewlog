@@ -323,54 +323,125 @@ export async function createExperiment(formData: FormData): Promise<void> {
   const parsed = experimentSchema.safeParse({
     brewId: nullish(formData.get("brewId")),
     sessionId: nullish(formData.get("sessionId")),
+    title: nullish(formData.get("title")),
+    status: nullish(formData.get("status")),
     hypothesis: nullish(formData.get("hypothesis")),
     changedVariables: nullish(formData.get("changedVariables")),
     expectedResult: nullish(formData.get("expectedResult")),
     actualResult: nullish(formData.get("actualResult")),
     conclusion: nullish(formData.get("conclusion")),
     nextQuestion: nullish(formData.get("nextQuestion")),
+    notes: nullish(formData.get("notes")),
   });
   if (!parsed.success) return;
   const d = parsed.data;
   const db = await createClient();
-  const { error } = await db.from("experiments").insert({
-    brew_id: d.brewId, session_id: d.sessionId, hypothesis: d.hypothesis,
+  const { data, error } = await db.from("experiments").insert({
+    brew_id: d.brewId, session_id: d.sessionId, title: d.title,
+    status: d.status ?? "planned",
+    hypothesis: d.hypothesis,
     changed_variables: d.changedVariables, expected_result: d.expectedResult,
     actual_result: d.actualResult, conclusion: d.conclusion, next_question: d.nextQuestion,
-  });
-  if (error) return;
-  // the form lives on the brew page: return there with a clean form
+    notes: d.notes,
+  }).select("id").single();
+  if (error || !data) return;
+  // Mirror the legacy single link into the junction table so list/detail
+  // queries (junction-first) see it without a second code path.
+  if (d.brewId) {
+    await db.from("experiment_brews").upsert(
+      { experiment_id: data.id, brew_id: d.brewId },
+      { onConflict: "experiment_id,brew_id" },
+    );
+  }
+  // the form lives on the brew page or the experiments index: return to the
+  // explicit returnTo target when given, else to the brew or the new record
+  const returnTo = nullish(formData.get("returnTo"));
   revalidatePath("/brews");
+  revalidatePath("/experiments");
   if (d.brewId) revalidatePath(`/brews/${d.brewId}`);
-  redirect(d.brewId ? `/brews/${d.brewId}` : "/brews");
+  redirect(returnTo || (d.brewId ? `/brews/${d.brewId}` : `/experiments/${data.id}`));
 }
 
 export async function updateExperiment(id: string, formData: FormData): Promise<void> {
   const parsed = experimentSchema.safeParse({
     brewId: nullish(formData.get("brewId")),
     sessionId: nullish(formData.get("sessionId")),
+    title: nullish(formData.get("title")),
+    status: nullish(formData.get("status")),
     hypothesis: nullish(formData.get("hypothesis")),
     changedVariables: nullish(formData.get("changedVariables")),
     expectedResult: nullish(formData.get("expectedResult")),
     actualResult: nullish(formData.get("actualResult")),
     conclusion: nullish(formData.get("conclusion")),
     nextQuestion: nullish(formData.get("nextQuestion")),
+    notes: nullish(formData.get("notes")),
   });
   if (!parsed.success) return;
   const d = parsed.data;
   const db = await createClient();
-  const { error } = await db.from("experiments").update({
-    brew_id: d.brewId, session_id: d.sessionId, hypothesis: d.hypothesis,
+  const patch: Record<string, unknown> = {
+    title: d.title,
+    hypothesis: d.hypothesis,
     changed_variables: d.changedVariables, expected_result: d.expectedResult,
     actual_result: d.actualResult, conclusion: d.conclusion, next_question: d.nextQuestion,
+    notes: d.notes,
     updated_at: new Date().toISOString(),
-  }).eq("id", id);
+  };
+  // Status is explicit user state: only write it when the form sent one, so
+  // legacy forms that predate the field cannot reset it to the default.
+  if (d.status) patch.status = d.status;
+  // Legacy single link is preserved read-only here: linking now happens
+  // through link/unlinkBrewToExperiment (junction table). The column is only
+  // written when the form explicitly carries a brew id (brew-page inline form).
+  if (d.brewId !== undefined) patch.brew_id = d.brewId;
+  if (d.sessionId !== undefined) patch.session_id = d.sessionId;
+  const { error } = await db.from("experiments").update(patch).eq("id", id);
   if (error) return;
+  if (d.brewId) {
+    await db.from("experiment_brews").upsert(
+      { experiment_id: id, brew_id: d.brewId },
+      { onConflict: "experiment_id,brew_id" },
+    );
+  }
   revalidatePath("/brews");
+  revalidatePath("/experiments");
   revalidatePath(`/experiments/${id}`);
   if (d.brewId) revalidatePath(`/brews/${d.brewId}`);
-  // the edit form is reached from a brew: return there, not to this same page
-  redirect(d.brewId ? `/brews/${d.brewId}` : `/experiments/${id}`);
+  // the edit form is reached from a brew or the experiment page: return to
+  // the explicit target when given
+  const returnTo = nullish(formData.get("returnTo"));
+  redirect(returnTo || (d.brewId ? `/brews/${d.brewId}` : `/experiments/${id}`));
+}
+
+// Explicit linking: add an existing brew to an experiment (junction row only,
+// the brew record itself is untouched). Idempotent via upsert.
+export async function linkBrewToExperiment(formData: FormData): Promise<void> {
+  const experimentId = nullish(formData.get("experimentId"));
+  const brewId = nullish(formData.get("brewId"));
+  if (!experimentId || !brewId) return;
+  const db = await createClient();
+  const { error } = await db.from("experiment_brews").upsert(
+    { experiment_id: experimentId, brew_id: brewId },
+    { onConflict: "experiment_id,brew_id" },
+  );
+  if (error) return;
+  revalidatePath(`/experiments/${experimentId}`);
+  revalidatePath(`/brews/${brewId}`);
+  redirect(nullish(formData.get("returnTo")) || `/experiments/${experimentId}`);
+}
+
+// Explicit unlinking: remove the junction row only, the brew stays in
+// history. A matching legacy brew_id link is cleared too so the brew does
+// not ghost back through the old column.
+export async function unlinkBrewFromExperiment(experimentId: string, brewId: string): Promise<void> {
+  const db = await createClient();
+  await db.from("experiment_brews").delete().eq("experiment_id", experimentId).eq("brew_id", brewId);
+  const { data: exp } = await db.from("experiments").select("brew_id").eq("id", experimentId).single();
+  if (exp?.brew_id === brewId) {
+    await db.from("experiments").update({ brew_id: null, updated_at: new Date().toISOString() }).eq("id", experimentId);
+  }
+  revalidatePath(`/experiments/${experimentId}`);
+  revalidatePath(`/brews/${brewId}`);
 }
 
 export async function createSession(formData: FormData): Promise<void> {
@@ -463,8 +534,10 @@ export async function deleteExperiment(id: string, brewId: string | null): Promi
   const db = await createClient();
   const { error } = await db.from("experiments").delete().eq("id", id);
   if (error) return;
+  // junction rows cascade with the experiment; linked brews stay in history.
   revalidatePath("/brews");
-  redirect(brewId ? `/brews/${brewId}` : "/brews");
+  revalidatePath("/experiments");
+  redirect(brewId ? `/brews/${brewId}` : "/experiments");
 }
 
 function cuppedAtIso(dateStr?: string | null): string {

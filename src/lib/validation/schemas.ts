@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isFutureDateString } from "@/lib/domain/brew-date";
-import { TASTING_MAX, TASTING_MIN, normalizeAttribute } from "@/lib/domain/tastings";
+import { TASTING_MAX, TASTING_MIN, TASTING_STAGES, normalizeAttribute } from "@/lib/domain/tastings";
 import { POUR_PATTERNS } from "@/lib/domain/pours";
 
 // ponytail: form fields arrive as "" when cleared. Without this, coerce turns
@@ -96,12 +96,15 @@ export type ObservationInput = z.infer<typeof observationSchema>;
 export const experimentSchema = z.object({
   brewId: z.string().uuid().nullish(),
   sessionId: z.string().uuid().nullish(),
+  title: z.string().max(120).nullish(),
+  status: z.enum(["planned", "in_progress", "evaluated"]).nullish(),
   hypothesis: z.string().max(1000).nullish(),
   changedVariables: z.string().max(1000).nullish(),
   expectedResult: z.string().max(1000).nullish(),
   actualResult: z.string().max(1000).nullish(),
   conclusion: z.string().max(1000).nullish(),
   nextQuestion: z.string().max(1000).nullish(),
+  notes: z.string().max(2000).nullish(),
 });
 export type ExperimentInput = z.infer<typeof experimentSchema>;
 
@@ -144,7 +147,7 @@ export type CuppingInput = z.infer<typeof cuppingSchema>;
 // duplicate "acidity" under the unique key; overlong names fail instead of
 // truncating. The scale is intentionally NOT an official SCA score.
 export const tastingEntrySchema = z.object({
-  stage: z.enum(["hot", "warm", "cold"]),
+  stage: z.enum(TASTING_STAGES),
   attribute: z.preprocess(normalizeAttribute, z.string().min(1, "Name the attribute").max(40)),
   value: z.coerce.number().min(TASTING_MIN).max(TASTING_MAX),
 });

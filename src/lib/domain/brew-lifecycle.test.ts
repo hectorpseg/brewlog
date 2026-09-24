@@ -57,6 +57,20 @@ describe("brew lifecycle", () => {
     expect(brewWarnings({ total_time_sec: 150, session_id: "s" })).toEqual([]);
     expect(brewWarnings({ total_time_sec: 150 })).toEqual(["No session"]);
   });
+  it("reports the legacy experiment brew truthfully once fully loaded", () => {
+    // Shape of the hosted legacy brew behind the Wave 4 smoke-test card:
+    // 12 g / 200 g, 92C, 65 clicks, no recorded time, assigned session,
+    // filter on file, one observation with hot notes. The card hero (ratio
+    // 1:16.7) and "No brew time" come from different fields, so they agree;
+    // temp, clicks, session and tasted status must all resolve from data.
+    const brew = {
+      dose_g: 12, water_g: 200, temp_c: 92, grind_clicks: 65,
+      total_time_sec: null, filter: "Cafec Abaca", session_id: "s1",
+    };
+    const obs = { acidity: null, hot_notes: "GOOD", freeform_notes: null };
+    expect(brewLifecycle(brew, obs)).toBe("tasted");
+    expect(brewWarnings(brew)).toEqual(["No brew time"]);
+  });
 });
 
 describe("describeDeletion", () => {
@@ -81,9 +95,9 @@ describe("describeDeletion", () => {
     const d = describeDeletion("session", { brews: 4 });
     expect(d.body).toContain("stay in history, unassigned");
   });
-  it("states experiment consequences: brew kept", () => {
+  it("states experiment consequences: brews kept", () => {
     const d = describeDeletion("experiment", {});
-    expect(d.body).toContain("linked brew is kept");
+    expect(d.body).toContain("Linked brews are kept in history");
   });
   it("states cupping consequences: only the tasting record goes", () => {
     const d = describeDeletion("cupping", {});

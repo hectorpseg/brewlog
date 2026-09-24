@@ -76,7 +76,7 @@ export function PourEditor({ rows, legacyCount, onChange }: {
                     id={`pour-${i}-time`}
                     placeholder="0:35"
                     autoComplete="off"
-                    inputMode="numeric"
+                    inputMode="decimal"
                     value={r.time}
                     onChange={(e) => updateAt(i, { time: e.target.value })}
                   />

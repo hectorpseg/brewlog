@@ -1,4 +1,4 @@
-import { Coffee, FlaskConical, Layers, Package, Scale, User } from "lucide-react";
+import { Coffee, FlaskConical, FlaskRound, Layers, Package, Scale, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 // ponytail: the only curated destination lists in the app. A feature shipping
@@ -24,6 +24,7 @@ export const PRIMARY_TABS: NavLink[] = [
 
 export const MORE_LINKS: MoreLink[] = [
   { href: "/sessions", label: "Sessions", body: "Group brews into explorations and phases.", Icon: Layers },
+  { href: "/experiments", label: "Experiments", body: "Group brews around a question you are testing.", Icon: FlaskRound },
   { href: "/brews/compare", label: "Compare brews", body: "Side-by-side recipe and cup differences.", Icon: Scale },
   { href: "/account", label: "Account", body: "Sign-in and competition target.", Icon: User },
 ];

@@ -87,7 +87,18 @@ export function formatBrewSummary(input: SummaryInput): string {
   if (session) lines.push(`Session: ${session}`);
 
   const perStage = new Map<string, string[]>();
-  for (const r of tastings ?? []) {
+  // Deterministic regardless of input order: stage in canonical Hot/Warm/Cold
+  // order (enforced below via TASTING_STAGES), attributes alphabetical.
+  const orderedTastings = [...(tastings ?? [])].sort((x, y) => {
+    const stageOf = (r: SummaryTasting) =>
+      typeof r === "object" && r !== null && isTastingStage((r as { stage: unknown }).stage)
+        ? TASTING_STAGES.indexOf((r as { stage: (typeof TASTING_STAGES)[number] }).stage)
+        : TASTING_STAGES.length;
+    const attrOf = (r: SummaryTasting) =>
+      typeof r === "object" && r !== null ? normalizeAttribute((r as { attribute: unknown }).attribute) : "";
+    return stageOf(x) - stageOf(y) || (attrOf(x) < attrOf(y) ? -1 : attrOf(x) > attrOf(y) ? 1 : 0);
+  });
+  for (const r of orderedTastings) {
     if (typeof r !== "object" || r === null) continue;
     if (!isTastingStage(r.stage)) continue;
     const attribute = normalizeAttribute(r.attribute);
