@@ -1,31 +1,25 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coffee, Ellipsis, FlaskConical, Package, Plus } from "lucide-react";
+import { Ellipsis, Plus } from "lucide-react";
+import { isMorePath, isPublicPath, isTabPath, PRIMARY_TABS } from "@/lib/navigation";
 import { cn } from "./ui/utils";
 
-// Compact mobile nav: entities touched mid-brew stay one tap away
-// (Brews, Coffees, Cuppings); everything else lives under More.
-// + Brew stays the primary creation action. Lucide icons, no emoji.
-const TABS = [
-  { href: "/brews", label: "Brews", Icon: Coffee },
-  { href: "/coffees", label: "Coffees", Icon: Package },
-  { href: "/cuppings", label: "Cuppings", Icon: FlaskConical },
-];
-
-const MORE_PREFIXES = ["/more", "/sessions", "/account", "/experiments"];
-
+// Auth shell separation lives here, not in a route group: public paths
+// (login, root redirect) render no app chrome, so unauthenticated users
+// never see authenticated navigation. Everything else is the app shell.
 export function BottomNav() {
   const path = usePathname();
-  const active = TABS.find((t) => path === t.href || path.startsWith(`${t.href}/`));
-  const onMore = MORE_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
+  if (isPublicPath(path)) return null;
+  const active = PRIMARY_TABS.find((t) => isTabPath(path, t.href));
+  const onMore = isMorePath(path);
   return (
     <nav
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 mx-auto w-full max-w-md border-t border-line bg-card px-4 pb-[env(safe-area-inset-bottom)] pt-2"
     >
       <div className="flex items-center justify-around">
-        {TABS.map(({ href, label, Icon }) => (
+        {PRIMARY_TABS.map(({ href, label, Icon }) => (
           <Link
             key={href}
             href={href}

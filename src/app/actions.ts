@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { coffeeSchema, newBrewFormSchema, observationSchema, experimentSchema, sessionSchema, competitionSettingsSchema, cuppingSchema, tastingsPayloadSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
+import { coffeeSchema, newBrewFormSchema, observationSchema, experimentSchema, sessionSchema, competitionSettingsSchema, cuppingSchema, tastingsPayloadSchema, poursPayloadSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
 import { toBrewedAtIso } from "@/lib/domain/brew-date";
 import { safeNext } from "@/lib/auth";
 
@@ -35,6 +35,12 @@ export async function createCoffee(formData: FormData): Promise<void> {
     name: nullish(formData.get("name")),
     origin: nullish(formData.get("origin")),
     process: nullish(formData.get("process")),
+    variety: nullish(formData.get("variety")),
+    producer: nullish(formData.get("producer")),
+    country: nullish(formData.get("country")),
+    region: nullish(formData.get("region")),
+    farm: nullish(formData.get("farm")),
+    altitude: nullish(formData.get("altitude")),
     roastDate: nullish(formData.get("roastDate")),
     receivedDate: nullish(formData.get("receivedDate")),
     initialWeightG: nullish(formData.get("initialWeightG")),
@@ -46,6 +52,8 @@ export async function createCoffee(formData: FormData): Promise<void> {
   const db = await createClient();
   const { data, error } = await db.from("coffees").insert({
     name: d.name, origin: d.origin, process: d.process,
+    variety: d.variety, producer: d.producer, country: d.country,
+    region: d.region, farm: d.farm, altitude: d.altitude,
     roast_date: d.roastDate, received_date: d.receivedDate,
     initial_weight_g: d.initialWeightG, remaining_weight_g: d.remainingWeightG,
     notes: d.notes,
@@ -60,6 +68,12 @@ export async function updateCoffee(id: string, formData: FormData): Promise<void
     name: nullish(formData.get("name")),
     origin: nullish(formData.get("origin")),
     process: nullish(formData.get("process")),
+    variety: nullish(formData.get("variety")),
+    producer: nullish(formData.get("producer")),
+    country: nullish(formData.get("country")),
+    region: nullish(formData.get("region")),
+    farm: nullish(formData.get("farm")),
+    altitude: nullish(formData.get("altitude")),
     roastDate: nullish(formData.get("roastDate")),
     receivedDate: nullish(formData.get("receivedDate")),
     initialWeightG: nullish(formData.get("initialWeightG")),
@@ -71,6 +85,8 @@ export async function updateCoffee(id: string, formData: FormData): Promise<void
   const db = await createClient();
   const { error } = await db.from("coffees").update({
     name: d.name, origin: d.origin, process: d.process,
+    variety: d.variety, producer: d.producer, country: d.country,
+    region: d.region, farm: d.farm, altitude: d.altitude,
     roast_date: d.roastDate, received_date: d.receivedDate,
     initial_weight_g: d.initialWeightG, remaining_weight_g: d.remainingWeightG,
     notes: d.notes, updated_at: new Date().toISOString(),
@@ -99,6 +115,7 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
     finalBeverageG: nullish(formData.get("finalBeverageG")),
     notes: nullish(formData.get("notes")),
     tastings: nullish(formData.get("tastings")),
+    pours: nullish(formData.get("pours")),
     hotNotes: nullish(formData.get("hotNotes")),
     warmNotes: nullish(formData.get("warmNotes")),
     coldNotes: nullish(formData.get("coldNotes")),
@@ -108,12 +125,17 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
   const d = parsed.data;
   const { toSeconds } = await import("@/lib/domain/brew-time");
   const { toBrewedAtIso } = await import("@/lib/domain/brew-date");
+  const { completePourEntries, pourRowsFromJson } = await import("@/lib/domain/pours");
+  // the manual pour count is gone: structured pours are the counter. A legacy
+  // inherited count survives only when no structured pours were entered.
+  const createPourEntries = completePourEntries(pourRowsFromJson(d.pours));
   const db = await createClient();
   const { data, error } = await db.from("brews").insert({
     coffee_id: d.coffeeId, session_id: d.sessionId, dose_g: d.doseG, water_g: d.waterG, temp_c: d.tempC,
     brewed_at: toBrewedAtIso(d.brewedAt) ?? new Date().toISOString(),
     grind_clicks: d.grindClicks, grinder: d.grinder, dripper: d.dripper,
-    filter: d.filter, water_source: d.waterSource, pour_count: d.pourCount,
+    filter: d.filter, water_source: d.waterSource,
+    pour_count: createPourEntries.length > 0 ? createPourEntries.length : d.pourCount,
     total_time_sec: toSeconds(
       d.brewTimeMin == null ? undefined : Number(d.brewTimeMin),
       d.brewTimeSec == null ? undefined : Number(d.brewTimeSec),
@@ -121,28 +143,53 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
     final_beverage_g: d.finalBeverageG, notes: d.notes,
   }).select("id").single();
   if (error) return { error: error.message };
+  // child rows ride along at creation: observation, structured tasting, and
+  // structured pours are independent of each other, so they persist in
+  // parallel rather than sequentially. Only complete entries persist.
+  const { completeTastingEntries, tastingRowsFromJson } = await import("@/lib/domain/tastings");
+  const tastingEntries = completeTastingEntries(tastingRowsFromJson(d.tastings));
+  const pourEntries = createPourEntries;
+  const childWrites: Promise<{ error?: string }>[] = [];
   // first tasting notes ride along at creation as the brew's observation row
   if (d.hotNotes || d.warmNotes || d.coldNotes || d.freeformNotes) {
-    const obs = observationSchema.safeParse({
-      brewId: data.id, hotNotes: d.hotNotes, warmNotes: d.warmNotes,
-      coldNotes: d.coldNotes, freeformNotes: d.freeformNotes,
-    });
-    if (!obs.success) return { error: "Brew saved, but notes were invalid." };
-    const o = obs.data;
-    const { error: obsError } = await db.from("observations").insert({
-      brew_id: o.brewId, hot_notes: o.hotNotes, warm_notes: o.warmNotes,
-      cold_notes: o.coldNotes, freeform_notes: o.freeformNotes,
-    });
-    if (obsError) return { error: "Brew saved, but notes failed to save." };
+    childWrites.push((async () => {
+      const obs = observationSchema.safeParse({
+        brewId: data.id, hotNotes: d.hotNotes, warmNotes: d.warmNotes,
+        coldNotes: d.coldNotes, freeformNotes: d.freeformNotes,
+      });
+      if (!obs.success) return { error: "Brew saved, but notes were invalid." };
+      const o = obs.data;
+      const { error: obsError } = await db.from("observations").insert({
+        brew_id: o.brewId, hot_notes: o.hotNotes, warm_notes: o.warmNotes,
+        cold_notes: o.coldNotes, freeform_notes: o.freeformNotes,
+      });
+      if (obsError) return { error: "Brew saved, but notes failed to save." };
+      return {};
+    })());
   }
-  // structured tasting rides along the same way: only complete entries persist
-  const { completeTastingEntries, tastingRowsFromJson } = await import("@/lib/domain/tastings");
-  const entries = completeTastingEntries(tastingRowsFromJson(d.tastings));
-  if (entries.length > 0) {
-    const { error: tasteError } = await db.from("tastings").insert(
-      entries.map((e) => ({ brew_id: data.id, stage: e.stage, attribute: e.attribute, value: e.value })),
-    );
-    if (tasteError) return { error: "Brew saved, but tasting failed to save." };
+  if (tastingEntries.length > 0) {
+    childWrites.push((async () => {
+      const { error: tasteError } = await db.from("tastings").insert(
+        tastingEntries.map((e) => ({ brew_id: data.id, stage: e.stage, attribute: e.attribute, value: e.value })),
+      );
+      if (tasteError) return { error: "Brew saved, but tasting failed to save." };
+      return {};
+    })());
+  }
+  if (pourEntries.length > 0) {
+    childWrites.push((async () => {
+      const { error: pourError } = await db.from("pours").insert(
+        pourEntries.map((e) => ({
+          brew_id: data.id, sequence: e.sequence, amount_g: e.amount_g,
+          timing_seconds: e.timing_seconds, bloom: e.bloom, pattern: e.pattern, note: e.note,
+        })),
+      );
+      if (pourError) return { error: "Brew saved, but pours failed to save." };
+      return {};
+    })());
+  }
+  for (const res of await Promise.all(childWrites)) {
+    if (res.error) return { error: res.error };
   }
   // approximate inventory decrement, advisory only
   const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
@@ -241,6 +288,33 @@ export async function upsertTastings(brewId: string, entries: { stage: string; a
     .map((e) => e.id);
   if (dropIds.length > 0) {
     const { error } = await db.from("tastings").delete().in("id", dropIds);
+    if (error) return { error: error.message };
+  }
+}
+
+// Structured pours ride the brew editor autosave: the payload is the full
+// desired state, so pours removed in the editor are deleted here. The brews
+// row is untouched - this never reads or writes that table.
+export async function upsertPours(brewId: string, entries: { sequence: number; amount_g: number; timing_seconds: number; bloom: boolean; pattern: string; note?: string | null }[]) {
+  const parsed = poursPayloadSchema.safeParse(entries);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid pour" };
+  const db = await createClient();
+  const rows = parsed.data.map((e) => ({
+    brew_id: brewId, sequence: e.sequence, amount_g: e.amount_g,
+    timing_seconds: e.timing_seconds, bloom: e.bloom, pattern: e.pattern, note: e.note,
+    updated_at: new Date().toISOString(),
+  }));
+  if (rows.length > 0) {
+    const { error } = await db.from("pours").upsert(rows, { onConflict: "brew_id,sequence" });
+    if (error) return { error: error.message };
+  }
+  const keep = new Set(rows.map((r) => r.sequence));
+  const { data: existing } = await db.from("pours").select("id, sequence").eq("brew_id", brewId);
+  const dropIds = (existing ?? [])
+    .filter((e) => !keep.has(e.sequence))
+    .map((e) => e.id);
+  if (dropIds.length > 0) {
+    const { error } = await db.from("pours").delete().in("id", dropIds);
     if (error) return { error: error.message };
   }
 }

@@ -1,15 +1,17 @@
-import { getBrew, listBrewIds, listExperimentsForBrew, listTastings } from "@/lib/db/queries";
-import { requireUser } from "@/lib/supabase/require-user";
+import { getBrew, listBrewIds, listExperimentsForBrew, listTastings, listPours } from "@/lib/db/queries";
 import { diffBrews } from "@/lib/domain/compare";
 import { COMPARE_NOTE_FIELDS, COMPARE_RECIPE_FIELDS, resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
 import { compareTastings } from "@/lib/domain/tastings";
+import { comparePourFields } from "@/lib/domain/pours";
 import { TastingCompare } from "@/components/tasting-compare";
 import { CompareExperiments, CompareFieldTable, type CompareFieldRow } from "@/components/compare-fields";
 import { Card, SectionHeader } from "@/components/ui/controls";
 import { ErrorState } from "@/components/states";
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string }> }) {
-  await requireUser("/brews/compare");
+  // Auth guard lives in the layout above (single requireUser per render,
+  // shared via the cached lookup). Deep links (?a=&b=) survive: the layout
+  // redirects anonymous users to /login?next=/brews/compare.
   const sp = await searchParams;
   // Common path (dropdown change, deep link): fetch exactly the two compared
   // brews. The 50-row selector dataset lives in the layout and is not
@@ -64,13 +66,16 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   // structured tasting compares separately: Stage → Attribute → A / B.
   // Legacy fixed attributes are gone from the scalar diff above on purpose.
   // Experiments ride along: shown only when at least one side links any.
-  const [tastingsA, tastingsB, experimentsA, experimentsB] = await Promise.all([
+  const [tastingsA, tastingsB, poursA, poursB, experimentsA, experimentsB] = await Promise.all([
     listTastings(rawA.id).catch(() => []),
     listTastings(rawB.id).catch(() => []),
+    listPours(rawA.id).catch(() => []),
+    listPours(rawB.id).catch(() => []),
     listExperimentsForBrew(rawA.id).catch(() => []),
     listExperimentsForBrew(rawB.id).catch(() => []),
   ]);
   const tasting = compareTastings(tastingsA, tastingsB);
+  const pourRows: CompareFieldRow[] = comparePourFields(poursA, poursB);
   const changedCount = [...changedKeys].filter((k) => a[k] !== "-" || b[k] !== "-").length;
   return (
     <div className="flex flex-col gap-4">
@@ -86,6 +91,14 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
           <CompareFieldTable rows={recipe} />
         </Card>
       </div>
+      {pourRows.length > 0 ? (
+        <div>
+          <SectionHeader>Pours</SectionHeader>
+          <Card className="mt-2">
+            <CompareFieldTable rows={pourRows} />
+          </Card>
+        </div>
+      ) : null}
       <div>
         <SectionHeader>Tasting</SectionHeader>
         <TastingCompare aLabel="Brew A" bLabel="Brew B" stages={tasting} />

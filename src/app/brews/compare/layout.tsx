@@ -9,6 +9,8 @@ import { CompareShell } from "@/components/compare-shell";
 // ponytail: the selector dataset lives in the layout, which Next.js preserves
 // across ?a=&b= navigations. Changing a dropdown re-runs only the page
 // (two targeted getBrew reads), never this 50-row list again.
+// The requireUser here guards the page below too: one cached auth read
+// per render, and anonymous deep links bounce to /login?next=… intact.
 export default async function CompareLayout({ children }: { children: React.ReactNode }) {
   await requireUser("/brews/compare");
   const rows = await listBrewOptions().catch(() => []);

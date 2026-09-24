@@ -8,11 +8,14 @@ import { newBrewFormSchema, type NewBrewFormInput } from "@/lib/validation/schem
 import { splitSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate, formatReceived } from "@/lib/domain/brew-date";
 import { recipeStartingValues } from "@/lib/domain/recipe-start";
+import type { PourFact } from "@/lib/domain/pours";
+import { pourRowsFromJson, pourRowsToJson } from "@/lib/domain/pours";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { TastingEditor } from "@/components/tasting-editor";
+import { PourEditor } from "@/components/pour-editor";
 import { tastingRowsFromJson, tastingRowsToJson } from "@/lib/domain/tastings";
 import { SaveStateBadge } from "@/components/save-state";
 import { formatRatio } from "@/lib/domain/ratio";
@@ -33,22 +36,24 @@ type Props = {
   minBeverageG: number | null;
   initialCoffeeId?: string;
   recipeFrom?: Record<string, unknown> | null;
+  recipePoursFrom?: PourFact[] | null;
 };
 
-function defaults(recipeFrom?: Record<string, unknown> | null, coffeeId?: string): Partial<NewBrewFormInput> {
+function defaults(recipeFrom?: Record<string, unknown> | null, coffeeId?: string, pours?: PourFact[] | null): Partial<NewBrewFormInput> {
   return recipeStartingValues(
     (recipeFrom ?? null) as Record<string, string | number | undefined> | null,
     coffeeId ?? "",
+    pours ?? null,
   );
 }
 
-export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffeeId, recipeFrom }: Props) {
+export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffeeId, recipeFrom, recipePoursFrom }: Props) {
   const router = useRouter();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<NewBrewFormInput>({
     // ponytail: zodResolver only here (complex form); simple forms use server actions
     resolver: zodResolver(newBrewFormSchema) as unknown as Resolver<NewBrewFormInput>,
-    defaultValues: defaults(recipeFrom, initialCoffeeId),
+    defaultValues: defaults(recipeFrom, initialCoffeeId, recipePoursFrom),
   });
   // react-hook-form sits outside the compiler's memoization model on purpose:
   // this form re-renders per keystroke by design, so there is nothing to memoize.
@@ -89,6 +94,13 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
   const selectedCoffee = coffees.find((c) => c.id === values.coffeeId);
   const remaining = selectedCoffee?.remaining_weight_g;
   const overRemaining = remaining != null && dose > remaining;
+  // legacy manual count from the copy source, shown until structured
+  // pours take over the counter. Never editable, never invented.
+  const copyLegacyPours = (() => {
+    if (pourRowsFromJson(values.pours).length > 0 || recipeFrom == null) return null;
+    const n = Number((recipeFrom as { pour_count?: unknown }).pour_count);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  })();
   // guidance only: entering a value is optional, and below-target still saves
   const bevRaw = values.finalBeverageG;
   const bev = bevRaw === "" || bevRaw == null ? NaN : Number(bevRaw);
@@ -148,7 +160,6 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           <div><Label>Grind clicks</Label><Input type="number" inputMode="numeric" className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
           <div><Label>Temp C</Label><Input type="number" inputMode="decimal" className={inh("tempC")} {...form.register("tempC")} /></div>
           <div><Label>Filter</Label><Input className={inh("filter")} {...form.register("filter")} /></div>
-          <div><Label>Pours</Label><Input type="number" inputMode="numeric" className={inh("pourCount")} {...form.register("pourCount")} /></div>
           <div className="col-span-2">
             <Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} {...form.register("brewedAt")} />
           </div>
@@ -180,6 +191,16 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             <div><Label>Dripper</Label><Input className={inh("dripper")} {...form.register("dripper")} /></div>
             <div><Label>Water</Label><Input className={inh("waterSource")} {...form.register("waterSource")} /></div>
           </div>
+        </Card>
+      </details>
+      <details open>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Pours (optional)</summary>
+        <Card>
+          <PourEditor
+            rows={pourRowsFromJson(values.pours)}
+            legacyCount={copyLegacyPours}
+            onChange={(rows) => form.setValue("pours", pourRowsToJson(rows), { shouldDirty: true })}
+          />
         </Card>
       </details>
       <details>

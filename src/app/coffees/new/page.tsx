@@ -24,6 +24,18 @@ export default async function NewCoffeePage({ searchParams }: { searchParams: Pr
             <div><Label htmlFor="process">Process (optional)</Label><Input id="process" name="process" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
+            <div><Label htmlFor="variety">Variety (optional)</Label><Input id="variety" name="variety" /></div>
+            <div><Label htmlFor="producer">Producer (optional)</Label><Input id="producer" name="producer" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label htmlFor="country">Country (optional)</Label><Input id="country" name="country" /></div>
+            <div><Label htmlFor="region">Region (optional)</Label><Input id="region" name="region" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label htmlFor="farm">Farm / estate (optional)</Label><Input id="farm" name="farm" /></div>
+            <div><Label htmlFor="altitude">Altitude (optional)</Label><Input id="altitude" name="altitude" inputMode="numeric" placeholder="e.g. 1800-2000 masl" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div><Label htmlFor="initialWeightG">Initial g</Label><Input id="initialWeightG" name="initialWeightG" type="number" inputMode="decimal" /></div>
             <div><Label htmlFor="receivedDate">Received</Label><Input id="receivedDate" name="receivedDate" type="date" max={defaultBrewedDate()} /></div>
           </div>

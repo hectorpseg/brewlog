@@ -1,22 +1,25 @@
 "use client";
 import { useState } from "react";
-import { updateBrew, upsertObservation, upsertTastings } from "@/app/actions";
+import { updateBrew, upsertObservation, upsertPours, upsertTastings } from "@/app/actions";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
 import { brewEditorDefaults } from "@/lib/db/brew-update";
 import { completeTastingEntries, tastingRowsFromJson, tastingRowsToJson, tastingsUpdatedAt } from "@/lib/domain/tastings";
+import { completePourEntries, pourRowsFromJson, pourRowsToJson, poursUpdatedAt } from "@/lib/domain/pours";
 import { Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
 import { TastingEditor } from "@/components/tasting-editor";
+import { PourEditor } from "@/components/pour-editor";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { splitSeconds, toSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate } from "@/lib/domain/brew-date";
 import { SaveStateBadge } from "@/components/save-state";
 
-export function BrewEditor({ userId, brew, observation, tastings, sessions }: {
+export function BrewEditor({ userId, brew, observation, tastings, pours, sessions }: {
   userId: string;
   brew: Record<string, string | number | null>;
   observation: Record<string, string | null> | null;
   tastings: { stage: unknown; attribute: unknown; value: unknown; updated_at?: unknown }[] | null;
+  pours: { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown; updated_at?: unknown }[] | null;
   sessions: { id: string; title: string }[];
 }) {
   const [form, setForm] = useState<Record<string, string>>(() =>
@@ -24,26 +27,34 @@ export function BrewEditor({ userId, brew, observation, tastings, sessions }: {
       brew as Record<string, unknown>,
       observation as Record<string, unknown> | null,
       tastings,
+      pours,
     ),
   );
   const key = draftKey(userId, "brew-edit", String(brew.id));
   // Server is authoritative once synchronized: weigh any local draft against
   // the freshest server timestamp so a stale draft can never clobber it.
   const serverUpdatedAt =
-    [brew.updated_at, observation?.updated_at, tastingsUpdatedAt(tastings)]
+    [brew.updated_at, observation?.updated_at, tastingsUpdatedAt(tastings), poursUpdatedAt(pours)]
       .filter((v): v is string => typeof v === "string" && v !== "")
       .sort()
       .at(-1) ?? null;
   const { state, retry } = useAutosave({
     key, value: form,
-    // one debounced sync for recipe + tasting: no separate save action
+    // one debounced sync for recipe + tasting + pours: no separate save action
     sync: (v) => (async () => {
       const patch = v as Record<string, string>;
       const brewId = String(brew.id);
+      const pourEntries = completePourEntries(pourRowsFromJson(patch.pours));
+      // the manual pour count is gone: structured pours are the counter, so
+      // the legacy pour_count column follows them. Untouched when there are
+      // no structured pours, so historical manual values survive.
+      if (pourEntries.length > 0) patch.pourCount = String(pourEntries.length);
       const brewRes = await updateBrew(brewId, patch);
       if (brewRes?.error) throw new Error(brewRes.error);
       const tasteRes = await upsertTastings(brewId, completeTastingEntries(tastingRowsFromJson(patch.tastings)));
       if (tasteRes?.error) throw new Error(tasteRes.error);
+      const pourRes = await upsertPours(brewId, pourEntries);
+      if (pourRes?.error) throw new Error(pourRes.error);
       // notes belong to this form too: same debounce, no tap-to-save
       const obsRes = await upsertObservation({ ...patch, brewId });
       if (obsRes?.error) throw new Error(obsRes.error);
@@ -107,7 +118,6 @@ export function BrewEditor({ userId, brew, observation, tastings, sessions }: {
             <div><Label>Dripper</Label><Input value={form.dripper ?? ""} onChange={(e) => set("dripper", e.target.value)} /></div>
             <div><Label>Filter</Label><Input value={form.filter ?? ""} onChange={(e) => set("filter", e.target.value)} /></div>
             <div><Label>Water</Label><Input value={form.waterSource ?? ""} onChange={(e) => set("waterSource", e.target.value)} /></div>
-            <div><Label>Pours</Label><Input value={form.pourCount ?? ""} inputMode="numeric" onChange={(e) => set("pourCount", e.target.value)} /></div>
           </div>
           <div className="mt-3">
             <Label>Brew time</Label>
@@ -118,6 +128,16 @@ export function BrewEditor({ userId, brew, observation, tastings, sessions }: {
               onSeconds={(v) => setTime("sec", v)}
             />
           </div>
+        </Card>
+      </details>
+      <details open>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Pours - timed additions, optional</summary>
+        <Card>
+          <PourEditor
+            rows={pourRowsFromJson(form.pours)}
+            legacyCount={brew.pour_count != null && brew.pour_count !== "" ? Number(brew.pour_count) : null}
+            onChange={(rows) => set("pours", pourRowsToJson(rows))}
+          />
         </Card>
       </details>
       <details open>

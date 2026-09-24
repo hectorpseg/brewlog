@@ -2,6 +2,7 @@ import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { brewRatio } from "@/lib/domain/ratio";
 import { TASTING_STAGES, isTastingStage, normalizeAttribute } from "@/lib/domain/tastings";
+import { isPourPattern } from "@/lib/domain/pours";
 
 // ponytail: one canonical plain-text formatter for a brew. Deterministic,
 // no IDs, no LLM — the same string feeds Copy summary and anything else
@@ -9,6 +10,10 @@ import { TASTING_STAGES, isTastingStage, normalizeAttribute } from "@/lib/domain
 // never invented.
 
 export type SummaryTasting = { stage: unknown; attribute: unknown; value: unknown };
+export type SummaryPour = {
+  sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown;
+  bloom?: unknown; pattern?: unknown; note?: unknown;
+};
 export type SummaryExperiment = { status: "open" | "answered" };
 
 type SummaryInput = {
@@ -17,6 +22,7 @@ type SummaryInput = {
   sessionTitle?: string | null;
   observation?: Record<string, unknown> | null;
   tastings?: SummaryTasting[] | null;
+  pours?: SummaryPour[] | null;
   experiments?: SummaryExperiment[] | null;
 };
 
@@ -39,7 +45,7 @@ const NOTE_LABELS = [
 ] as const;
 
 export function formatBrewSummary(input: SummaryInput): string {
-  const { brew, coffeeName, sessionTitle, observation, tastings, experiments } = input;
+  const { brew, coffeeName, sessionTitle, observation, tastings, pours, experiments } = input;
   const lines: string[] = [];
 
   const day = typeof brew.brewed_at === "string" && brew.brewed_at !== ""
@@ -67,8 +73,8 @@ export function formatBrewSummary(input: SummaryInput): string {
     const t = text(brew[key]);
     if (t) recipe.push(t);
   }
-  const pours = num(brew.pour_count);
-  if (pours != null) recipe.push(`${pours} pours`);
+  const pourCount = num(brew.pour_count);
+  if (pourCount != null) recipe.push(`${pourCount} pours`);
   const time = formatDuration(
     brew.total_time_sec != null && brew.total_time_sec !== "" ? Number(brew.total_time_sec) : null,
   );
@@ -95,6 +101,27 @@ export function formatBrewSummary(input: SummaryInput): string {
   const tasted = TASTING_STAGES.filter((s) => (perStage.get(s) ?? []).length > 0)
     .map((s) => `${s[0].toUpperCase()}${s.slice(1)}: ${(perStage.get(s) ?? []).join(", ")}`);
   if (tasted.length > 0) lines.push(`Tasting — ${tasted.join("; ")}`);
+
+  // Structured pours in sequence order, one segment per pour. Brews without
+  // pours (all historical rows) skip this line entirely, never invented.
+  const segments: string[] = [];
+  const ordered = [...(pours ?? [])]
+    .filter((r): r is SummaryPour => typeof r === "object" && r !== null)
+    .sort((x, y) => Number(x.sequence ?? 0) - Number(y.sequence ?? 0));
+  for (const r of ordered) {
+    const amount = num(r.amount_g);
+    const when = formatDuration(
+      r.timing_seconds != null && r.timing_seconds !== "" ? Number(r.timing_seconds) : null,
+    );
+    if (amount == null || when == null) continue;
+    if (!isPourPattern(r.pattern)) continue;
+    const parts = [`${when}`, `${amount} g`, r.pattern];
+    if (r.bloom === true) parts.push("bloom");
+    const note = text(r.note)?.replace(/\s+/g, " ");
+    if (note) parts.push(note);
+    segments.push(`${Number(r.sequence) || segments.length + 1}. ${parts.join(" · ")}`);
+  }
+  if (segments.length > 0) lines.push(`Pours: ${segments.join("; ")}`);
 
   const obs = observation ?? {};
   for (const [key, label] of NOTE_LABELS) {
