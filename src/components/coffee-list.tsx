@@ -10,6 +10,12 @@ export type CoffeeListRow = {
   name: string;
   origin: string | null;
   process: string | null;
+  variety?: string | null;
+  producer?: string | null;
+  country?: string | null;
+  region?: string | null;
+  farm?: string | null;
+  altitude?: string | null;
   notes: string | null;
   remaining_weight_g: number | null;
 };

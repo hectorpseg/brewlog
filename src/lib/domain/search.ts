@@ -75,12 +75,18 @@ export type CoffeeSearchRow = {
   name?: unknown;
   origin?: unknown;
   process?: unknown;
+  variety?: unknown;
+  producer?: unknown;
+  country?: unknown;
+  region?: unknown;
+  farm?: unknown;
+  altitude?: unknown;
   notes?: unknown;
 };
 
 export function matchCoffee(c: CoffeeSearchRow, query: string): boolean {
   return matchesQuery(
-    [c.name, c.origin, c.process, c.notes].map((v) => (typeof v === "string" ? v : "")),
+    [c.name, c.origin, c.process, c.variety, c.producer, c.country, c.region, c.farm, c.altitude, c.notes].map((v) => (typeof v === "string" ? v : "")),
     query,
   );
 }

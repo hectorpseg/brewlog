@@ -10,6 +10,7 @@ import { DeleteButton } from "@/components/delete-button";
 import { BrewHistoryRow } from "@/components/brew-history-row";
 import { EmptyState } from "@/components/states";
 import { describeDeletion } from "@/lib/domain/deletion";
+import { coffeeDetailLine, coffeeMetaLine } from "@/lib/domain/coffee-meta";
 import { formatBrewDate, formatReceived } from "@/lib/domain/brew-date";
 
 export default async function CoffeeDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -35,8 +36,13 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
         <BackLink href="/coffees" label="Coffees" />
         <h1 className="font-display text-2xl">{coffee.name}</h1>
         <p className="tnum mt-1 text-sm text-ink2">
-          {[coffee.origin, coffee.process].filter(Boolean).join(" · ") || "origin/process unknown"}
+          {coffeeMetaLine(coffee)}
         </p>
+        {coffeeDetailLine(coffee) ? (
+          <p className="tnum mt-0.5 text-sm text-ink2">
+            {coffeeDetailLine(coffee)}
+          </p>
+        ) : null}
         <p className="tnum mt-0.5 text-sm text-ink2">
           ~{coffee.remaining_weight_g ?? "?"} g remaining · Received {formatReceived(coffee.received_date)}
         </p>
