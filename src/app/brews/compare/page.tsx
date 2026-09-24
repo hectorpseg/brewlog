@@ -1,9 +1,10 @@
-import { getBrew, listBrewIds, listTastings } from "@/lib/db/queries";
+import { getBrew, listBrewIds, listExperimentsForBrew, listTastings } from "@/lib/db/queries";
 import { requireUser } from "@/lib/supabase/require-user";
 import { diffBrews } from "@/lib/domain/compare";
-import { resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
+import { COMPARE_NOTE_FIELDS, COMPARE_RECIPE_FIELDS, resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
 import { compareTastings } from "@/lib/domain/tastings";
 import { TastingCompare } from "@/components/tasting-compare";
+import { CompareExperiments, CompareFieldTable, type CompareFieldRow } from "@/components/compare-fields";
 import { Card, SectionHeader } from "@/components/ui/controls";
 import { ErrorState } from "@/components/states";
 
@@ -53,61 +54,58 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   // sees scalar strings, so UUIDs and [object Object] cannot reach the UI.
   const a = toComparableBrew(rawA);
   const b = toComparableBrew(rawB);
-  const diff = diffBrews(a, b);
+  const changedKeys = new Set(diffBrews(a, b).changed);
+  const rowsFor = (fields: readonly string[]): CompareFieldRow[] =>
+    fields
+      .map((label) => ({ label, a: a[label], b: b[label], changed: changedKeys.has(label) }))
+      .filter((r) => r.a !== "-" || r.b !== "-");
+  const recipe = rowsFor(COMPARE_RECIPE_FIELDS);
+  const notes = rowsFor(COMPARE_NOTE_FIELDS);
   // structured tasting compares separately: Stage → Attribute → A / B.
   // Legacy fixed attributes are gone from the scalar diff above on purpose.
-  const [tastingsA, tastingsB] = await Promise.all([
+  // Experiments ride along: shown only when at least one side links any.
+  const [tastingsA, tastingsB, experimentsA, experimentsB] = await Promise.all([
     listTastings(rawA.id).catch(() => []),
     listTastings(rawB.id).catch(() => []),
+    listExperimentsForBrew(rawA.id).catch(() => []),
+    listExperimentsForBrew(rawB.id).catch(() => []),
   ]);
   const tasting = compareTastings(tastingsA, tastingsB);
+  const changedCount = [...changedKeys].filter((k) => a[k] !== "-" || b[k] !== "-").length;
   return (
     <div className="flex flex-col gap-4">
       <div>
         <p className="tnum mt-1 text-sm text-ink2">
           {a.Coffee} · {a.Ratio} → {b.Ratio}
-          {" · "}{diff.changed.length} change{diff.changed.length === 1 ? "" : "s"}
+          {" · "}{changedCount} change{changedCount === 1 ? "" : "s"}
         </p>
       </div>
       <div>
-        <SectionHeader>What changed</SectionHeader>
-        {diff.changed.length === 0 ? (
-          <p className="mt-2 text-sm text-ink2">Identical recipes - the difference is in the cup.</p>
-        ) : (
-          <Card className="mt-2">
-            <ul className="flex flex-col gap-2 text-sm">
-              {diff.changed.map((k) => (
-                <li key={k}>
-                  <span className="text-ink2">{k}</span>
-                  <br />
-                  <span className="tnum font-medium text-ember">{a[k]} → {b[k]}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-      </div>
-      <div>
-        <SectionHeader>What stayed the same</SectionHeader>
-        {diff.same.length === 0 ? (
-          <p className="mt-2 text-sm text-ink2">Nothing - every attribute differs.</p>
-        ) : (
-          <Card className="mt-2">
-            <ul className="flex flex-col gap-2 text-sm">
-              {diff.same.map((k) => (
-                <li key={k} className="tnum flex items-baseline justify-between gap-2">
-                  <span className="text-ink2">{k}</span>
-                  <span className="text-right font-medium">{a[k]}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
+        <SectionHeader>Recipe</SectionHeader>
+        <Card className="mt-2">
+          <CompareFieldTable rows={recipe} />
+        </Card>
       </div>
       <div>
         <SectionHeader>Tasting</SectionHeader>
         <TastingCompare aLabel="Brew A" bLabel="Brew B" stages={tasting} />
       </div>
+      <div>
+        <SectionHeader>Notes</SectionHeader>
+        {notes.length === 0 ? (
+          <p className="mt-2 text-sm text-ink2">No notes on either brew.</p>
+        ) : (
+          <Card className="mt-2">
+            <CompareFieldTable rows={notes} />
+          </Card>
+        )}
+      </div>
+      {experimentsA.length > 0 || experimentsB.length > 0 ? (
+        <div>
+          <SectionHeader>Experiments</SectionHeader>
+          <CompareExperiments a={experimentsA} b={experimentsB} />
+        </div>
+      ) : null}
     </div>
   );
 }

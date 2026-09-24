@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/supabase/require-user";
 import { listBrewOptions } from "@/lib/db/queries";
 import { toCompareOption } from "@/lib/domain/brew-diff";
 import { BackLink } from "@/components/back-link";
+import { BackToTop } from "@/components/back-to-top";
 import { CompareShell } from "@/components/compare-shell";
 
 // ponytail: the selector dataset lives in the layout, which Next.js preserves
@@ -21,6 +22,7 @@ export default async function CompareLayout({ children }: { children: React.Reac
       <Suspense fallback={null}>
         <CompareShell brews={brews}>{children}</CompareShell>
       </Suspense>
+      <BackToTop />
     </div>
   );
 }

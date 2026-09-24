@@ -5,7 +5,7 @@ import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
 import { brewEditorDefaults } from "@/lib/db/brew-update";
 import { completeTastingEntries, tastingRowsFromJson, tastingRowsToJson, tastingsUpdatedAt } from "@/lib/domain/tastings";
-import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
+import { Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
 import { TastingEditor } from "@/components/tasting-editor";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { splitSeconds, toSeconds } from "@/lib/domain/brew-time";
@@ -44,6 +44,9 @@ export function BrewEditor({ userId, brew, observation, tastings, sessions }: {
       if (brewRes?.error) throw new Error(brewRes.error);
       const tasteRes = await upsertTastings(brewId, completeTastingEntries(tastingRowsFromJson(patch.tastings)));
       if (tasteRes?.error) throw new Error(tasteRes.error);
+      // notes belong to this form too: same debounce, no tap-to-save
+      const obsRes = await upsertObservation({ ...patch, brewId });
+      if (obsRes?.error) throw new Error(obsRes.error);
     })(),
     serverUpdatedAt,
     // merge, don't replace: older drafts may predate newer fields.
@@ -60,9 +63,6 @@ export function BrewEditor({ userId, brew, observation, tastings, sessions }: {
     }),
   });
 
-  const [savedTick, setSavedTick] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
   function set(k: string, v: string) { setForm((f) => ({ ...f, [k]: v })); }
 
   // minutes/seconds are display facets of stored total seconds
@@ -75,22 +75,10 @@ export function BrewEditor({ userId, brew, observation, tastings, sessions }: {
     });
   }
 
-  async function saveSensory(e: React.FormEvent) {
-    e.preventDefault();
-    setSaveError(null);
-    const r = await upsertObservation({ ...(form as Record<string, string>), brewId: String(brew.id) });
-    if (r?.error) {
-      setSaveError(r.error);
-      return;
-    }
-    setSavedTick(true);
-    setTimeout(() => setSavedTick(false), 2500);
-  }
-
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-ink2">Recipe and tasting save themselves. Notes below save on tap.</p>
+        <p className="text-sm text-ink2">Everything on this page saves itself.</p>
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
       <Card>
@@ -148,15 +136,11 @@ export function BrewEditor({ userId, brew, observation, tastings, sessions }: {
             notes={{ hot: form.hotNotes ?? "", warm: form.warmNotes ?? "", cold: form.coldNotes ?? "" }}
             onNotes={(stage, value) => set(`${stage}Notes`, value)}
           />
-          <form onSubmit={saveSensory}>
           <div className="mt-6 border-t border-line pt-5">
             <h3 className="text-base font-medium">Overall notes</h3>
             <Label htmlFor="obs-overall" className="sr-only">Overall notes</Label>
             <Textarea id="obs-overall" rows={2} className="mt-1" value={form.freeformNotes ?? ""} onChange={(e) => set("freeformNotes", e.target.value)} />
-            {saveError ? <p role="alert" className="mt-2 text-sm text-ember">{saveError}</p> : null}
-            <Button className="mt-3">{savedTick ? "Saved" : "Save notes"}</Button>
           </div>
-          </form>
         </Card>
       </details>
     </div>
