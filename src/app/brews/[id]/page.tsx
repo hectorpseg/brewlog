@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
-import { getBrew, listExperimentsForBrew, listSessionOptions, listTastings } from "@/lib/db/queries";
+import { getBrew, listExperimentsForBrew, listSessionOptions, listTastings, listPours } from "@/lib/db/queries";
 import { createExperiment, deleteBrew } from "@/app/actions";
 import { BrewEditor } from "@/components/brew-editor";
 import { BackLink } from "@/components/back-link";
@@ -23,11 +23,12 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
   const user = await requireUser(`/brews/${id}`);
   const brew = await getBrew(id).catch(() => null);
   if (!brew) notFound();
-  // independent reads, one round trip instead of two sequential ones
-  const [sessions, experiments, tastings] = await Promise.all([
+  // independent reads, one round trip instead of sequential ones
+  const [sessions, experiments, tastings, pours] = await Promise.all([
     listSessionOptions().catch(() => []),
     listExperimentsForBrew(id).catch(() => []),
     listTastings(id).catch(() => []),
+    listPours(id).catch(() => []),
   ]);
   const obs = Array.isArray(brew.observations) ? brew.observations[0] ?? null : brew.observations ?? null;
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
@@ -37,6 +38,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
   const del = describeDeletion("brew", {
     observations: obs ? 1 : 0,
     tastings: tastings.length,
+    pours: pours.length,
     experiments: experiments.length,
   });
   const remove = deleteBrew.bind(null, id);
@@ -48,6 +50,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
       : null,
     observation: obs as Record<string, unknown> | null,
     tastings: tastings as { stage: unknown; attribute: unknown; value: unknown }[],
+    pours: pours as { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown }[],
     experiments: experiments.map((e: { conclusion: string | null; actual_result: string | null }) => ({
       status: experimentStatus(e),
     })),
@@ -91,6 +94,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
         brew={brew}
         observation={obs}
         tastings={tastings}
+        pours={pours}
         sessions={sessions.map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))}
       />
         </div>

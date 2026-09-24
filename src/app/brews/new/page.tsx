@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
-import { listCoffees, latestBrew, latestBrewForCoffee, listSessionOptions, getCompetitionSettings } from "@/lib/db/queries";
+import { listCoffees, latestBrew, latestBrewForCoffee, listSessionOptions, getCompetitionSettings, listPours } from "@/lib/db/queries";
 import { DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
 import { BrewForm } from "@/components/brew-form";
 import { Card } from "@/components/ui/controls";
@@ -17,6 +17,9 @@ export default async function NewBrewPage({ searchParams }: { searchParams: Prom
     getCompetitionSettings().catch(() => null),
   ]);
   const copyFrom = sp.copy === "1" && sp.coffee ? await latestBrewForCoffee(sp.coffee).catch(() => null) : null;
+  // structured pours are recipe: fetched only for the copy source, so Brew
+  // Again / Continue inherit them. A fresh brew never invents pours.
+  const copyPours = copyFrom ? await listPours(copyFrom.id).catch(() => []) : null;
   // +Brew continues the workflow: the most recent brew is offered as an
   // explicit copy source — starting fresh stays one tap away. A fresh form
   // never preselects a coffee: that choice belongs to the user.
@@ -53,6 +56,7 @@ export default async function NewBrewPage({ searchParams }: { searchParams: Prom
         minBeverageG={settings?.min_final_beverage_g != null ? Number(settings.min_final_beverage_g) : DEFAULT_MIN_BEVERAGE_G}
         initialCoffeeId={sp.coffee ?? undefined}
         recipeFrom={copyFrom}
+        recipePoursFrom={copyPours}
       />
     </div>
   );

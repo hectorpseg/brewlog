@@ -3,6 +3,7 @@
 import { toBrewedAtIso, toDateInputValue } from "@/lib/domain/brew-date";
 import { splitSeconds } from "@/lib/domain/brew-time";
 import { tastingRowsToJson, tastingServerRowsToDraft } from "@/lib/domain/tastings";
+import { pourRowsToJson, pourServerRowsToDraft } from "@/lib/domain/pours";
 
 export const SENSORY_KEYS = [
   "acidity", "sweetness", "body", "clarity", "bitterness",
@@ -19,6 +20,7 @@ export function brewEditorDefaults(
   brew: BrewRowLike,
   observation: ObservationLike,
   tastings?: { stage: unknown; attribute: unknown; value: unknown }[] | null,
+  pours?: { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown }[] | null,
 ): Record<string, string> {
   const str = (v: unknown) => String((v as string | number | null) ?? "");
   const initialTime = splitSeconds(
@@ -48,6 +50,9 @@ export function brewEditorDefaults(
     // structured tasting rides the same autosave draft as one JSON field;
     // toBrewUpdateRow ignores it, the sync step persists it via upsertTastings
     tastings: tastingRowsToJson(tastingServerRowsToDraft(tastings)),
+    // structured pours ride alongside: ignored by toBrewUpdateRow, the sync
+    // step persists them via upsertPours. Brews without pours stay empty.
+    pours: pourRowsToJson(pourServerRowsToDraft(pours)),
   };
 }
 

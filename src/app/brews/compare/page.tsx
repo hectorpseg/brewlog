@@ -1,7 +1,8 @@
-import { getBrew, listBrewIds, listExperimentsForBrew, listTastings } from "@/lib/db/queries";
+import { getBrew, listBrewIds, listExperimentsForBrew, listTastings, listPours } from "@/lib/db/queries";
 import { diffBrews } from "@/lib/domain/compare";
 import { COMPARE_NOTE_FIELDS, COMPARE_RECIPE_FIELDS, resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
 import { compareTastings } from "@/lib/domain/tastings";
+import { comparePourFields } from "@/lib/domain/pours";
 import { TastingCompare } from "@/components/tasting-compare";
 import { CompareExperiments, CompareFieldTable, type CompareFieldRow } from "@/components/compare-fields";
 import { Card, SectionHeader } from "@/components/ui/controls";
@@ -65,13 +66,16 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   // structured tasting compares separately: Stage → Attribute → A / B.
   // Legacy fixed attributes are gone from the scalar diff above on purpose.
   // Experiments ride along: shown only when at least one side links any.
-  const [tastingsA, tastingsB, experimentsA, experimentsB] = await Promise.all([
+  const [tastingsA, tastingsB, poursA, poursB, experimentsA, experimentsB] = await Promise.all([
     listTastings(rawA.id).catch(() => []),
     listTastings(rawB.id).catch(() => []),
+    listPours(rawA.id).catch(() => []),
+    listPours(rawB.id).catch(() => []),
     listExperimentsForBrew(rawA.id).catch(() => []),
     listExperimentsForBrew(rawB.id).catch(() => []),
   ]);
   const tasting = compareTastings(tastingsA, tastingsB);
+  const pourRows: CompareFieldRow[] = comparePourFields(poursA, poursB);
   const changedCount = [...changedKeys].filter((k) => a[k] !== "-" || b[k] !== "-").length;
   return (
     <div className="flex flex-col gap-4">
@@ -87,6 +91,14 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
           <CompareFieldTable rows={recipe} />
         </Card>
       </div>
+      {pourRows.length > 0 ? (
+        <div>
+          <SectionHeader>Pours</SectionHeader>
+          <Card className="mt-2">
+            <CompareFieldTable rows={pourRows} />
+          </Card>
+        </div>
+      ) : null}
       <div>
         <SectionHeader>Tasting</SectionHeader>
         <TastingCompare aLabel="Brew A" bLabel="Brew B" stages={tasting} />

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { recipeStartingValues } from "@/lib/domain/recipe-start";
 import { defaultBrewedDate } from "@/lib/domain/brew-date";
+import { pourRowsFromJson } from "@/lib/domain/pours";
 
 const previous = {
   id: "brew-1",
@@ -98,5 +99,27 @@ describe("recipeStartingValues", () => {
     expect(v.doseG).toBe(16);
     expect(v.waterG).toBeUndefined();
     expect(v.grinder).toBeUndefined();
+  });
+
+  it("inherits structured pours as recipe, never tasting data", () => {
+    const serverPours = [
+      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null },
+      { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "slow" },
+    ];
+    const v = recipeStartingValues(previous, "coffee-1", serverPours);
+    expect(pourRowsFromJson(v.pours)).toEqual([
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow" },
+    ]);
+    // tasting still never inherited alongside
+    expect(v.tastings).toBeUndefined();
+    expect(v.hotNotes).toBeUndefined();
+  });
+
+  it("starts with no pours when the previous brew has none - never synthesized", () => {
+    expect(recipeStartingValues(previous, "coffee-1").pours).toBeUndefined();
+    expect(recipeStartingValues(previous, "coffee-1", []).pours).toBeUndefined();
+    expect(recipeStartingValues(previous, "coffee-1", null).pours).toBeUndefined();
+    expect(recipeStartingValues(null, "coffee-1").pours).toBeUndefined();
   });
 });
