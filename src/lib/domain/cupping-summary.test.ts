@@ -19,11 +19,11 @@ const cupping = {
 };
 
 describe("formatCuppingSummary", () => {
-  it("renders the canonical deterministic summary", () => {
+  it("renders the canonical deterministic summary, date with year", () => {
     const text = formatCuppingSummary({ cupping, coffeeName: "Competencia" });
     expect(text).toBe(
       [
-        "Competencia · Sep 21",
+        "Competencia · Sep 21, 2026",
         "10 g dose · 200 g water (1:20) · K-Ultra · 85 clicks · medium",
         "Hot notes: Bright.",
         "Cold notes: Clean.",
@@ -42,9 +42,9 @@ describe("formatCuppingSummary", () => {
 
   it("falls back to created_at when cupped_at is missing", () => {
     const text = formatCuppingSummary({
-      cupping: { created_at: "2026-09-21T12:00:00.000Z" },
+      cupping: { created_at: "2026-09-22T12:00:00.000Z" },
       coffeeName: "X",
     });
-    expect(text).toBe("X · Sep 21");
+    expect(text).toBe("X · Sep 22, 2026");
   });
 });

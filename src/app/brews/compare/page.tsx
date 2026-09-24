@@ -101,7 +101,13 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       ) : null}
       <div>
         <SectionHeader>Tasting</SectionHeader>
-        <TastingCompare aLabel="Brew A" bLabel="Brew B" stages={tasting} />
+        {tasting.length === 0 ? (
+          <p className="mt-2 text-sm text-ink2">No tasting entries yet - rate Hot, Warm, Cold on each brew.</p>
+        ) : (
+          <Card className="mt-2">
+            <TastingCompare aLabel="Brew A" bLabel="Brew B" stages={tasting} />
+          </Card>
+        )}
       </div>
       <div>
         <SectionHeader>Notes</SectionHeader>

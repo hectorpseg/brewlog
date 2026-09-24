@@ -1,4 +1,4 @@
-import { formatBrewDate } from "@/lib/domain/brew-date";
+import { formatBrewDateWithYear } from "@/lib/domain/brew-date";
 import { brewRatio } from "@/lib/domain/ratio";
 
 // ponytail: one canonical plain-text formatter for a cupping. Deterministic,
@@ -35,9 +35,9 @@ export function formatCuppingSummary(input: CuppingInput): string {
   const lines: string[] = [];
 
   const day = typeof cupping.cupped_at === "string" && cupping.cupped_at !== ""
-    ? formatBrewDate(cupping.cupped_at)
+    ? formatBrewDateWithYear(cupping.cupped_at)
     : typeof cupping.created_at === "string" && cupping.created_at !== ""
-      ? formatBrewDate(cupping.created_at)
+      ? formatBrewDateWithYear(cupping.created_at)
       : null;
   lines.push([coffeeName?.trim() || "Cupping", day].filter(Boolean).join(" · "));
 
