@@ -3,7 +3,10 @@
 import { toBrewedAtIso, toDateInputValue } from "@/lib/domain/brew-date";
 import { splitSeconds } from "@/lib/domain/brew-time";
 import { tastingRowsToJson, tastingServerRowsToDraft } from "@/lib/domain/tastings";
-import { pourRowsToJson, pourServerRowsToDraft } from "@/lib/domain/pours";
+import {
+  completePourEntries, pourRowsFromJson, pourRowsToJson, pourServerRowsToDraft,
+  type PourEntry,
+} from "@/lib/domain/pours";
 
 export const SENSORY_KEYS = [
   "acidity", "sweetness", "body", "clarity", "bitterness",
@@ -84,4 +87,53 @@ export function toBrewUpdateRow(patch: Record<string, string | undefined>): Reco
     if (iso !== undefined) row.brewed_at = iso;
   }
   return row;
+}
+
+// Form keys per persistence slice, so the autosave sync can skip slices the
+// user did not touch. Same-shape comparison only (form vs last-synced form);
+// server shapes are never compared here, so normalization drift cannot cause
+// false dirty flags.
+export const BREW_RECIPE_KEYS = [
+  "doseG", "waterG", "brewedAt", "tempC", "grindClicks", "grinder", "dripper",
+  "filter", "waterSource", "pourCount", "sessionId", "finalBeverageG",
+  "brewTimeMin", "brewTimeSec", "totalTimeSec", "notes",
+] as const;
+
+export const BREW_NOTE_KEYS = [
+  ...SENSORY_KEYS, "hotNotes", "warmNotes", "coldNotes", "freeformNotes",
+] as const;
+
+export type BrewSyncSlice = "recipe" | "tastings" | "pours" | "notes";
+
+export type BrewSyncPlan = {
+  // stable order; empty when nothing changed since the baseline
+  slices: BrewSyncSlice[];
+  // complete pour facts for the payload (and the counter derivation)
+  pourEntries: PourEntry[];
+  // legacy counter derived from structured pours; null when none exist, in
+  // which case the historical manual value is left untouched
+  pourCount: string | null;
+};
+
+// Which independent writes a sync must perform. Pure and unit-tested: the
+// editor calls one slice per dirty flag, so untouched tables are never
+// rewritten and brews.updated_at only moves when recipe data actually changed.
+export function planBrewSync(
+  form: Record<string, string | undefined>,
+  synced: Record<string, string | undefined>,
+): BrewSyncPlan {
+  const str = (v: string | undefined) => v ?? "";
+  const pourEntries = completePourEntries(pourRowsFromJson(str(form.pours)));
+  const pourCount = pourEntries.length > 0 ? String(pourEntries.length) : null;
+  const slices: BrewSyncSlice[] = [];
+  const recipeDirty =
+    BREW_RECIPE_KEYS.some((k) => str(form[k]) !== str(synced[k])) ||
+    // the counter derives from pours: a changed count dirties the recipe row
+    // even when every recipe field is untouched
+    (pourCount !== null && pourCount !== str(synced.pourCount));
+  if (recipeDirty) slices.push("recipe");
+  if (str(form.tastings) !== str(synced.tastings)) slices.push("tastings");
+  if (str(form.pours) !== str(synced.pours)) slices.push("pours");
+  if (BREW_NOTE_KEYS.some((k) => str(form[k]) !== str(synced[k]))) slices.push("notes");
+  return { slices, pourEntries, pourCount };
 }
