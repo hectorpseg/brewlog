@@ -30,6 +30,15 @@ export function formatBrewDate(iso?: string | null): string {
   return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+// Stored instant → "Sep 22, 2026". Same convention as formatBrewDate, with
+// the year kept: summaries that travel (copy/paste, chat) need it.
+export function formatBrewDateWithYear(iso?: string | null): string {
+  if (!iso) return "-";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "-";
+  return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
 // Received dates may be ISO ("2026-09-08") or free text. Pretty-print ISO,
 // pass anything else through untouched — unknown stays unknown.
 export function formatReceived(v?: string | null): string {
