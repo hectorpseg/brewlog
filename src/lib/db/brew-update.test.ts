@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brewEditorDefaults, toBrewUpdateRow } from "@/lib/db/brew-update";
+import { brewEditorDefaults, planBrewSync, toBrewUpdateRow } from "@/lib/db/brew-update";
 
 describe("toBrewUpdateRow", () => {
   it("maps form keys to columns and skips empty values", () => {
@@ -118,5 +118,73 @@ describe("brewEditorDefaults", () => {
 
   it("ignores the pours draft field (persisted via upsertPours, not updateBrew)", () => {
     expect(toBrewUpdateRow({ pours: '[{"time":"0:00","amount":"40","bloom":true,"pattern":"center","note":""}]' })).toEqual({});
+  });
+});
+
+describe("planBrewSync", () => {
+  const brew = {
+    id: "b1",
+    dose_g: 15,
+    water_g: 250,
+    brewed_at: "2026-09-21T12:00:00.000Z",
+    temp_c: 92,
+    grind_clicks: 70,
+    grinder: "K-Ultra",
+    notes: "good",
+    session_id: null,
+  };
+  const observation = { hot_notes: "Sweet." };
+  const pristine = () => brewEditorDefaults(brew, observation, null, null) as Record<string, string | undefined>;
+
+  it("plans nothing when the form matches the last-synced snapshot", () => {
+    const plan = planBrewSync(pristine(), pristine());
+    expect(plan.slices).toEqual([]);
+  });
+
+  it("plans only the recipe slice for a recipe edit", () => {
+    const plan = planBrewSync({ ...pristine(), tempC: "93" }, pristine());
+    expect(plan.slices).toEqual(["recipe"]);
+  });
+
+  it("plans only the notes slice for a note edit (recipe write skipped)", () => {
+    const plan = planBrewSync({ ...pristine(), hotNotes: "Sweet. Bright." }, pristine());
+    expect(plan.slices).toEqual(["notes"]);
+  });
+
+  it("plans tastings alone when only the tasting draft changed", () => {
+    const form = {
+      ...pristine(),
+      tastings: JSON.stringify([{ stage: "hot", attribute: "acidity", value: "7" }]),
+    };
+    const plan = planBrewSync(form, pristine());
+    expect(plan.slices).toEqual(["tastings"]);
+  });
+
+  it("derives the legacy counter from new pours, dirtying recipe for the count", () => {
+    const form = {
+      ...pristine(),
+      pours: JSON.stringify([
+        { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
+        { time: "0:35", amount: "60", bloom: false, pattern: "pulse", note: "" },
+      ]),
+    };
+    const plan = planBrewSync(form, pristine());
+    expect(plan.pourEntries).toHaveLength(2);
+    expect(plan.pourCount).toBe("2");
+    expect(plan.slices).toEqual(["recipe", "pours"]);
+  });
+
+  it("clearing all pours dirties pours only, preserving the manual counter", () => {
+    const synced = {
+      ...pristine(),
+      pours: JSON.stringify([
+        { time: "0:35", amount: "60", bloom: false, pattern: "pulse", note: "" },
+      ]),
+      pourCount: "1",
+    };
+    const plan = planBrewSync({ ...synced, pours: "[]" }, synced);
+    expect(plan.pourEntries).toEqual([]);
+    expect(plan.pourCount).toBeNull();
+    expect(plan.slices).toEqual(["pours"]);
   });
 });

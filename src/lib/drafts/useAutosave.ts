@@ -41,16 +41,17 @@ export function useAutosave<T extends Record<string, unknown>>({
   const saverRef = useRef<Saver<T> | null>(null);
   // ponytail: exactly one scheduler per hook instance; created in an effect so
   // no ref is touched during render (StrictMode-safe: setup/cleanup is idempotent).
+  // The fire returns the sync promise so the saver can serialize runs: a slow
+  // save never overlaps a newer one, and older full-state snapshots can never
+  // resolve last and clobber newer edits.
   useEffect(() => {
     const saver = createSaver<T>(debounceMs, (snapshotValue) => {
       if (typeof navigator !== "undefined" && !navigator.onLine) return;
       dispatch({ type: "SYNC_START" });
-      syncRef
-        .current(snapshotValue)
-        .then(
-          () => dispatch({ type: "SYNC_OK" }),
-          () => dispatch({ type: "SYNC_FAIL" }),
-        );
+      return syncRef.current(snapshotValue).then(
+        () => dispatch({ type: "SYNC_OK" }),
+        () => dispatch({ type: "SYNC_FAIL" }),
+      );
     });
     saverRef.current = saver;
     return () => {
@@ -103,14 +104,13 @@ export function useAutosave<T extends Record<string, unknown>>({
     };
   }, [key, snapshot, store]);
 
-  // Explicit retry for the error badge. Same debounced-sync mechanism,
-  // callable by hand — no architecture change.
+  // Explicit retry for the error badge. Goes through the same serialized
+  // scheduler instead of invoking sync directly, so a tap can never overlap
+  // an in-flight save or write a superseded snapshot: flush always sends the
+  // newest known value, now when idle or right after the running save.
   function retry() {
     dispatch({ type: "SYNC_START" });
-    syncRef.current(valueRef.current).then(
-      () => dispatch({ type: "SYNC_OK" }),
-      () => dispatch({ type: "SYNC_FAIL" }),
-    );
+    saverRef.current?.flush(valueRef.current);
   }
 
   return { state, dispatch, retry };

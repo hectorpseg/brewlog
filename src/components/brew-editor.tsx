@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { updateBrew, upsertObservation, upsertPours, upsertTastings } from "@/app/actions";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
-import { brewEditorDefaults } from "@/lib/db/brew-update";
+import { BREW_NOTE_KEYS, brewEditorDefaults, planBrewSync } from "@/lib/db/brew-update";
 import { completeTastingEntries, tastingRowsFromJson, tastingRowsToJson, tastingsUpdatedAt } from "@/lib/domain/tastings";
-import { completePourEntries, pourRowsFromJson, pourRowsToJson, poursUpdatedAt } from "@/lib/domain/pours";
+import { pourRowsFromJson, pourRowsToJson, poursUpdatedAt } from "@/lib/domain/pours";
 import { Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
 import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
@@ -22,14 +22,21 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
   pours: { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown; updated_at?: unknown }[] | null;
   sessions: { id: string; title: string }[];
 }) {
-  const [form, setForm] = useState<Record<string, string>>(() =>
-    brewEditorDefaults(
+  // Baseline for dirty-slice planning: the last successfully synced snapshot,
+  // starting from the pristine server-derived defaults. Captured in the state
+  // initializer (runs once per mount; StrictMode re-invokes with the identical
+  // value, so the assignment is idempotent).
+  const syncedRef = useRef<Record<string, string | undefined> | null>(null);
+  const [form, setForm] = useState<Record<string, string>>(() => {
+    const d = brewEditorDefaults(
       brew as Record<string, unknown>,
       observation as Record<string, unknown> | null,
       tastings,
       pours,
-    ),
-  );
+    );
+    syncedRef.current ??= { ...d };
+    return d;
+  });
   const key = draftKey(userId, "brew-edit", String(brew.id));
   // Server is authoritative once synchronized: weigh any local draft against
   // the freshest server timestamp so a stale draft can never clobber it.
@@ -40,24 +47,44 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
       .at(-1) ?? null;
   const { state, retry } = useAutosave({
     key, value: form,
-    // one debounced sync for recipe + tasting + pours: no separate save action
+    // One debounced sync for recipe + tasting + pours, but only dirty slices
+    // hit the server: untouched tables are never rewritten, so brews.updated_at
+    // moves only when recipe data actually changed. Independent slices run in
+    // one round instead of four sequential ones; every write is an idempotent
+    // full-state sync, so the first failure surfaces and a retry converges.
     sync: (v) => (async () => {
-      const patch = v as Record<string, string>;
+      const snapshot = v as Record<string, string>;
+      const baseline = syncedRef.current ?? {};
+      const plan = planBrewSync(snapshot, baseline);
+      if (plan.slices.length === 0) return;
       const brewId = String(brew.id);
-      const pourEntries = completePourEntries(pourRowsFromJson(patch.pours));
-      // the manual pour count is gone: structured pours are the counter, so
-      // the legacy pour_count column follows them. Untouched when there are
-      // no structured pours, so historical manual values survive.
-      if (pourEntries.length > 0) patch.pourCount = String(pourEntries.length);
-      const brewRes = await updateBrew(brewId, patch);
-      if (brewRes?.error) throw new Error(brewRes.error);
-      const tasteRes = await upsertTastings(brewId, completeTastingEntries(tastingRowsFromJson(patch.tastings)));
-      if (tasteRes?.error) throw new Error(tasteRes.error);
-      const pourRes = await upsertPours(brewId, pourEntries);
-      if (pourRes?.error) throw new Error(pourRes.error);
-      // notes belong to this form too: same debounce, no tap-to-save
-      const obsRes = await upsertObservation({ ...patch, brewId });
-      if (obsRes?.error) throw new Error(obsRes.error);
+      const jobs: Promise<{ error?: string } | undefined>[] = [];
+      if (plan.slices.includes("recipe")) {
+        jobs.push(updateBrew(brewId, plan.pourCount ? { ...snapshot, pourCount: plan.pourCount } : snapshot));
+      }
+      if (plan.slices.includes("tastings")) {
+        jobs.push(upsertTastings(brewId, completeTastingEntries(tastingRowsFromJson(snapshot.tastings))));
+      }
+      if (plan.slices.includes("pours")) {
+        jobs.push(upsertPours(brewId, plan.pourEntries));
+      }
+      if (plan.slices.includes("notes")) {
+        const notePatch = Object.fromEntries(BREW_NOTE_KEYS.map((k) => [k, snapshot[k]]));
+        const hasContent = Object.values(notePatch).some((x) => (x ?? "") !== "");
+        // Never conjure an observation row: with no existing row and nothing
+        // typed, there is nothing to persist.
+        if (observation != null || hasContent) {
+          jobs.push(upsertObservation({ ...notePatch, brewId }));
+        }
+      }
+      if (jobs.length === 0) {
+        syncedRef.current = { ...snapshot };
+        return;
+      }
+      const results = await Promise.all(jobs);
+      const failure = results.find((r) => r?.error)?.error;
+      if (failure) throw new Error(failure);
+      syncedRef.current = { ...snapshot, ...(plan.pourCount ? { pourCount: plan.pourCount } : {}) };
     })(),
     serverUpdatedAt,
     // merge, don't replace: older drafts may predate newer fields.
