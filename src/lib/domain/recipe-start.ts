@@ -1,14 +1,16 @@
 import { defaultBrewedDate } from "./brew-date";
+import { pourRowsToJson, pourServerRowsToDraft, type PourFact } from "./pours";
 import type { NewBrewFormInput } from "../validation/schemas";
 
 export type PreviousBrew = Record<string, string | number | undefined> | null;
 
 // "Create new Brew from previous recipe": starting values for a fresh brew
-// form. Copies recipe/equipment only — dose, water, temperature, grind,
-// grinder, dripper, filter, water, pours — plus session continuity.
+// form. Copies recipe/equipment only - dose, water, temperature, grind,
+// grinder, dripper, filter, water, pours, structured pours - plus session
+// continuity.
 //
 // Nothing is invented: a genuinely fresh brew starts empty (the user types
-// every value), and a copy inherits only what the previous brew recorded —
+// every value), and a copy inherits only what the previous brew recorded -
 // missing values stay missing, never backfilled from a template. Also never
 // copied: preparation date (starts today), brew time, final beverage, brew
 // notes, tasting attributes/scores/notes. The previous record is never
@@ -16,6 +18,7 @@ export type PreviousBrew = Record<string, string | number | undefined> | null;
 export function recipeStartingValues(
   previous: PreviousBrew,
   coffeeId: string,
+  pours?: PourFact[] | null,
 ): Partial<NewBrewFormInput> {
   const p = previous ?? {};
   const num = (v: unknown): number | undefined =>
@@ -43,6 +46,9 @@ export function recipeStartingValues(
     notes: undefined,
     // tasting always starts clean: never inherited, never invented
     tastings: undefined,
+    // structured pours are recipe: inherited when the previous brew has any,
+    // otherwise the new brew starts with none (never synthesized from text)
+    pours: (pours ?? []).length > 0 ? pourRowsToJson(pourServerRowsToDraft(pours)) : undefined,
     hotNotes: undefined,
     warmNotes: undefined,
     coldNotes: undefined,

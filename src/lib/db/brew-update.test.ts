@@ -99,4 +99,24 @@ describe("brewEditorDefaults", () => {
     expect(JSON.parse(brewEditorDefaults(brew, observation).tastings)).toEqual([]);
     expect(JSON.parse(brewEditorDefaults(brew, observation, null).tastings)).toEqual([]);
   });
+
+  it("carries structured pours into the editor draft in sequence order", () => {
+    const f = brewEditorDefaults(brew, observation, null, [
+      { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "slow" },
+      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null },
+    ]);
+    expect(JSON.parse(f.pours)).toEqual([
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow" },
+    ]);
+  });
+
+  it("defaults pours to an empty draft when the brew predates them", () => {
+    expect(JSON.parse(brewEditorDefaults(brew, observation).pours)).toEqual([]);
+    expect(JSON.parse(brewEditorDefaults(brew, observation, null, null).pours)).toEqual([]);
+  });
+
+  it("ignores the pours draft field (persisted via upsertPours, not updateBrew)", () => {
+    expect(toBrewUpdateRow({ pours: '[{"time":"0:00","amount":"40","bloom":true,"pattern":"center","note":""}]' })).toEqual({});
+  });
 });

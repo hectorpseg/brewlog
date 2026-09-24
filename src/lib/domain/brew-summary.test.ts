@@ -72,6 +72,23 @@ describe("formatBrewSummary", () => {
     expect(text).not.toContain("u1");
   });
 
+  it("includes structured pours in sequence order when present", () => {
+    const text = formatBrewSummary({
+      brew,
+      coffeeName: "Competencia",
+      pours: [
+        { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "" },
+        { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null },
+      ],
+    });
+    expect(text).toContain("Pours: 1. 0:00 · 40 g · center · bloom; 2. 0:35 · 60 g · circular");
+  });
+
+  it("omits the pours line for historical brews without structured pours", () => {
+    expect(formatBrewSummary({ brew })).not.toContain("Pours:");
+    expect(formatBrewSummary({ brew, pours: [] })).not.toContain("Pours:");
+    expect(formatBrewSummary({ brew, pours: [{ sequence: 1 }] })).not.toContain("Pours:");
+  });
   it("skips garbage tasting rows and reports open experiments plainly", () => {
     const text = formatBrewSummary({
       brew,

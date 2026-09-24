@@ -169,6 +169,20 @@ export async function listTastings(brewId: string) {
   return data;
 }
 
+// Structured pours for one brew, sequence order. Detail/compare only -
+// history lists never carry this payload, and brews without pours (all
+// historical rows) simply return [].
+export async function listPours(brewId: string) {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("pours")
+    .select("id, brew_id, sequence, amount_g, timing_seconds, bloom, pattern, note, updated_at")
+    .eq("brew_id", brewId)
+    .order("sequence");
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export async function getExperiment(id: string) {
   const db = await createClient();
   const { data, error } = await db
