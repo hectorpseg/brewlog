@@ -295,7 +295,8 @@ export async function updateExperiment(id: string, formData: FormData): Promise<
   revalidatePath("/brews");
   revalidatePath(`/experiments/${id}`);
   if (d.brewId) revalidatePath(`/brews/${d.brewId}`);
-  redirect(`/experiments/${id}`);
+  // the edit form is reached from a brew: return there, not to this same page
+  redirect(d.brewId ? `/brews/${d.brewId}` : `/experiments/${id}`);
 }
 
 export async function createSession(formData: FormData): Promise<void> {

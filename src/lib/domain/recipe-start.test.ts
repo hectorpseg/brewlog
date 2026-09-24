@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { recipeStartingValues } from "@/lib/domain/recipe-start";
-import { COMPETITION_DEFAULTS } from "@/lib/domain/defaults";
 import { defaultBrewedDate } from "@/lib/domain/brew-date";
 
 const previous = {
@@ -78,13 +77,26 @@ describe("recipeStartingValues", () => {
     expect(frozen.final_beverage_g).toBe(172);
   });
 
-  it("starts from defaults when there is no previous brew", () => {
+  it("starts a genuinely fresh brew empty — no invented recipe defaults", () => {
     const v = recipeStartingValues(null, "coffee-1");
     expect(v.coffeeId).toBe("coffee-1");
-    expect(v.doseG).toBe(COMPETITION_DEFAULTS.doseG);
-    expect(v.waterG).toBe(COMPETITION_DEFAULTS.waterG);
-    expect(v.tempC).toBe(COMPETITION_DEFAULTS.tempC);
     expect(v.brewedAt).toBe(defaultBrewedDate());
+    expect(v.doseG).toBeUndefined();
+    expect(v.waterG).toBeUndefined();
+    expect(v.tempC).toBeUndefined();
+    expect(v.grindClicks).toBeUndefined();
+    expect(v.grinder).toBeUndefined();
+    expect(v.dripper).toBeUndefined();
+    expect(v.filter).toBeUndefined();
+    expect(v.waterSource).toBeUndefined();
+    expect(v.pourCount).toBeUndefined();
     expect(v.sessionId).toBeUndefined();
+  });
+
+  it("a copy with missing values stays missing instead of backfilled", () => {
+    const v = recipeStartingValues({ coffee_id: "c", dose_g: 16 }, "c");
+    expect(v.doseG).toBe(16);
+    expect(v.waterG).toBeUndefined();
+    expect(v.grinder).toBeUndefined();
   });
 });

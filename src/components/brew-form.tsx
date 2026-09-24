@@ -35,7 +35,7 @@ type Props = {
   recipeFrom?: Record<string, unknown> | null;
 };
 
-function defaults(recipeFrom?: Record<string, unknown> | null, coffeeId?: string): NewBrewFormInput {
+function defaults(recipeFrom?: Record<string, unknown> | null, coffeeId?: string): Partial<NewBrewFormInput> {
   return recipeStartingValues(
     (recipeFrom ?? null) as Record<string, string | number | undefined> | null,
     coffeeId ?? "",
@@ -105,7 +105,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
     else if (res.id) {
       const { localDraftStore } = await import("@/lib/drafts/local-store");
       await localDraftStore.clear(key);
-      router.push("/brews");
+      router.push(`/brews/${res.id}`);
     }
   }
 

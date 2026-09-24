@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getExperiment } from "@/lib/db/queries";
 import { deleteExperiment, updateExperiment } from "@/app/actions";
-import { Button, Card, Input, Label, Textarea } from "@/components/ui/controls";
+import { Card, Input, Label, Textarea } from "@/components/ui/controls";
+import { SaveButton } from "@/components/save-button";
 import { DeleteButton } from "@/components/delete-button";
 import { BackLink } from "@/components/back-link";
 import { experimentStatus } from "@/lib/domain/experiments";
@@ -67,7 +68,7 @@ export default async function ExperimentDetail({ params }: { params: Promise<{ i
               </div>
             ),
           )}
-          <Button>Save experiment</Button>
+          <SaveButton label="Save experiment" savingLabel="Saving experiment…" />
         </form>
       </Card>
       <DeleteButton

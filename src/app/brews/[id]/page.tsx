@@ -8,7 +8,8 @@ import { BackLink } from "@/components/back-link";
 import { BackToTop } from "@/components/back-to-top";
 import { CopySummaryButton } from "@/components/copy-summary";
 import { DeleteButton } from "@/components/delete-button";
-import { Button, Card, Input, Label, SectionHeader, Textarea } from "@/components/ui/controls";
+import { SaveButton } from "@/components/save-button";
+import { Card, Input, Label, SectionHeader, Textarea } from "@/components/ui/controls";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
@@ -140,7 +141,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
             <div><Label>Actual result</Label><Textarea name="actualResult" rows={2} /></div>
             <div><Label>Conclusion</Label><Textarea name="conclusion" rows={2} /></div>
             <div><Label>Next question</Label><Input name="nextQuestion" /></div>
-            <Button>Save experiment</Button>
+            <SaveButton label="Save experiment" savingLabel="Saving experiment…" />
           </form>
         </Card>
       </details>
