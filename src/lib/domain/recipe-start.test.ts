@@ -55,6 +55,16 @@ describe("recipeStartingValues", () => {
     expect(v.freeformNotes).toBeUndefined();
   });
 
+  it("starts every fresh brew with clean tasting state", () => {
+    for (const v of [recipeStartingValues(previous, "coffee-1"), recipeStartingValues(null, "coffee-1")]) {
+      expect(v.tastings).toBeUndefined();
+      expect(v.hotNotes).toBeUndefined();
+      expect(v.warmNotes).toBeUndefined();
+      expect(v.coldNotes).toBeUndefined();
+      expect(v.freeformNotes).toBeUndefined();
+    }
+  });
+
   it("gives the new brew its own date, not the previous one", () => {
     const v = recipeStartingValues(previous, "coffee-1");
     expect(v.brewedAt).toBe(defaultBrewedDate());

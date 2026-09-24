@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultBrewedDate, isFutureDateString } from "@/lib/domain/brew-date";
-import { brewSchema, coffeeSchema, cuppingSchema } from "@/lib/validation/schemas";
+import { brewSchema, coffeeSchema, cuppingSchema, newBrewFormSchema, tastingsPayloadSchema } from "@/lib/validation/schemas";
 
 function shiftDays(base: string, days: number): string {
   const [y, m, d] = base.split("-").map(Number);
@@ -44,5 +44,36 @@ describe("historical dates reject the future", () => {
     expect(coffeeSchema.safeParse({ name: "X", receivedDate: yesterday }).success).toBe(true);
     expect(coffeeSchema.safeParse({ name: "X", receivedDate: "last week" }).success).toBe(true);
     expect(coffeeSchema.safeParse({ name: "X" }).success).toBe(true);
+  });
+});
+
+describe("structured tasting payload", () => {
+  it("accepts suggested, repeated-across-stages, and custom attributes", () => {
+    const r = tastingsPayloadSchema.safeParse([
+      { stage: "hot", attribute: "acidity", value: 8 },
+      { stage: "warm", attribute: "acidity", value: 6 },
+      { stage: "cold", attribute: "plum skin", value: 5 },
+    ]);
+    expect(r.success).toBe(true);
+  });
+  it("normalizes attribute names instead of duplicating them", () => {
+    const r = tastingsPayloadSchema.safeParse([{ stage: "hot", attribute: " Acidity ", value: 7 }]);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data[0].attribute).toBe("acidity");
+  });
+  it("rejects unknown stages, missing names, and out-of-range values", () => {
+    expect(tastingsPayloadSchema.safeParse([{ stage: "lukewarm", attribute: "x", value: 5 }]).success).toBe(false);
+    expect(tastingsPayloadSchema.safeParse([{ stage: "hot", attribute: "", value: 5 }]).success).toBe(false);
+    expect(tastingsPayloadSchema.safeParse([{ stage: "hot", attribute: "x", value: 0 }]).success).toBe(false);
+    expect(tastingsPayloadSchema.safeParse([{ stage: "hot", attribute: "x", value: 11 }]).success).toBe(false);
+  });
+  it("new-brew form carries the tasting draft as an optional JSON string", () => {
+    const base = { coffeeId, doseG: 15, waterG: 250 };
+    expect(newBrewFormSchema.safeParse(base).success).toBe(true);
+    const withTasting = newBrewFormSchema.safeParse({
+      ...base,
+      tastings: JSON.stringify([{ stage: "hot", attribute: "body", value: "4" }]),
+    });
+    expect(withTasting.success).toBe(true);
   });
 });

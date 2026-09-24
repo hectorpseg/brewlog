@@ -32,6 +32,8 @@ export function recipeStartingValues(previous: PreviousBrew, coffeeId: string): 
     brewTimeSec: undefined,
     finalBeverageG: undefined,
     notes: undefined,
+    // tasting always starts clean: never inherited, never invented
+    tastings: undefined,
     hotNotes: undefined,
     warmNotes: undefined,
     coldNotes: undefined,

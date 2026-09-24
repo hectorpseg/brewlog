@@ -19,6 +19,10 @@ describe("toBrewUpdateRow", () => {
     expect(toBrewUpdateRow({ hotNotes: "x", doseG: undefined })).toEqual({});
   });
 
+  it("ignores the tastings draft field (persisted via upsertTastings, not updateBrew)", () => {
+    expect(toBrewUpdateRow({ tastings: '[{"stage":"hot","attribute":"a","value":"5"}]' })).toEqual({});
+  });
+
   it("maps a valid brew date to noon UTC and skips the column otherwise", () => {
     expect(toBrewUpdateRow({ brewedAt: "2026-09-21" })).toEqual({
       brewed_at: "2026-09-21T12:00:00.000Z",
@@ -75,5 +79,24 @@ describe("brewEditorDefaults", () => {
     expect(f.pourCount).toBe("");
     expect(f.acidity).toBe("");
     expect(f.hotNotes).toBe("");
+  });
+
+  it("carries structured tastings into the editor draft and keeps legacy notes alongside", () => {
+    const f = brewEditorDefaults(brew, observation, [
+      { stage: "hot", attribute: "acidity", value: 8 },
+      { stage: "cold", attribute: "plum skin", value: 6 },
+    ]);
+    expect(JSON.parse(f.tastings)).toEqual([
+      { stage: "hot", attribute: "acidity", value: "8" },
+      { stage: "cold", attribute: "plum skin", value: "6" },
+    ]);
+    // legacy observation still maps: existing brews remain readable
+    expect(f.acidity).toBe("medium");
+    expect(f.hotNotes).toBe("Sweet.");
+  });
+
+  it("defaults tastings to an empty draft when the brew predates them", () => {
+    expect(JSON.parse(brewEditorDefaults(brew, observation).tastings)).toEqual([]);
+    expect(JSON.parse(brewEditorDefaults(brew, observation, null).tastings)).toEqual([]);
   });
 });

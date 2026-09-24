@@ -2,6 +2,7 @@
 // empty-skip rules are unit-testable without touching the database.
 import { toBrewedAtIso, toDateInputValue } from "@/lib/domain/brew-date";
 import { splitSeconds } from "@/lib/domain/brew-time";
+import { tastingRowsToJson, tastingServerRowsToDraft } from "@/lib/domain/tastings";
 
 export const SENSORY_KEYS = [
   "acidity", "sweetness", "body", "clarity", "bitterness",
@@ -17,6 +18,7 @@ export type ObservationLike = Record<string, unknown> | null;
 export function brewEditorDefaults(
   brew: BrewRowLike,
   observation: ObservationLike,
+  tastings?: { stage: unknown; attribute: unknown; value: unknown }[] | null,
 ): Record<string, string> {
   const str = (v: unknown) => String((v as string | number | null) ?? "");
   const initialTime = splitSeconds(
@@ -43,6 +45,9 @@ export function brewEditorDefaults(
     warmNotes: str(observation?.warm_notes),
     coldNotes: str(observation?.cold_notes),
     freeformNotes: str(observation?.freeform_notes),
+    // structured tasting rides the same autosave draft as one JSON field;
+    // toBrewUpdateRow ignores it, the sync step persists it via upsertTastings
+    tastings: tastingRowsToJson(tastingServerRowsToDraft(tastings)),
   };
 }
 

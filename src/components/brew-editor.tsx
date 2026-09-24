@@ -1,47 +1,50 @@
 "use client";
 import { useState } from "react";
-import { updateBrew, upsertObservation } from "@/app/actions";
+import { updateBrew, upsertObservation, upsertTastings } from "@/app/actions";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
-import { brewEditorDefaults, SENSORY_KEYS } from "@/lib/db/brew-update";
+import { brewEditorDefaults } from "@/lib/db/brew-update";
+import { completeTastingEntries, tastingRowsFromJson, tastingRowsToJson, tastingsUpdatedAt } from "@/lib/domain/tastings";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
+import { TastingEditor } from "@/components/tasting-editor";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { splitSeconds, toSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate } from "@/lib/domain/brew-date";
 import { SaveStateBadge } from "@/components/save-state";
 
-const SENSORY = SENSORY_KEYS;
-const LEVELS = ["", "low", "med-low", "medium", "med-high", "high"];
-const NOTE_FIELDS = [
-  { key: "hotNotes", label: "Hot notes" },
-  { key: "warmNotes", label: "Warm notes" },
-  { key: "coldNotes", label: "Cold notes" },
-  { key: "freeformNotes", label: "Tasting notes" },
-] as const;
-
-export function BrewEditor({ userId, brew, observation, sessions }: {
+export function BrewEditor({ userId, brew, observation, tastings, sessions }: {
   userId: string;
   brew: Record<string, string | number | null>;
   observation: Record<string, string | null> | null;
+  tastings: { stage: unknown; attribute: unknown; value: unknown; updated_at?: unknown }[] | null;
   sessions: { id: string; title: string }[];
 }) {
   const [form, setForm] = useState<Record<string, string>>(() =>
     brewEditorDefaults(
       brew as Record<string, unknown>,
       observation as Record<string, unknown> | null,
+      tastings,
     ),
   );
   const key = draftKey(userId, "brew-edit", String(brew.id));
   // Server is authoritative once synchronized: weigh any local draft against
   // the freshest server timestamp so a stale draft can never clobber it.
   const serverUpdatedAt =
-    [brew.updated_at, observation?.updated_at]
+    [brew.updated_at, observation?.updated_at, tastingsUpdatedAt(tastings)]
       .filter((v): v is string => typeof v === "string" && v !== "")
       .sort()
       .at(-1) ?? null;
   const { state, retry } = useAutosave({
     key, value: form,
-    sync: (v) => updateBrew(String(brew.id), v as Record<string, string>).then((r) => { if (r?.error) throw new Error(r.error); }),
+    // one debounced sync for recipe + tasting: no separate save action
+    sync: (v) => (async () => {
+      const patch = v as Record<string, string>;
+      const brewId = String(brew.id);
+      const brewRes = await updateBrew(brewId, patch);
+      if (brewRes?.error) throw new Error(brewRes.error);
+      const tasteRes = await upsertTastings(brewId, completeTastingEntries(tastingRowsFromJson(patch.tastings)));
+      if (tasteRes?.error) throw new Error(tasteRes.error);
+    })(),
     serverUpdatedAt,
     // merge, don't replace: older drafts may predate newer fields.
     // Migrate legacy totalTimeSec drafts to minutes/seconds display.
@@ -87,7 +90,7 @@ export function BrewEditor({ userId, brew, observation, sessions }: {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-ink2">Recipe saves itself. Tasting notes save on tap.</p>
+        <p className="text-sm text-ink2">Recipe and tasting save themselves. Notes below save on tap.</p>
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
       <Card>
@@ -139,25 +142,20 @@ export function BrewEditor({ userId, brew, observation, sessions }: {
       <details open>
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Observations - what you perceived, never a diagnosis</summary>
         <Card>
+          <TastingEditor
+            rows={tastingRowsFromJson(form.tastings)}
+            onChange={(rows) => set("tastings", tastingRowsToJson(rows))}
+            notes={{ hot: form.hotNotes ?? "", warm: form.warmNotes ?? "", cold: form.coldNotes ?? "" }}
+            onNotes={(stage, value) => set(`${stage}Notes`, value)}
+          />
           <form onSubmit={saveSensory}>
-          <div className="grid grid-cols-2 gap-3">
-            {SENSORY.map((k) => (
-              <div key={k}>
-                <Label htmlFor={`obs-${k}`}>{k}</Label>
-                <Select id={`obs-${k}`} value={form[k] ?? ""} onChange={(e) => set(k, e.target.value)}>
-                  {LEVELS.map((l) => <option key={l} value={l}>{l === "" ? "-" : l}</option>)}
-                </Select>
-              </div>
-            ))}
+          <div className="mt-6 border-t border-line pt-5">
+            <h3 className="text-base font-medium">Overall notes</h3>
+            <Label htmlFor="obs-overall" className="sr-only">Overall notes</Label>
+            <Textarea id="obs-overall" rows={2} className="mt-1" value={form.freeformNotes ?? ""} onChange={(e) => set("freeformNotes", e.target.value)} />
+            {saveError ? <p role="alert" className="mt-2 text-sm text-ember">{saveError}</p> : null}
+            <Button className="mt-3">{savedTick ? "Saved" : "Save notes"}</Button>
           </div>
-          {NOTE_FIELDS.map(({ key, label }) => (
-            <div key={key} className="mt-3">
-              <Label htmlFor={`obs-${key}`}>{label}</Label>
-              <Textarea id={`obs-${key}`} rows={2} value={form[key] ?? ""} onChange={(e) => set(key, e.target.value)} />
-            </div>
-          ))}
-          {saveError ? <p role="alert" className="mt-2 text-sm text-ember">{saveError}</p> : null}
-          <Button className="mt-3">{savedTick ? "Saved" : "Save observations"}</Button>
           </form>
         </Card>
       </details>
