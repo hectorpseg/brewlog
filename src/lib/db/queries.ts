@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { EXPERIMENT_DETAIL_SELECT, mergeBrewIdSet } from "@/lib/domain/experiments";
+import { EXPERIMENT_BREW_SELECT, EXPERIMENT_DETAIL_SELECT, mergeBrewIdSet } from "@/lib/domain/experiments";
 
 // ponytail: one helper per entity, RLS does authz, never accept client user_id
 export async function listCoffees() {
@@ -228,7 +228,7 @@ export async function listExperimentBrews(experimentId: string) {
   if (ids.length === 0) return [];
   const { data, error } = await db
     .from("brews")
-    .select("id, dose_g, water_g, brewed_at, created_at, coffees(name)")
+    .select(EXPERIMENT_BREW_SELECT)
     .in("id", ids)
     .order("brewed_at", { ascending: false })
     .order("created_at", { ascending: false });

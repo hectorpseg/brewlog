@@ -109,7 +109,7 @@ export default async function ExperimentDetail({ params }: { params: Promise<{ i
               <input type="hidden" name="experimentId" value={id} />
               <input type="hidden" name="returnTo" value={`/experiments/${id}`} />
               <div>
-                <Label htmlFor="add-brew">Add a brew</Label>
+                <Label htmlFor="add-brew">{brews.length > 0 ? "Link another brew" : "Link an existing brew"}</Label>
                 <Select id="add-brew" name="brewId" defaultValue="">
                   <option value="">Pick a brew…</option>
                   {addable.map((b) => (

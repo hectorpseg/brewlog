@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  EXPERIMENT_BREW_SELECT,
   EXPERIMENT_DETAIL_SELECT,
   EXPERIMENT_STATUS_LABEL,
   experimentStatus,
@@ -130,6 +131,21 @@ describe("mergeBrewIdSet", () => {
   it("stays empty for experiments without any brew", () => {
     expect(mergeBrewIdSet([], null)).toEqual([]);
     expect(mergeBrewIdSet([], undefined)).toEqual([]);
+  });
+});
+
+describe("EXPERIMENT_BREW_SELECT", () => {
+  it("covers every field the linked-brew card reads (slim-projection regression)", () => {
+    // BrewCard renders dose, water, temp, clicks, time, filter, session_id
+    // and observations. Dropping any of them renders false "?", "No brew
+    // time", "No session" or "In progress" signals for data the brew has.
+    for (const field of [
+      "dose_g", "water_g", "temp_c", "grind_clicks", "total_time_sec",
+      "filter", "session_id", "brewed_at", "created_at",
+      "coffees(name)", "observations(*)",
+    ]) {
+      expect(EXPERIMENT_BREW_SELECT).toContain(field);
+    }
   });
 });
 

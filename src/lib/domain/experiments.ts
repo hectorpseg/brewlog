@@ -111,6 +111,14 @@ export function mergeBrewIdSet(linked: string[], legacy: string | null | undefin
   return out;
 }
 
+// Linked-brew rows for the experiment detail card, exactly as sent to
+// PostgREST. Pinned by tests: BrewCard reads dose, water, temp, clicks, time,
+// filter, session_id and observations, so every one of those must be
+// selected. A slimmer projection renders false "?" / "No brew time" /
+// "No session" / "In progress" signals for data the brew actually has.
+export const EXPERIMENT_BREW_SELECT =
+  "id, dose_g, water_g, temp_c, grind_clicks, total_time_sec, filter, session_id, brewed_at, created_at, coffees(name), observations(*)";
+
 // The experiment detail lookup, exactly as sent to PostgREST. Pinned by
 // tests: the bare `brews` embed is ambiguous since 0009 (legacy FK plus the
 // many-to-many path through experiment_brews → PGRST201), so the hint is
