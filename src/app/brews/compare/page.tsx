@@ -1,5 +1,4 @@
 import { getBrew, listBrewIds, listExperimentsForBrew, listTastings } from "@/lib/db/queries";
-import { requireUser } from "@/lib/supabase/require-user";
 import { diffBrews } from "@/lib/domain/compare";
 import { COMPARE_NOTE_FIELDS, COMPARE_RECIPE_FIELDS, resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
 import { compareTastings } from "@/lib/domain/tastings";
@@ -9,7 +8,9 @@ import { Card, SectionHeader } from "@/components/ui/controls";
 import { ErrorState } from "@/components/states";
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string }> }) {
-  await requireUser("/brews/compare");
+  // Auth guard lives in the layout above (single requireUser per render,
+  // shared via the cached lookup). Deep links (?a=&b=) survive: the layout
+  // redirects anonymous users to /login?next=/brews/compare.
   const sp = await searchParams;
   // Common path (dropdown change, deep link): fetch exactly the two compared
   // brews. The 50-row selector dataset lives in the layout and is not

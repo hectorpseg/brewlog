@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { login } from "@/app/actions";
 import { safeNext } from "@/lib/auth";
+import { getCachedUser } from "@/lib/supabase/require-user";
 import { Button, Card, Input, Label } from "@/components/ui/controls";
 
 export default async function LoginPage({ searchParams }: {
@@ -7,6 +9,10 @@ export default async function LoginPage({ searchParams }: {
 }) {
   const sp = await searchParams;
   const next = safeNext(sp.next);
+  // Auth shell: already signed in means the login form is the wrong screen.
+  // One cached getUser read, shared with any other caller in this render.
+  const user = await getCachedUser();
+  if (user) redirect(next);
   return (
     <div className="pt-10">
       <h1 className="font-display text-3xl">BrewLog</h1>
