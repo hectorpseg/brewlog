@@ -35,6 +35,12 @@ export async function createCoffee(formData: FormData): Promise<void> {
     name: nullish(formData.get("name")),
     origin: nullish(formData.get("origin")),
     process: nullish(formData.get("process")),
+    variety: nullish(formData.get("variety")),
+    producer: nullish(formData.get("producer")),
+    country: nullish(formData.get("country")),
+    region: nullish(formData.get("region")),
+    farm: nullish(formData.get("farm")),
+    altitude: nullish(formData.get("altitude")),
     roastDate: nullish(formData.get("roastDate")),
     receivedDate: nullish(formData.get("receivedDate")),
     initialWeightG: nullish(formData.get("initialWeightG")),
@@ -46,6 +52,8 @@ export async function createCoffee(formData: FormData): Promise<void> {
   const db = await createClient();
   const { data, error } = await db.from("coffees").insert({
     name: d.name, origin: d.origin, process: d.process,
+    variety: d.variety, producer: d.producer, country: d.country,
+    region: d.region, farm: d.farm, altitude: d.altitude,
     roast_date: d.roastDate, received_date: d.receivedDate,
     initial_weight_g: d.initialWeightG, remaining_weight_g: d.remainingWeightG,
     notes: d.notes,
@@ -60,6 +68,12 @@ export async function updateCoffee(id: string, formData: FormData): Promise<void
     name: nullish(formData.get("name")),
     origin: nullish(formData.get("origin")),
     process: nullish(formData.get("process")),
+    variety: nullish(formData.get("variety")),
+    producer: nullish(formData.get("producer")),
+    country: nullish(formData.get("country")),
+    region: nullish(formData.get("region")),
+    farm: nullish(formData.get("farm")),
+    altitude: nullish(formData.get("altitude")),
     roastDate: nullish(formData.get("roastDate")),
     receivedDate: nullish(formData.get("receivedDate")),
     initialWeightG: nullish(formData.get("initialWeightG")),
@@ -71,6 +85,8 @@ export async function updateCoffee(id: string, formData: FormData): Promise<void
   const db = await createClient();
   const { error } = await db.from("coffees").update({
     name: d.name, origin: d.origin, process: d.process,
+    variety: d.variety, producer: d.producer, country: d.country,
+    region: d.region, farm: d.farm, altitude: d.altitude,
     roast_date: d.roastDate, received_date: d.receivedDate,
     initial_weight_g: d.initialWeightG, remaining_weight_g: d.remainingWeightG,
     notes: d.notes, updated_at: new Date().toISOString(),

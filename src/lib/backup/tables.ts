@@ -23,7 +23,8 @@ export const BACKUP_TABLES: TableSpec[] = [
     key: "coffees",
     table: "coffees",
     columns: [
-      "id", "user_id", "name", "origin", "process", "roast_date", "received_date",
+      "id", "user_id", "name", "origin", "process", "variety", "producer",
+      "country", "region", "farm", "altitude", "roast_date", "received_date",
       "initial_weight_g", "remaining_weight_g", "notes", "created_at", "updated_at",
     ],
   },
