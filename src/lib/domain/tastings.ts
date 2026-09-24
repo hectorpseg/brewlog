@@ -10,7 +10,13 @@ export type TastingStage = (typeof TASTING_STAGES)[number];
 export const TASTING_MIN = 1;
 export const TASTING_MAX = 10;
 
-// Suggestions only (rendered as a datalist): the model accepts any short
+export const TASTING_STAGE_LABEL: Record<TastingStage, string> = {
+  hot: "Hot",
+  warm: "Warm",
+  cold: "Cold",
+};
+
+// Suggestions only (rendered as a native select): the model accepts any short
 // custom name, so this list can grow without a migration.
 export const SUGGESTED_ATTRIBUTES = [
   "acidity",
@@ -34,6 +40,34 @@ export function isTastingStage(v: unknown): v is TastingStage {
 // Never truncate: overlong names fail validation instead of silently changing.
 export function normalizeAttribute(v: unknown): string {
   return typeof v === "string" ? v.trim().toLowerCase() : "";
+}
+
+// Sentinel for the "type a custom name" option in the attribute select.
+// Never persisted: picking it only swaps the row to its text input, and
+// complete entries below refuse it as data.
+export const CUSTOM_ATTRIBUTE_VALUE = "__custom";
+
+export function isSuggestedAttribute(v: unknown): boolean {
+  const n = normalizeAttribute(v);
+  return n !== "" && (SUGGESTED_ATTRIBUTES as readonly string[]).includes(n);
+}
+
+export type AttributeOption = { value: string; label: string };
+
+// Single option source for every attribute control: initial rows, dynamically
+// added rows, and server-loaded rows alike. Placeholder first, then the fixed
+// vocabulary, then the row's own custom value (preserved, never dropped),
+// then the custom-entry option. Added rows start empty, so they always offer
+// the full list.
+export function attributeOptions(current: string): AttributeOption[] {
+  const out: AttributeOption[] = [{ value: "", label: "Pick…" }];
+  for (const a of SUGGESTED_ATTRIBUTES) out.push({ value: a, label: a });
+  const trimmed = typeof current === "string" ? current.trim() : "";
+  if (trimmed !== "" && !isSuggestedAttribute(trimmed)) {
+    out.push({ value: trimmed, label: `${trimmed} (custom)` });
+  }
+  out.push({ value: CUSTOM_ATTRIBUTE_VALUE, label: "Custom…" });
+  return out;
 }
 
 // Complete, persistable fact. Value may be fractional later; the UI writes ints.
@@ -106,6 +140,7 @@ export function completeTastingEntries(rows: TastingDraftRow[]): TastingEntry[] 
   const out: TastingEntry[] = [];
   for (const r of rows) {
     if (!isTastingStage(r.stage)) continue;
+    if (r.attribute === CUSTOM_ATTRIBUTE_VALUE) continue;
     const attribute = normalizeAttribute(r.attribute);
     if (attribute === "" || attribute.length > 40) continue;
     const value = r.value === "" ? NaN : Number(r.value);

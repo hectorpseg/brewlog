@@ -22,11 +22,20 @@ describe("parsePourTime", () => {
     expect(parsePourTime("65")).toBe(65);
     expect(parsePourTime(" 0:35 ")).toBe(35);
   });
+  it("floors fractional entry to whole seconds (integer storage model)", () => {
+    expect(parsePourTime("35.5")).toBe(35);
+    expect(parsePourTime("76.7")).toBe(76);
+    expect(parsePourTime("0:35.5")).toBe(35);
+    expect(parsePourTime("1:05.5")).toBe(65);
+  });
   it("rejects garbage without guessing", () => {
     expect(parsePourTime("")).toBeNull();
     expect(parsePourTime("soon")).toBeNull();
     expect(parsePourTime("1:05:10")).toBeNull();
+    expect(parsePourTime("0:35.5.5")).toBeNull();
+    expect(parsePourTime(":35")).toBeNull();
     expect(parsePourTime("-5")).toBeNull();
+    expect(parsePourTime("-0:35")).toBeNull();
     expect(parsePourTime(null)).toBeNull();
   });
 });
@@ -87,6 +96,15 @@ describe("completePourEntries", () => {
       { time: "0:00", amount: "0", bloom: false, pattern: "center", note: "" },
       { time: "0:00", amount: "-5", bloom: false, pattern: "center", note: "" },
     ])).toEqual([]);
+  });
+  it("persists fractional entry as whole seconds (integer storage model)", () => {
+    expect(completePourEntries([
+      { time: "76.7", amount: "60", bloom: false, pattern: "pulse", note: "" },
+      { time: "1:05.5", amount: "60", bloom: false, pattern: "pulse", note: "" },
+    ])).toEqual([
+      { sequence: 1, amount_g: 60, timing_seconds: 76, bloom: false, pattern: "pulse", note: null },
+      { sequence: 2, amount_g: 60, timing_seconds: 65, bloom: false, pattern: "pulse", note: null },
+    ]);
   });
 });
 

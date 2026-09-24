@@ -50,14 +50,16 @@ export function formatPourTime(total?: number | null): string | null {
 }
 
 // Lenient entry parsing for one fast field: "65", "1:05", " 0:35 " all work.
-// Anything else (including negatives) is null, never guessed.
+// Storage is whole seconds (integer column), so fractional entry ("35.5",
+// "0:35.5") is accepted and floored, exactly like the plain-seconds form
+// always has. Anything else (including negatives) is null, never guessed.
 export function parsePourTime(v: unknown): number | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
   if (t === "") return null;
-  const m = t.match(/^(\d+):(\d{1,2})$/);
+  const m = t.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);
   if (m) {
-    const total = Number(m[1]) * 60 + Number(m[2]);
+    const total = Math.floor(Number(m[1]) * 60 + Number(m[2]));
     return Number.isFinite(total) && total <= 3600 ? total : null;
   }
   if (/^\d+(\.\d+)?$/.test(t)) {
