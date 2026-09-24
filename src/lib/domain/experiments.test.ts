@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  EXPERIMENT_DETAIL_SELECT,
   EXPERIMENT_STATUS_LABEL,
   experimentStatus,
   experimentTitle,
   formatExperimentSummary,
   isExperimentStatus,
+  mergeBrewIdSet,
   mergeExperimentBrews,
 } from "@/lib/domain/experiments";
 import { cuppingSchema, experimentSchema } from "@/lib/validation/schemas";
@@ -61,6 +63,15 @@ describe("experimentSchema", () => {
     expect(experimentSchema.safeParse({ title: "x".repeat(121) }).success).toBe(false);
     expect(experimentSchema.safeParse({ title: "" }).success).toBe(true);
   });
+  it("accepts a partial Wave 4 update so historical rows stay editable", () => {
+    // Only new fields sent: legacy columns arrive as undefined and are left
+    // untouched by the update (undefined keys are stripped, never nulled).
+    expect(experimentSchema.safeParse({ title: "T", status: "evaluated" }).success).toBe(true);
+  });
+  it("accepts an experiment with no brew at all", () => {
+    expect(experimentSchema.safeParse({}).success).toBe(true);
+    expect(experimentSchema.safeParse({ title: "Question only" }).success).toBe(true);
+  });
 });
 
 describe("isExperimentStatus", () => {
@@ -103,6 +114,32 @@ describe("mergeExperimentBrews", () => {
   });
   it("accepts a legacy array join the way Supabase returns it", () => {
     expect(mergeExperimentBrews([a], [b])).toEqual([a, b]);
+  });
+});
+
+describe("mergeBrewIdSet", () => {
+  it("keeps a legacy brew_id visible with no junction row (pre-backfill)", () => {
+    expect(mergeBrewIdSet([], "legacy-brew")).toEqual(["legacy-brew"]);
+  });
+  it("serves a new junction-only experiment", () => {
+    expect(mergeBrewIdSet(["b1", "b2"], null)).toEqual(["b1", "b2"]);
+  });
+  it("dedupes a backfilled brew present in both places", () => {
+    expect(mergeBrewIdSet(["b1"], "b1")).toEqual(["b1"]);
+  });
+  it("stays empty for experiments without any brew", () => {
+    expect(mergeBrewIdSet([], null)).toEqual([]);
+    expect(mergeBrewIdSet([], undefined)).toEqual([]);
+  });
+});
+
+describe("EXPERIMENT_DETAIL_SELECT", () => {
+  it("pins the disambiguated legacy brew embed (PGRST201 regression)", () => {
+    // Since 0009 PostgREST sees two experiments→brews paths (legacy FK plus
+    // the many-to-many through experiment_brews) and rejects a bare `brews`
+    // embed. The hint is what keeps legacy detail pages loading.
+    expect(EXPERIMENT_DETAIL_SELECT).toContain("brews!experiments_brew_id_fkey");
+    expect(EXPERIMENT_DETAIL_SELECT).not.toMatch(/(^|[, ])brews\(/);
   });
 });
 

@@ -96,6 +96,28 @@ export function formatExperimentSummary(input: ExperimentSummaryInput): string {
   return lines.join("\n");
 }
 
+// Junction brew ids first, legacy single brew_id appended when missing.
+// Pure so the detail-page merge is pinned by tests: the query helper below
+// must use this instead of reimplementing the merge inline.
+export function mergeBrewIdSet(linked: string[], legacy: string | null | undefined): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of [...linked, ...(legacy ? [legacy] : [])]) {
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  return out;
+}
+
+// The experiment detail lookup, exactly as sent to PostgREST. Pinned by
+// tests: the bare `brews` embed is ambiguous since 0009 (legacy FK plus the
+// many-to-many path through experiment_brews → PGRST201), so the hint is
+// load-bearing for every legacy row with brew_id and no junction row.
+export const EXPERIMENT_DETAIL_SELECT =
+  "*, brews!experiments_brew_id_fkey(id, dose_g, water_g, coffee_id, coffees(name))";
+
 // Merge junction-linked brews with the legacy single brew_id link, deduped
 // by id. Legacy rows predate the junction table and must keep showing up.
 export function mergeExperimentBrews<T extends { id: string }>(

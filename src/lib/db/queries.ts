@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { EXPERIMENT_DETAIL_SELECT, mergeBrewIdSet } from "@/lib/domain/experiments";
 
 // ponytail: one helper per entity, RLS does authz, never accept client user_id
 export async function listCoffees() {
@@ -222,14 +223,13 @@ export async function listExperimentBrews(experimentId: string) {
     db.from("experiments").select("brew_id").eq("id", experimentId).single(),
     db.from("experiment_brews").select("brew_id").eq("experiment_id", experimentId),
   ]);
-  const ids = new Set<string>();
-  for (const l of (links.data ?? []) as { brew_id: string }[]) ids.add(l.brew_id);
-  if (exp.data?.brew_id) ids.add(exp.data.brew_id as string);
-  if (ids.size === 0) return [];
+  const linkedIds = ((links.data ?? []) as { brew_id: string }[]).map((l) => l.brew_id);
+  const ids = mergeBrewIdSet(linkedIds, (exp.data?.brew_id as string | null) ?? null);
+  if (ids.length === 0) return [];
   const { data, error } = await db
     .from("brews")
     .select("id, dose_g, water_g, brewed_at, created_at, coffees(name)")
-    .in("id", [...ids])
+    .in("id", ids)
     .order("brewed_at", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -266,9 +266,15 @@ export async function listPours(brewId: string) {
 
 export async function getExperiment(id: string) {
   const db = await createClient();
+  // ponytail: the bare `brews` embed is ambiguous since 0009 (PostgREST sees
+  // both the legacy experiments.brew_id FK and the many-to-many path through
+  // experiment_brews, and answers PGRST201). The hint pins the legacy direct
+  // link; junction-linked brews arrive separately via listExperimentBrews and
+  // are merged by the caller. Never drop the hint without a backfill-safe
+  // replacement: legacy rows with brew_id and no junction row must load.
   const { data, error } = await db
     .from("experiments")
-    .select("*, brews(id, dose_g, water_g, coffee_id, coffees(name))")
+    .select(EXPERIMENT_DETAIL_SELECT)
     .eq("id", id)
     .single();
   if (error) throw new Error(error.message);
