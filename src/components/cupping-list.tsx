@@ -5,8 +5,10 @@ import { DeleteButton } from "./delete-button";
 import { EntityDisclosure } from "./entity-card";
 import { NoMatches, SearchField } from "./search-field";
 import { formatBrewDate } from "@/lib/domain/brew-date";
+import { formatCuppingSummary } from "@/lib/domain/cupping-summary";
 import { matchCupping } from "@/lib/domain/search";
 import { describeDeletion } from "@/lib/domain/deletion";
+import { CopySummaryButton } from "@/components/copy-summary";
 
 export type CuppingListItem = {
   cupping: CuppingRow;
@@ -53,6 +55,9 @@ export function CuppingList({ items }: { items: CuppingListItem[] }) {
                   }
                 >
                   <CuppingForm action={i.edit} cupping={i.cupping} submitLabel="Save cupping" idPrefix={`cup-${i.cupping.id}`} />
+                  <CopySummaryButton
+                    text={formatCuppingSummary({ cupping: i.cupping as Record<string, unknown>, coffeeName: i.coffeeName })}
+                  />
                   <DeleteButton
                     label="Delete cupping"
                     title={cdel.title}
