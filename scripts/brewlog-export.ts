@@ -1,13 +1,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { buildEnvelope, exportFilename, findSecretKeys } from "../src/lib/backup/format";
-import { loadEnvFiles, resolveConfig, signInUser } from "./brewlog-common";
+import { loadCliEnv, resolveConfig, signInUser } from "./brewlog-common";
 
 // pnpm brewlog:export — portable versioned JSON of the caller's own rows.
 // Read-only against the database; the file is built fully in memory and
 // written once. JSON import is not implemented yet.
 async function main(): Promise<void> {
   const { fetchAllUserRows } = await import("../src/lib/backup/fetch");
-  const config = resolveConfig(process.env, loadEnvFiles());
+  loadCliEnv();
+  const config = resolveConfig(process.env);
   const { supabase, userId } = await signInUser(config);
   try {
     const rows = await fetchAllUserRows(supabase as never);
