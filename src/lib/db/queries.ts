@@ -35,7 +35,7 @@ export async function listBrews(coffeeId?: string) {
 
 export async function getBrew(id: string) {
   const db = await createClient();
-  const { data, error } = await db.from("brews").select("*, observations(*), coffees(*), sessions(id, title)").eq("id", id).single();
+  const { data, error } = await db.from("brews").select("*, observations(*), sessions(id, title), coffees(id, name)").eq("id", id).single();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -130,7 +130,7 @@ export async function getSession(id: string) {
 
 export async function listSessionBrews(sessionId: string) {
   const db = await createClient();
-  const { data, error } = await db.from("brews").select("*, observations(*)").eq("session_id", sessionId).order("brewed_at", { ascending: false }).order("created_at", { ascending: false });
+  const { data, error } = await db.from("brews").select("*, observations(*), coffees(name)").eq("session_id", sessionId).order("brewed_at", { ascending: false }).order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data;
 }
