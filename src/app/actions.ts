@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { coffeeSchema, newBrewFormSchema, observationSchema, experimentSchema, sessionSchema, competitionSettingsSchema, cuppingSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
+import { coffeeSchema, newBrewFormSchema, observationSchema, experimentSchema, sessionSchema, competitionSettingsSchema, cuppingSchema, tastingsPayloadSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
 import { toBrewedAtIso } from "@/lib/domain/brew-date";
 import { safeNext } from "@/lib/auth";
 
@@ -98,6 +98,7 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
     brewTimeSec: nullish(formData.get("brewTimeSec")),
     finalBeverageG: nullish(formData.get("finalBeverageG")),
     notes: nullish(formData.get("notes")),
+    tastings: nullish(formData.get("tastings")),
     hotNotes: nullish(formData.get("hotNotes")),
     warmNotes: nullish(formData.get("warmNotes")),
     coldNotes: nullish(formData.get("coldNotes")),
@@ -133,6 +134,15 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
       cold_notes: o.coldNotes, freeform_notes: o.freeformNotes,
     });
     if (obsError) return { error: "Brew saved, but notes failed to save." };
+  }
+  // structured tasting rides along the same way: only complete entries persist
+  const { completeTastingEntries, tastingRowsFromJson } = await import("@/lib/domain/tastings");
+  const entries = completeTastingEntries(tastingRowsFromJson(d.tastings));
+  if (entries.length > 0) {
+    const { error: tasteError } = await db.from("tastings").insert(
+      entries.map((e) => ({ brew_id: data.id, stage: e.stage, attribute: e.attribute, value: e.value })),
+    );
+    if (tasteError) return { error: "Brew saved, but tasting failed to save." };
   }
   // approximate inventory decrement, advisory only
   const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
@@ -207,6 +217,32 @@ export async function upsertObservation(patch: Record<string, string | undefined
     freeform_notes: d.freeformNotes, updated_at: new Date().toISOString(),
   }, { onConflict: "brew_id" });
   if (error) return { error: error.message };
+}
+
+// Structured tastings ride the brew editor autosave: the payload is the full
+// desired state, so entries removed in the editor are deleted here. Legacy
+// observations are untouched — this never reads or writes that table.
+export async function upsertTastings(brewId: string, entries: { stage: string; attribute: string; value: number }[]) {
+  const parsed = tastingsPayloadSchema.safeParse(entries);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid tasting" };
+  const db = await createClient();
+  const rows = parsed.data.map((e) => ({
+    brew_id: brewId, stage: e.stage, attribute: e.attribute, value: e.value,
+    updated_at: new Date().toISOString(),
+  }));
+  if (rows.length > 0) {
+    const { error } = await db.from("tastings").upsert(rows, { onConflict: "brew_id,stage,attribute" });
+    if (error) return { error: error.message };
+  }
+  const keep = new Set(rows.map((r) => `${r.stage}\n${r.attribute}`));
+  const { data: existing } = await db.from("tastings").select("id, stage, attribute").eq("brew_id", brewId);
+  const dropIds = (existing ?? [])
+    .filter((e) => !keep.has(`${e.stage}\n${e.attribute}`))
+    .map((e) => e.id);
+  if (dropIds.length > 0) {
+    const { error } = await db.from("tastings").delete().in("id", dropIds);
+    if (error) return { error: error.message };
+  }
 }
 
 export async function createExperiment(formData: FormData): Promise<void> {

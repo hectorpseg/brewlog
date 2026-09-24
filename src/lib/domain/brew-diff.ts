@@ -41,19 +41,12 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
     "Brew time": time ?? "-",
     "Final beverage": brew.final_beverage_g != null && brew.final_beverage_g !== "" ? `${brew.final_beverage_g} g` : "-",
     "Process notes": str(brew.notes),
-    Acidity: str(obs.acidity),
-    Sweetness: str(obs.sweetness),
-    Body: str(obs.body),
-    Clarity: str(obs.clarity),
-    Bitterness: str(obs.bitterness),
-    Astringency: str(obs.astringency),
-    Intensity: str(obs.intensity),
-    Balance: str(obs.balance),
-    Finish: str(obs.finish),
+    // Structured tasting lives in tastings, compared separately per
+    // stage/attribute. Only free-text notes stay in this scalar diff.
     "Hot notes": str(obs.hot_notes),
     "Warm notes": str(obs.warm_notes),
     "Cold notes": str(obs.cold_notes),
-    "Tasting notes": str(obs.freeform_notes),
+    "Overall notes": str(obs.freeform_notes),
   };
 }
 

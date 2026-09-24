@@ -155,6 +155,20 @@ export async function listExperimentsForBrew(brewId: string) {
   return data;
 }
 
+// Structured tasting entries for one brew, stage then attribute order.
+// Detail page only — history/compare lists never carry this payload.
+export async function listTastings(brewId: string) {
+  const db = await createClient();
+  const { data, error } = await db
+    .from("tastings")
+    .select("id, brew_id, stage, attribute, value, updated_at")
+    .eq("brew_id", brewId)
+    .order("stage")
+    .order("attribute");
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export async function getExperiment(id: string) {
   const db = await createClient();
   const { data, error } = await db

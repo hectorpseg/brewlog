@@ -32,17 +32,25 @@ describe("toComparableBrew", () => {
     expect(c.Temperature).toBe("92°C");
     expect(c.Grind).toBe("70 clicks");
     expect(c["Brew time"]).toBe("2:42");
-    expect(c.Acidity).toBe("medium");
     expect(c["Hot notes"]).toBe("Sweet.");
     const blob = JSON.stringify(c);
     expect(blob).not.toContain("11111111");
     expect(blob).not.toContain("[object Object]");
   });
 
+  it("no longer carries legacy fixed attributes (structured tasting compares separately)", () => {
+    const c = toComparableBrew(base);
+    for (const k of ["Acidity", "Sweetness", "Body", "Clarity", "Bitterness", "Astringency", "Intensity", "Balance", "Finish"]) {
+      expect(k in c).toBe(false);
+    }
+    // free-text notes stay part of the observation record
+    expect(c["Hot notes"]).toBe("Sweet.");
+  });
+
   it("marks missing values as unknown, identically on both sides", () => {
     const c = toComparableBrew({ ...base, temp_c: null, observations: [] });
     expect(c.Temperature).toBe("-");
-    expect(c.Acidity).toBe("-");
+    expect(c["Hot notes"]).toBe("-");
   });
 });
 

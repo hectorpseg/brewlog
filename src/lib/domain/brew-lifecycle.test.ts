@@ -67,6 +67,11 @@ describe("describeDeletion", () => {
     expect(d.body).toContain("kept but unlinked");
     expect(d.confirm).toBe("Delete brew");
   });
+  it("states brew consequences: structured tasting entries die with the brew", () => {
+    const d = describeDeletion("brew", { observations: 1, tastings: 3, experiments: 0 });
+    expect(d.body).toContain("3 tasting entries");
+    expect(d.body).toContain("permanently deleted");
+  });
   it("states coffee consequences: brews die with their notes", () => {
     const d = describeDeletion("coffee", { brews: 3, observations: 2 });
     expect(d.body).toContain("3 brews");

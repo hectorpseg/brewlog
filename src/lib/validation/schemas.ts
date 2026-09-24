@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isFutureDateString } from "@/lib/domain/brew-date";
+import { TASTING_MAX, TASTING_MIN, normalizeAttribute } from "@/lib/domain/tastings";
 
 // ponytail: form fields arrive as "" when cleared. Without this, coerce turns
 // "" into 0/NaN and every *optional* numeric behaves as required-or-crashing.
@@ -46,7 +47,9 @@ export type BrewInput = z.infer<typeof brewSchema>;
 
 // New-brew form = recipe + optional session + first tasting notes.
 // Notes ride along at creation so final beverage and tasting live in the
-// result stage; the action persists them as an observation row.
+// result stage; the action persists them as an observation row. Structured
+// tasting rides as a JSON string of draft rows (same shape the editor
+// autosaves); the action keeps only complete entries.
 export const newBrewFormSchema = brewSchema
   .omit({ totalTimeSec: true })
   .extend({
@@ -54,6 +57,7 @@ export const newBrewFormSchema = brewSchema
     // brew time is entered as minutes + seconds, stored as total seconds
     brewTimeMin: optNum(z.coerce.number().int().min(0).max(600)),
     brewTimeSec: optNum(z.coerce.number().int().min(0).max(59)),
+    tastings: z.string().max(8000).nullish(),
     hotNotes: z.string().max(1000).nullish(),
     warmNotes: z.string().max(1000).nullish(),
     coldNotes: z.string().max(1000).nullish(),
@@ -124,3 +128,18 @@ export const cuppingSchema = z.object({
   coldNotes: z.string().max(1000).nullish(),
 });
 export type CuppingInput = z.infer<typeof cuppingSchema>;
+
+// Structured tasting: one (stage, attribute, value) fact on a plain bounded
+// scale. Attribute names normalize (trim + lowercase) so " Acidity " cannot
+// duplicate "acidity" under the unique key; overlong names fail instead of
+// truncating. The scale is intentionally NOT an official SCA score.
+export const tastingEntrySchema = z.object({
+  stage: z.enum(["hot", "warm", "cold"]),
+  attribute: z.preprocess(normalizeAttribute, z.string().min(1, "Name the attribute").max(40)),
+  value: z.coerce.number().min(TASTING_MIN).max(TASTING_MAX),
+});
+export type TastingEntryInput = z.infer<typeof tastingEntrySchema>;
+
+// Full desired state per brew (autosave reconciles deletions against it).
+export const tastingsPayloadSchema = z.array(tastingEntrySchema).max(60);
+export type TastingsPayloadInput = z.infer<typeof tastingsPayloadSchema>;

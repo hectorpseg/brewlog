@@ -1,7 +1,9 @@
-import { getBrew, listBrewIds } from "@/lib/db/queries";
+import { getBrew, listBrewIds, listTastings } from "@/lib/db/queries";
 import { requireUser } from "@/lib/supabase/require-user";
 import { diffBrews } from "@/lib/domain/compare";
 import { resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
+import { compareTastings } from "@/lib/domain/tastings";
+import { TastingCompare } from "@/components/tasting-compare";
 import { Card, SectionHeader } from "@/components/ui/controls";
 import { ErrorState } from "@/components/states";
 
@@ -52,6 +54,13 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const a = toComparableBrew(rawA);
   const b = toComparableBrew(rawB);
   const diff = diffBrews(a, b);
+  // structured tasting compares separately: Stage → Attribute → A / B.
+  // Legacy fixed attributes are gone from the scalar diff above on purpose.
+  const [tastingsA, tastingsB] = await Promise.all([
+    listTastings(rawA.id).catch(() => []),
+    listTastings(rawB.id).catch(() => []),
+  ]);
+  const tasting = compareTastings(tastingsA, tastingsB);
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -94,6 +103,10 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
             </ul>
           </Card>
         )}
+      </div>
+      <div>
+        <SectionHeader>Tasting</SectionHeader>
+        <TastingCompare aLabel="Brew A" bLabel="Brew B" stages={tasting} />
       </div>
     </div>
   );

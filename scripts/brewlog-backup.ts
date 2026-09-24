@@ -1,14 +1,15 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { backupFilename, buildSqlBackup, findSecretKeys } from "../src/lib/backup/format";
 import { countRows } from "../src/lib/backup/fetch";
-import { loadEnvFiles, resolveConfig, signInUser } from "./brewlog-common";
+import { loadCliEnv, resolveConfig, signInUser } from "./brewlog-common";
 
 // pnpm brewlog:backup — data-only SQL backup of the caller's own rows
 // (schema lives in supabase/migrations/*). Read-only against the database;
 // the file is built fully in memory and written once.
 async function main(): Promise<void> {
   const { fetchAllUserRows } = await import("../src/lib/backup/fetch");
-  const config = resolveConfig(process.env, loadEnvFiles());
+  loadCliEnv();
+  const config = resolveConfig(process.env);
   const { supabase, userId } = await signInUser(config);
   try {
     const rows = await fetchAllUserRows(supabase as never);

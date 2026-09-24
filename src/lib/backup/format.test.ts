@@ -31,6 +31,7 @@ function fixture(): TableRows {
     ],
     experiments: [],
     cuppings: [],
+    tastings: [],
   };
 }
 
@@ -53,7 +54,7 @@ describe("export envelope", () => {
   it("represents every user-owned entity", () => {
     const keys = Object.keys(buildEnvelope(fixture(), userId, "x").data).sort();
     expect(keys).toEqual(
-      ["brews", "coffees", "competitionSettings", "cuppings", "experiments", "observations", "sessions"].sort(),
+      ["brews", "coffees", "competitionSettings", "cuppings", "experiments", "observations", "sessions", "tastings"].sort(),
     );
     expect(BACKUP_TABLES.map((t) => t.key).sort()).toEqual(keys);
   });

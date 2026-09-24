@@ -12,6 +12,8 @@ import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
+import { TastingEditor } from "@/components/tasting-editor";
+import { tastingRowsFromJson, tastingRowsToJson } from "@/lib/domain/tastings";
 import { SaveStateBadge } from "@/components/save-state";
 import { formatRatio } from "@/lib/domain/ratio";
 
@@ -181,7 +183,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
         </Card>
       </details>
       <details>
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Result & notes</summary>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Result</summary>
         <Card>
           <div>
             <Label>
@@ -192,11 +194,22 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
               <p className="mt-1 text-sm text-ember">Below the {minBeverageG} g target - saves anyway.</p>
             ) : null}
           </div>
-          <div className="mt-3"><Label>Hot notes</Label><Textarea rows={2} {...form.register("hotNotes")} /></div>
-          <div className="mt-3"><Label>Warm notes</Label><Textarea rows={2} {...form.register("warmNotes")} /></div>
-          <div className="mt-3"><Label>Cold notes</Label><Textarea rows={2} {...form.register("coldNotes")} /></div>
-          <div className="mt-3"><Label>Tasting notes</Label><Textarea rows={2} {...form.register("freeformNotes")} /></div>
           <div className="mt-3"><Label>Brew notes</Label><Textarea rows={2} {...form.register("notes")} /></div>
+        </Card>
+      </details>
+      <details open>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Tasting</summary>
+        <Card>
+          <TastingEditor
+            rows={tastingRowsFromJson(values.tastings)}
+            onChange={(rows) => form.setValue("tastings", tastingRowsToJson(rows), { shouldDirty: true })}
+            notes={{ hot: values.hotNotes ?? "", warm: values.warmNotes ?? "", cold: values.coldNotes ?? "" }}
+            onNotes={(stage, v) => form.setValue(`${stage}Notes`, v, { shouldDirty: true })}
+          />
+          <div className="mt-6 border-t border-line pt-5">
+            <h3 className="text-base font-medium">Overall notes</h3>
+            <Textarea rows={2} className="mt-1" aria-label="Overall notes" {...form.register("freeformNotes")} />
+          </div>
         </Card>
       </details>
       {submitError ? <p role="alert" className="text-sm text-ember">{submitError}</p> : null}
