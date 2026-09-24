@@ -17,8 +17,9 @@ export default async function NewBrewPage({ searchParams }: { searchParams: Prom
     getCompetitionSettings().catch(() => null),
   ]);
   const copyFrom = sp.copy === "1" && sp.coffee ? await latestBrewForCoffee(sp.coffee).catch(() => null) : null;
-  // +Brew continues the workflow: last-used coffee preselected, most recent
-  // brew offered as the copy source — starting fresh stays one tap away.
+  // +Brew continues the workflow: the most recent brew is offered as an
+  // explicit copy source — starting fresh stays one tap away. A fresh form
+  // never preselects a coffee: that choice belongs to the user.
   const last = !sp.coffee ? await latestBrew().catch(() => null) : null;
   const lastCoffees = last?.coffees as { name?: string } | { name?: string }[] | null | undefined;
   const lastCoffeeName = Array.isArray(lastCoffees) ? lastCoffees[0]?.name : lastCoffees?.name;
@@ -50,7 +51,7 @@ export default async function NewBrewPage({ searchParams }: { searchParams: Prom
         }))}
         sessions={sessions.map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))}
         minBeverageG={settings?.min_final_beverage_g != null ? Number(settings.min_final_beverage_g) : DEFAULT_MIN_BEVERAGE_G}
-        initialCoffeeId={sp.coffee ?? last?.coffee_id ?? undefined}
+        initialCoffeeId={sp.coffee ?? undefined}
         recipeFrom={copyFrom}
       />
     </div>

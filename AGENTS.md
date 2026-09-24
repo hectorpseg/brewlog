@@ -34,6 +34,7 @@ V0 focuses on:
 Do NOT implement in V0:
 
 - AI coach
+- AI/LLM features
 - Whisper
 - WebGPU speech recognition
 - WebMCP
@@ -44,6 +45,7 @@ Do NOT implement in V0:
 - notifications
 - subscriptions
 - gamification
+- espresso support
 
 Architecture may anticipate these features, but implementation should not.
 
@@ -281,6 +283,64 @@ The app should feel like a notebook, not a sequence of popups.
 ## Environment
 
 Always run Node.js commands in this project with Node 22 via nvm (`source ~/.nvm/nvm.sh && nvm use 22`). The default system Node (18) cannot build Next.js here.
+
+---
+
+## Before making changes
+
+BrewLog has real production data. Before changing anything, inspect the current schema, migrations, TypeScript types, server actions, data-access functions, and existing UI implementation.
+
+Do not assume architecture described in older prompts is still accurate. Inspect the current code first.
+
+---
+
+## Database changes
+
+Additive and backward-compatible only.
+
+- Never drop production data.
+- Never use db reset.
+- Never delete or rewrite historical records to fit a new model.
+- Use migrations for schema changes.
+- Preserve existing relationships and foreign keys.
+- Existing records must remain readable.
+- New records use the new structure.
+- Never invent historical data.
+- Never touch production data for testing unless explicitly requested.
+
+---
+
+## Replacing a model or UI
+
+- Preserve the old database data.
+- Remove obsolete UI only when the new model covers the intended workflow.
+- Do not silently discard information.
+- Do not maintain two competing active UI models just for backward compatibility.
+
+---
+
+## Quality and reporting
+
+After a change, run tests, typecheck, lint, and production build.
+
+Report exactly what changed, the migration impact, and backward-compatibility behavior.
+
+Keep changes tightly scoped:
+- no unrelated page redesigns
+- no speculative architecture
+- no generic frameworks where a small BrewLog-specific abstraction is enough
+- no entities added merely because they might be useful someday
+
+---
+
+## Debugging
+
+When something "does not work":
+
+1. Identify the exact screen, action, and observed behavior first. Ask if unclear.
+2. Verify the suspect code is actually loaded where it is tested (dev server freshness, deployment state) before changing it.
+3. Trace the data flow and fix the cause, not the symptom.
+4. No git operations unless explicitly requested.
 
 ---
 

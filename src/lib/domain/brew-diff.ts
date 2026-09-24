@@ -50,6 +50,18 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
   };
 }
 
+// Explicit compare sections: fixed order, never object ordering. Recipe
+// covers brew setup, notes cover the free-text observation record.
+// Structured tasting compares separately per stage/attribute.
+export const COMPARE_RECIPE_FIELDS = [
+  "Coffee", "Session", "Dose", "Water", "Ratio", "Temperature", "Grind",
+  "Grinder", "Dripper", "Filter", "Water source", "Pours", "Brew time", "Final beverage",
+] as const;
+
+export const COMPARE_NOTE_FIELDS = [
+  "Process notes", "Hot notes", "Warm notes", "Cold notes", "Overall notes",
+] as const;
+
 // Selector option for the compare dropdowns: ratio · coffee · day · session.
 export type CompareOptionRow = {
   id: string;

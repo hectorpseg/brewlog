@@ -265,8 +265,10 @@ export async function createExperiment(formData: FormData): Promise<void> {
     actual_result: d.actualResult, conclusion: d.conclusion, next_question: d.nextQuestion,
   });
   if (error) return;
+  // the form lives on the brew page: return there with a clean form
   revalidatePath("/brews");
   if (d.brewId) revalidatePath(`/brews/${d.brewId}`);
+  redirect(d.brewId ? `/brews/${d.brewId}` : "/brews");
 }
 
 export async function updateExperiment(id: string, formData: FormData): Promise<void> {
@@ -291,8 +293,10 @@ export async function updateExperiment(id: string, formData: FormData): Promise<
   }).eq("id", id);
   if (error) return;
   revalidatePath("/brews");
+  revalidatePath(`/experiments/${id}`);
   if (d.brewId) revalidatePath(`/brews/${d.brewId}`);
-  redirect(`/experiments/${id}`);
+  // the edit form is reached from a brew: return there, not to this same page
+  redirect(d.brewId ? `/brews/${d.brewId}` : `/experiments/${id}`);
 }
 
 export async function createSession(formData: FormData): Promise<void> {

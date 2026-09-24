@@ -5,11 +5,15 @@ import { getBrew, listExperimentsForBrew, listSessionOptions, listTastings } fro
 import { createExperiment, deleteBrew } from "@/app/actions";
 import { BrewEditor } from "@/components/brew-editor";
 import { BackLink } from "@/components/back-link";
+import { BackToTop } from "@/components/back-to-top";
+import { CopySummaryButton } from "@/components/copy-summary";
 import { DeleteButton } from "@/components/delete-button";
-import { Button, Card, Input, Label, SectionHeader, Textarea } from "@/components/ui/controls";
+import { SaveButton } from "@/components/save-button";
+import { Card, Input, Label, SectionHeader, Textarea } from "@/components/ui/controls";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
+import { formatBrewSummary } from "@/lib/domain/brew-summary";
 import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
 import { describeDeletion } from "@/lib/domain/deletion";
 import { experimentStatus } from "@/lib/domain/experiments";
@@ -36,6 +40,18 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     experiments: experiments.length,
   });
   const remove = deleteBrew.bind(null, id);
+  const summary = formatBrewSummary({
+    brew: brew as Record<string, unknown>,
+    coffeeName: typeof coffeeName === "string" ? coffeeName : null,
+    sessionTitle: brewSession && typeof brewSession === "object" && "title" in brewSession
+      ? String((brewSession as { title: unknown }).title)
+      : null,
+    observation: obs as Record<string, unknown> | null,
+    tastings: tastings as { stage: unknown; attribute: unknown; value: unknown }[],
+    experiments: experiments.map((e: { conclusion: string | null; actual_result: string | null }) => ({
+      status: experimentStatus(e),
+    })),
+  });
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -63,6 +79,9 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
             "None"
           )}
         </p>
+        <div className="mt-1">
+          <CopySummaryButton text={summary} />
+        </div>
       </div>
       <div>
         <SectionHeader>Recipe</SectionHeader>
@@ -122,7 +141,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
             <div><Label>Actual result</Label><Textarea name="actualResult" rows={2} /></div>
             <div><Label>Conclusion</Label><Textarea name="conclusion" rows={2} /></div>
             <div><Label>Next question</Label><Input name="nextQuestion" /></div>
-            <Button>Save experiment</Button>
+            <SaveButton label="Save experiment" savingLabel="Saving experiment…" />
           </form>
         </Card>
       </details>
@@ -133,6 +152,12 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
       >
         Copy as next brew
       </Link>
+      <Link
+        href={`/brews/compare?a=${brew.id}`}
+        className="min-h-11 rounded-[10px] border border-line bg-card px-4 py-2 text-center font-medium"
+      >
+        Compare this brew
+      </Link>
       <DeleteButton
         label="Delete brew"
         title={del.title}
@@ -140,6 +165,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
         confirmLabel={del.confirm}
         action={remove}
       />
+      <BackToTop />
     </div>
   );
 }
