@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  SUGGESTED_ATTRIBUTES, compareTastings, completeTastingEntries, groupTastingsByStage, isTastingStage,
+  CUSTOM_ATTRIBUTE_VALUE, SUGGESTED_ATTRIBUTES, compareTastings, completeTastingEntries, groupTastingsByStage, isSuggestedAttribute,
+  isTastingStage, attributeOptions,
   normalizeAttribute, tastingRowsFromJson, tastingRowsToJson, tastingServerRowsToDraft,
   tastingsUpdatedAt,
 } from "@/lib/domain/tastings";
@@ -49,6 +50,37 @@ describe("dynamic attributes", () => {
       { stage: "hot", attribute: "acidity", value: "5" },
     ]);
     expect(entries.map((e) => e.attribute)).toEqual(["acidity", "acidity"]);
+  });
+  it("never persists the custom-entry sentinel as data", () => {
+    expect(completeTastingEntries([
+      { stage: "hot", attribute: CUSTOM_ATTRIBUTE_VALUE, value: "5" },
+    ])).toEqual([]);
+  });
+});
+
+describe("attribute options (centralized select source)", () => {
+  it("exposes the full fixed vocabulary with placeholder first", () => {
+    const opts = attributeOptions("");
+    expect(opts[0]).toEqual({ value: "", label: "Pick…" });
+    for (const a of SUGGESTED_ATTRIBUTES) {
+      expect(opts).toContainEqual({ value: a, label: a });
+    }
+    expect(opts.at(-1)).toEqual({ value: CUSTOM_ATTRIBUTE_VALUE, label: "Custom…" });
+  });
+  it("serves added rows from the same source as initial rows", () => {
+    // Added rows start empty, so both render attributeOptions("").
+    expect(attributeOptions("")).toHaveLength(SUGGESTED_ATTRIBUTES.length + 2);
+  });
+  it("preserves a row's own custom value instead of dropping it", () => {
+    const opts = attributeOptions("bergamot");
+    expect(opts).toContainEqual({ value: "bergamot", label: "bergamot (custom)" });
+    // A suggested current value adds no duplicate entry.
+    expect(attributeOptions("Acidity").filter((o) => o.value === "acidity")).toHaveLength(1);
+  });
+  it("matches suggestions case-insensitively, like stored data", () => {
+    expect(isSuggestedAttribute("Acidity")).toBe(true);
+    expect(isSuggestedAttribute("bergamot")).toBe(false);
+    expect(isSuggestedAttribute("")).toBe(false);
   });
 });
 
