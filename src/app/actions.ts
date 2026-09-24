@@ -125,12 +125,17 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
   const d = parsed.data;
   const { toSeconds } = await import("@/lib/domain/brew-time");
   const { toBrewedAtIso } = await import("@/lib/domain/brew-date");
+  const { completePourEntries, pourRowsFromJson } = await import("@/lib/domain/pours");
+  // the manual pour count is gone: structured pours are the counter. A legacy
+  // inherited count survives only when no structured pours were entered.
+  const createPourEntries = completePourEntries(pourRowsFromJson(d.pours));
   const db = await createClient();
   const { data, error } = await db.from("brews").insert({
     coffee_id: d.coffeeId, session_id: d.sessionId, dose_g: d.doseG, water_g: d.waterG, temp_c: d.tempC,
     brewed_at: toBrewedAtIso(d.brewedAt) ?? new Date().toISOString(),
     grind_clicks: d.grindClicks, grinder: d.grinder, dripper: d.dripper,
-    filter: d.filter, water_source: d.waterSource, pour_count: d.pourCount,
+    filter: d.filter, water_source: d.waterSource,
+    pour_count: createPourEntries.length > 0 ? createPourEntries.length : d.pourCount,
     total_time_sec: toSeconds(
       d.brewTimeMin == null ? undefined : Number(d.brewTimeMin),
       d.brewTimeSec == null ? undefined : Number(d.brewTimeSec),
@@ -142,9 +147,8 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
   // structured pours are independent of each other, so they persist in
   // parallel rather than sequentially. Only complete entries persist.
   const { completeTastingEntries, tastingRowsFromJson } = await import("@/lib/domain/tastings");
-  const { completePourEntries, pourRowsFromJson } = await import("@/lib/domain/pours");
   const tastingEntries = completeTastingEntries(tastingRowsFromJson(d.tastings));
-  const pourEntries = completePourEntries(pourRowsFromJson(d.pours));
+  const pourEntries = createPourEntries;
   const childWrites: Promise<{ error?: string }>[] = [];
   // first tasting notes ride along at creation as the brew's observation row
   if (d.hotNotes || d.warmNotes || d.coldNotes || d.freeformNotes) {

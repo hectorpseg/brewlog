@@ -3,16 +3,19 @@ import { Trash2 } from "lucide-react";
 import { Input, Label, Select } from "@/components/ui/controls";
 import { cn } from "@/components/ui/utils";
 import {
-  POUR_PATTERNS, emptyPourDraft, formatPourTime, parsePourTime,
-  type PourDraftRow,
+  POUR_PATTERNS, emptyPourDraft, formatPourTime, formatPourTotal, parsePourTime,
+  pourCountAndTotal, type PourDraftRow,
 } from "@/lib/domain/pours";
 
 // Compact structured-pour rows for fast entry while brewing: one row per
 // pour with time (m:ss), amount (g), pattern, bloom toggle, optional note.
 // Sequence is the row order (1-based); reordering is out of scope, matching
-// the tasting editor. Incomplete rows stay local-only until saved.
-export function PourEditor({ rows, onChange }: {
+// the tasting editor. Incomplete rows stay local-only until saved. The count
+// line at the top is a read-only counter of complete pours plus their summed
+// amount - there is no manual pour count input anymore.
+export function PourEditor({ rows, legacyCount, onChange }: {
   rows: PourDraftRow[];
+  legacyCount?: number | null;
   onChange: (rows: PourDraftRow[]) => void;
 }) {
   function updateAt(index: number, patch: Partial<PourDraftRow>) {
@@ -24,10 +27,15 @@ export function PourEditor({ rows, onChange }: {
   function addRow() {
     onChange([...rows, emptyPourDraft(rows.length === 0)]);
   }
+  const { count, totalG } = pourCountAndTotal(rows);
+  const total = formatPourTotal(count, totalG);
   if (rows.length === 0) {
     return (
       <div>
-        <p className="text-sm text-ink2">No structured pours yet. Optional - add them while brewing.</p>
+        {legacyCount != null && legacyCount > 0 ? (
+          <p className="tnum text-sm">Brew record: {legacyCount} pour{legacyCount === 1 ? "" : "s"}.</p>
+        ) : null}
+        <p className="mt-1 text-sm text-ink2">No structured pours yet. Optional - add them while brewing.</p>
         <button
           type="button"
           onClick={addRow}
@@ -40,6 +48,7 @@ export function PourEditor({ rows, onChange }: {
   }
   return (
     <div>
+      {total ? <p className="tnum text-sm font-medium" aria-live="polite">{total}</p> : null}
       <ul className="flex flex-col">
         {rows.map((r, i) => {
           const parsed = parsePourTime(r.time);

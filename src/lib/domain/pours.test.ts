@@ -4,7 +4,9 @@ import {
   comparePours,
   completePourEntries,
   formatPourTime,
+  formatPourTotal,
   parsePourTime,
+  pourCountAndTotal,
   pourRowsFromJson,
   pourRowsToJson,
   pourServerRowsToDraft,
@@ -162,5 +164,36 @@ describe("comparePourFields", () => {
     expect(byLabel["Pour 1 amount"].changed).toBe(true);
     expect(byLabel["Pour 1 time"].changed).toBe(false);
     expect(byLabel["Pour 1 pattern"].changed).toBe(false);
+  });
+});
+
+describe("pourCountAndTotal", () => {
+  it("counts complete pours and sums their amounts", () => {
+    expect(pourCountAndTotal([
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "" },
+    ])).toEqual({ count: 2, totalG: 100 });
+  });
+  it("ignores half-filled rows", () => {
+    expect(pourCountAndTotal([
+      { time: "0:00", amount: "", bloom: false, pattern: "center", note: "" },
+      { time: "soon", amount: "60", bloom: false, pattern: "center", note: "" },
+    ])).toEqual({ count: 0, totalG: 0 });
+  });
+  it("rounds fractional sums sanely", () => {
+    expect(pourCountAndTotal([
+      { time: "0:00", amount: "40.5", bloom: false, pattern: "center", note: "" },
+      { time: "0:35", amount: "60.25", bloom: false, pattern: "center", note: "" },
+    ])).toEqual({ count: 2, totalG: 100.8 });
+  });
+});
+
+describe("formatPourTotal", () => {
+  it("renders the read-only counter line", () => {
+    expect(formatPourTotal(2, 100)).toBe("2 pours · 100 g total");
+    expect(formatPourTotal(1, 40)).toBe("1 pour · 40 g total");
+  });
+  it("returns null when there is nothing to count", () => {
+    expect(formatPourTotal(0, 0)).toBeNull();
   });
 });

@@ -146,6 +146,20 @@ export function completePourEntries(rows: PourDraftRow[]): PourEntry[] {
   return out;
 }
 
+// Derived counter for the pour section: number of complete pours plus the
+// summed amount. Drives the read-only "N pours · X g total" line and keeps
+// the legacy pour_count column in sync on save. Null when nothing complete.
+export function pourCountAndTotal(rows: PourDraftRow[]): { count: number; totalG: number } {
+  const entries = completePourEntries(rows);
+  const total = entries.reduce((sum, e) => sum + e.amount_g, 0);
+  return { count: entries.length, totalG: Math.round(total * 10) / 10 };
+}
+
+export function formatPourTotal(count: number, totalG: number): string | null {
+  if (!Number.isInteger(count) || count <= 0) return null;
+  return `${count} pour${count === 1 ? "" : "s"} · ${totalG} g total`;
+}
+
 // Freshest server timestamp, so a stale local draft can never clobber synced rows.
 export function poursUpdatedAt(rows: { updated_at?: unknown }[] | null | undefined): string | null {
   if (!rows) return null;

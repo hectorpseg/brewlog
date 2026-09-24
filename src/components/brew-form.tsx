@@ -94,6 +94,13 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
   const selectedCoffee = coffees.find((c) => c.id === values.coffeeId);
   const remaining = selectedCoffee?.remaining_weight_g;
   const overRemaining = remaining != null && dose > remaining;
+  // legacy manual count from the copy source, shown until structured
+  // pours take over the counter. Never editable, never invented.
+  const copyLegacyPours = (() => {
+    if (pourRowsFromJson(values.pours).length > 0 || recipeFrom == null) return null;
+    const n = Number((recipeFrom as { pour_count?: unknown }).pour_count);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  })();
   // guidance only: entering a value is optional, and below-target still saves
   const bevRaw = values.finalBeverageG;
   const bev = bevRaw === "" || bevRaw == null ? NaN : Number(bevRaw);
@@ -153,7 +160,6 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           <div><Label>Grind clicks</Label><Input type="number" inputMode="numeric" className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
           <div><Label>Temp C</Label><Input type="number" inputMode="decimal" className={inh("tempC")} {...form.register("tempC")} /></div>
           <div><Label>Filter</Label><Input className={inh("filter")} {...form.register("filter")} /></div>
-          <div><Label>Pours</Label><Input type="number" inputMode="numeric" className={inh("pourCount")} {...form.register("pourCount")} /></div>
           <div className="col-span-2">
             <Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} {...form.register("brewedAt")} />
           </div>
@@ -192,6 +198,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
         <Card>
           <PourEditor
             rows={pourRowsFromJson(values.pours)}
+            legacyCount={copyLegacyPours}
             onChange={(rows) => form.setValue("pours", pourRowsToJson(rows), { shouldDirty: true })}
           />
         </Card>
