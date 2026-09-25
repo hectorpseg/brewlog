@@ -12,12 +12,12 @@ function pngSize(p: string): { w: number; h: number } {
   return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
 }
 
-// Brand assets derive from public/icon.png (approved artwork, do not redraw).
+// Brand assets derive from public/app-icon.png (approved artwork, do not redraw).
 // This pins their existence and dimensions so a missing/regenerated asset fails fast.
 describe("icon assets", () => {
   it("keeps the approved source artwork", () => {
-    expect(existsSync(join(root, "public/icon.png"))).toBe(true);
-    expect(statSync(join(root, "public/icon.png")).size).toBeGreaterThan(10_000);
+    expect(existsSync(join(root, "public/app-icon.png"))).toBe(true);
+    expect(statSync(join(root, "public/app-icon.png")).size).toBeGreaterThan(10_000);
   });
   it("ships sized PWA + app icons", () => {
     expect(pngSize("public/icon-192.png")).toEqual({ w: 192, h: 192 });
