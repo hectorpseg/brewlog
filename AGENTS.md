@@ -353,3 +353,12 @@ After completing a task, write the final report to `output.txt` in the project r
 ## Typography
 
 Never use em dashes (—). Prefer a normal hyphen (-), parentheses, commas, or separate sentences.
+
+## Branch workflow
+
+- Only `staging` may be merged into `master` directly.
+- All other branches (feature, fix, performance, etc.) must be merged into `staging` first, then a staging‑to‑master merge/PR promotes changes to production.
+- Do not push directly to `master`; all changes flow through the staging branch.
+- PRs targeting `staging` are reviewed and merged normally; once on staging, a separate staging→master PR/Promotes the changes upward.
+
+This ensures a single source of truth for what reaches production and keeps master stable between staging releases.
