@@ -27,6 +27,16 @@ describe("icon assets", () => {
     expect(pngSize("src/app/icon.png")).toEqual({ w: 512, h: 512 });
     expect(pngSize("src/app/apple-icon.png")).toEqual({ w: 180, h: 180 });
   });
+  it("derives every platform icon from one canonical artwork", () => {
+    // Next.js routes and public manifest/iOS files must stay byte-identical
+    // so browser, PWA, and Home Screen can never drift apart again.
+    for (const [a, b] of [
+      ["src/app/icon.png", "public/icon-512.png"],
+      ["src/app/apple-icon.png", "public/apple-touch-icon.png"],
+    ] as const) {
+      expect(readFileSync(join(root, a)).equals(readFileSync(join(root, b)))).toBe(true);
+    }
+  });
   it("ships a multi-size favicon", () => {
     const p = join(root, "src/app/favicon.ico");
     expect(existsSync(p)).toBe(true);
