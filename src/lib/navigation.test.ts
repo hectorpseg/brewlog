@@ -19,6 +19,8 @@ describe("navigation", () => {
   it("hides app chrome on public paths only", () => {
     expect(isPublicPath("/login")).toBe(true);
     expect(isPublicPath("/")).toBe(true);
+    expect(isPublicPath("/forgot-password")).toBe(true);
+    expect(isPublicPath("/update-password")).toBe(true);
     expect(isPublicPath("/brews")).toBe(false);
     expect(isPublicPath("/brews/compare")).toBe(false);
     expect(isPublicPath("/coffees")).toBe(false);

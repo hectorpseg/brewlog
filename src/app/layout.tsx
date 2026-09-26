@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces } from "next/font/google";
 import { BottomNav } from "@/components/bottom-nav";
 import { DevRequestCount } from "@/components/dev-request-count";
+import { LaunchSplash } from "@/components/launch-splash";
 import "./globals.css";
 
 const display = Fraunces({ variable: "--font-display", subsets: ["latin"] });
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`h-full ${display.variable}`}>
       <body className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-paper text-ink">
         {process.env.NODE_ENV !== "production" ? <DevRequestCount /> : null}
+        <LaunchSplash />
         <main className="flex-1 px-4 pb-24 pt-4">{children}</main>
         <BottomNav />
       </body>
