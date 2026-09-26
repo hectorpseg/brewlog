@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { login } from "@/app/actions";
 import { safeNext } from "@/lib/auth";
 import { getCachedUser } from "@/lib/supabase/require-user";
 import { Button, Card, Input, Label } from "@/components/ui/controls";
 
 export default async function LoginPage({ searchParams }: {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; next?: string; updated?: string }>;
 }) {
   const sp = await searchParams;
   const next = safeNext(sp.next);
@@ -17,6 +18,11 @@ export default async function LoginPage({ searchParams }: {
     <div className="pt-10">
       <h1 className="font-display text-3xl">BrewLog</h1>
       <p className="mb-4 mt-1 text-sm text-ink2">A private brew notebook. Sign in to continue.</p>
+      {sp.updated ? (
+        <p role="status" className="mb-3 rounded-[10px] border border-line px-3 py-2 text-sm">
+          Password updated. Sign in with your new password.
+        </p>
+      ) : null}
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
           {sp.error}
@@ -32,6 +38,9 @@ export default async function LoginPage({ searchParams }: {
           <div>
             <Label htmlFor="password">Password</Label>
             <Input id="password" name="password" type="password" required autoComplete="current-password" />
+            <Link href="/forgot-password" className="mt-1 inline-block min-h-11 py-2 text-sm text-ink2 underline">
+              Forgot password?
+            </Link>
           </div>
           <div className="flex gap-2">
             <Button formAction={login}>Sign in</Button>

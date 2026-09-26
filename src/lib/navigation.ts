@@ -34,7 +34,8 @@ export const MORE_PREFIXES = ["/more", "/sessions", "/account", "/experiments"];
 
 // Auth shell: no app chrome here. "/" redirects immediately (see app/page),
 // so hiding the nav there avoids a one-frame authenticated flash.
-export const PUBLIC_PATHS = ["/", "/login"];
+// Forgot/update-password are public too: they must never show app content.
+export const PUBLIC_PATHS = ["/", "/login", "/forgot-password", "/update-password"];
 
 export function isPublicPath(path: string): boolean {
   return PUBLIC_PATHS.some((p) => path === p);
