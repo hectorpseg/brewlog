@@ -155,10 +155,10 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           </p>
         ) : null}
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <div><Label>Dose g *</Label><Input type="number" inputMode="decimal" className={inh("doseG")} {...form.register("doseG")} /></div>
-          <div><Label>Water g *</Label><Input type="number" inputMode="decimal" className={inh("waterG")} {...form.register("waterG")} /></div>
+          <div><Label>Dose g *</Label><Input type="number" step="any" inputMode="decimal" className={inh("doseG")} {...form.register("doseG")} /></div>
+          <div><Label>Water g *</Label><Input type="number" step="any" inputMode="decimal" className={inh("waterG")} {...form.register("waterG")} /></div>
           <div><Label>Grind clicks</Label><Input type="number" inputMode="numeric" className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
-          <div><Label>Temp C</Label><Input type="number" inputMode="decimal" className={inh("tempC")} {...form.register("tempC")} /></div>
+          <div><Label>Temp C</Label><Input type="number" step="any" inputMode="decimal" className={inh("tempC")} {...form.register("tempC")} /></div>
           <div><Label>Filter</Label><Input className={inh("filter")} {...form.register("filter")} /></div>
           <div className="col-span-2">
             <Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} {...form.register("brewedAt")} />
@@ -210,7 +210,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             <Label>
               Final beverage g{minBeverageG != null ? ` (target ≥ ${minBeverageG} g)` : ""}
             </Label>
-            <Input type="number" inputMode="decimal" {...form.register("finalBeverageG")} />
+            <Input type="number" step="any" inputMode="decimal" {...form.register("finalBeverageG")} />
             {belowTarget ? (
               <p className="mt-1 text-sm text-ember">Below the {minBeverageG} g target - saves anyway.</p>
             ) : null}
