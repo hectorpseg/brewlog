@@ -18,10 +18,20 @@ export function LaunchSplash() {
   const timers = useRef<number[]>([]);
   const showing = useRef(false);
   const hiddenAt = useRef(0);
+  const loadHandler = useRef<(() => void) | null>(null);
 
   const later = useCallback((fn: () => void, ms: number) => {
     timers.current.push(window.setTimeout(fn, ms));
   }, []);
+
+  const hide = useCallback(() => {
+    loadHandler.current = null;
+    setVisible(false);
+    later(() => {
+      setRender(false);
+      showing.current = false;
+    }, LAUNCH_SPLASH_FADE_MS);
+  }, [later]);
 
   const show = useCallback(() => {
     if (showing.current) return;
@@ -29,8 +39,8 @@ export function LaunchSplash() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     setRender(true);
     setVisible(true);
-    // Mount = shell hydrated, so readiness is already met; this beat is
-    // branding only and never waits on Supabase/database queries.
+    // Mount = shell hydrated; route data still loads under its own
+    // skeletons (never the splash). No Supabase/database wait here.
     later(() => {
       if (reduced) {
         setVisible(false);
@@ -38,13 +48,17 @@ export function LaunchSplash() {
         showing.current = false;
         return;
       }
-      setVisible(false);
-      later(() => {
-        setRender(false);
-        showing.current = false;
-      }, LAUNCH_SPLASH_FADE_MS);
+      // ponytail: SHOW_MS equals the single-play SVG duration, so the
+      // animation always finishes naturally. Slow init holds the frozen
+      // final frame (fill=freeze) until window load; never replays.
+      if (document.readyState === "complete") {
+        hide();
+        return;
+      }
+      loadHandler.current = hide;
+      window.addEventListener("load", hide, { once: true });
     }, reduced ? 0 : LAUNCH_SPLASH_SHOW_MS);
-  }, [later]);
+  }, [later, hide]);
 
   useEffect(() => {
     if (readsStandalonePwa()) show();
@@ -60,6 +74,8 @@ export function LaunchSplash() {
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
+      if (loadHandler.current) window.removeEventListener("load", loadHandler.current);
+      loadHandler.current = null;
       timers.current.forEach((t) => window.clearTimeout(t));
       timers.current = [];
       showing.current = false;

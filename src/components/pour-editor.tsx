@@ -76,9 +76,13 @@ export function PourEditor({ rows, legacyCount, onChange }: {
                     id={`pour-${i}-time`}
                     placeholder="0:35"
                     autoComplete="off"
-                    inputMode="decimal"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    inputMode="text"
                     value={r.time}
                     onChange={(e) => updateAt(i, { time: e.target.value })}
+                    aria-invalid={r.time.trim() !== "" && parsed == null}
                   />
                 </div>
                 <div>
@@ -86,6 +90,7 @@ export function PourEditor({ rows, legacyCount, onChange }: {
                   <Input
                     id={`pour-${i}-amount`}
                     type="number"
+                    step="any"
                     inputMode="decimal"
                     min={0}
                     placeholder="60"

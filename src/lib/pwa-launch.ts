@@ -3,9 +3,11 @@
 // (components/launch-splash) only wires these to timers and the
 // visibility API. Route loading (app/loading.tsx) is untouched by design.
 
-// How long the splash stays fully visible once shown. Short branding beat:
-// shell hydration already happened by mount, so this is polish, not a wait.
-export const LAUNCH_SPLASH_SHOW_MS = 700;
+// How long the splash stays fully visible once shown. Matches the
+// splash.svg SMIL duration (0.9s, single play, fill=freeze): the overlay
+// never cuts the animation off, and never loops it. Shell hydration already
+// happened by mount, so this is polish, not a wait.
+export const LAUNCH_SPLASH_SHOW_MS = 900;
 // Fade-out length. Zero readable cost, skipped under reduced motion.
 export const LAUNCH_SPLASH_FADE_MS = 200;
 // Backgrounded shorter than this = quick app switch, no splash on return.

@@ -43,7 +43,7 @@ export function CoffeeEditor({ coffee, update, brewAgainHref }: {
             <div><Label>Farm / estate</Label><Input name="farm" defaultValue={coffee.farm ?? ""} /></div>
             <div><Label>Altitude</Label><Input name="altitude" defaultValue={coffee.altitude ?? ""} /></div>
           </div>
-          <div><Label>Remaining g</Label><Input name="remainingWeightG" type="number" inputMode="decimal" defaultValue={coffee.remaining_weight_g ?? ""} /></div>
+          <div><Label>Remaining g</Label><Input name="remainingWeightG" type="number" step="any" inputMode="decimal" defaultValue={coffee.remaining_weight_g ?? ""} /></div>
           <div><Label>Received</Label><Input name="receivedDate" type="date" max={defaultBrewedDate()} defaultValue={coffee.received_date ?? ""} /></div>
           <div>
             <Button>Save coffee</Button>

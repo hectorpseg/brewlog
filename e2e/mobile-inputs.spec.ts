@@ -21,14 +21,20 @@ test("pour timing uses a decimal-capable keyboard on mobile", async ({ page }) =
   await page.getByRole("button", { name: "Add pour" }).click();
   const time = page.getByLabel("Time m:ss");
   await expect(time).toBeVisible();
-  // Decimal-capable keyboard, not the integer-only one and not type=number
-  // (which cannot express m:ss and behaves inconsistently across browsers).
-  await expect(time).toHaveAttribute("inputmode", "decimal");
+  // Plain-text field (type=text) with a full keyboard: decimal-only keyboards
+  // have no colon key, so inputmode="decimal" would prevent typing m:ss.
+  // Strictness lives in parsePourTime, not the input type.
+  await expect(time).toHaveAttribute("inputmode", "text");
   await expect.poll(() => time.evaluate((el) => (el as HTMLInputElement).type)).toBe("text");
   // A fractional entry is accepted by the field and parsed to whole seconds.
   await time.fill("0:35.5");
   await expect(time).toHaveValue("0:35.5");
   await expect(page.getByText("Pour 1").first()).toContainText("0:35");
+  // Impossible clock seconds are rejected, never wrapped (no 1:15 hint).
+  await time.fill("1:75");
+  await expect(time).toHaveValue("1:75");
+  await expect(time).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText("Pour 1").first()).not.toContainText("1:15");
 });
 
 test("tasting attributes offer a native select with custom entry on mobile", async ({ page }) => {

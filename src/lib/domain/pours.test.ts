@@ -28,6 +28,14 @@ describe("parsePourTime", () => {
     expect(parsePourTime("0:35.5")).toBe(35);
     expect(parsePourTime("1:05.5")).toBe(65);
   });
+  it("rejects impossible clock seconds instead of wrapping them", () => {
+    expect(parsePourTime("1:75")).toBeNull();
+    expect(parsePourTime("0:60")).toBeNull();
+    expect(parsePourTime("2:99")).toBeNull();
+    expect(parsePourTime("1:59")).toBe(119);
+    expect(parsePourTime("59:59")).toBe(3599);
+    expect(parsePourTime("60:00")).toBe(3600);
+  });
   it("rejects garbage without guessing", () => {
     expect(parsePourTime("")).toBeNull();
     expect(parsePourTime("soon")).toBeNull();
