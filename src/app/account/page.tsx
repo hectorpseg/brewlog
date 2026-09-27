@@ -30,7 +30,7 @@ export default async function AccountPage() {
             </div>
             <div>
               <Label htmlFor="comp-min">Minimum final beverage (g)</Label>
-              <Input id="comp-min" name="minFinalBeverageG" type="number" inputMode="decimal" required defaultValue={minBeverage} />
+              <Input id="comp-min" name="minFinalBeverageG" type="number" step="any" inputMode="decimal" required defaultValue={minBeverage} />
             </div>
             <p className="text-sm text-ink2">
               Shown as the target on the brew form. A default for this competition, not a universal rule.

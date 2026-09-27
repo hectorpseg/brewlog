@@ -36,7 +36,7 @@ export default async function NewCoffeePage({ searchParams }: { searchParams: Pr
             <div><Label htmlFor="altitude">Altitude (optional)</Label><Input id="altitude" name="altitude" inputMode="numeric" placeholder="e.g. 1800-2000 masl" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label htmlFor="initialWeightG">Initial g</Label><Input id="initialWeightG" name="initialWeightG" type="number" inputMode="decimal" /></div>
+            <div><Label htmlFor="initialWeightG">Initial g</Label><Input id="initialWeightG" name="initialWeightG" type="number" step="any" inputMode="decimal" /></div>
             <div><Label htmlFor="receivedDate">Received</Label><Input id="receivedDate" name="receivedDate" type="date" max={defaultBrewedDate()} /></div>
           </div>
           <div><Label htmlFor="notes">Notes</Label><Textarea id="notes" name="notes" rows={3} /></div>

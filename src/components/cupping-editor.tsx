@@ -48,8 +48,8 @@ export function CuppingForm({ action, cupping, coffees, initialCoffeeId, submitL
         )}
         <div className="grid grid-cols-2 gap-3">
           <div><Label htmlFor={`${idPrefix}-date`}>Date</Label><Input id={`${idPrefix}-date`} name="cuppedAt" type="date" max={today} defaultValue={cupping ? toDateInputValue(cupping.cupped_at) : today} /></div>
-          <div><Label htmlFor={`${idPrefix}-dose`}>Dose g</Label><Input id={`${idPrefix}-dose`} name="doseG" type="number" inputMode="decimal" placeholder="10" defaultValue={cupping?.dose_g ?? ""} /></div>
-          <div><Label htmlFor={`${idPrefix}-water`}>Water g</Label><Input id={`${idPrefix}-water`} name="waterG" type="number" inputMode="decimal" placeholder="200" defaultValue={cupping?.water_g ?? ""} /></div>
+          <div><Label htmlFor={`${idPrefix}-dose`}>Dose g</Label><Input id={`${idPrefix}-dose`} name="doseG" type="number" step="any" inputMode="decimal" placeholder="10" defaultValue={cupping?.dose_g ?? ""} /></div>
+          <div><Label htmlFor={`${idPrefix}-water`}>Water g</Label><Input id={`${idPrefix}-water`} name="waterG" type="number" step="any" inputMode="decimal" placeholder="200" defaultValue={cupping?.water_g ?? ""} /></div>
           <div><Label htmlFor={`${idPrefix}-grinder`}>Grinder</Label><Input id={`${idPrefix}-grinder`} name="grinder" placeholder="K-Ultra" defaultValue={cupping?.grinder ?? ""} /></div>
           <div><Label htmlFor={`${idPrefix}-clicks`}>Grind clicks</Label><Input id={`${idPrefix}-clicks`} name="grindClicks" type="number" inputMode="numeric" placeholder="85" defaultValue={cupping?.grind_clicks ?? ""} /></div>
         </div>
