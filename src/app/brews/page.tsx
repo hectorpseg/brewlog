@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getCoffee, listBrewsPage, listRecentViews } from "@/lib/db/queries";
 import { RecentlyViewed } from "@/components/recently-viewed";
-import { ApplyListPrefs, BrewDensityList, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, SavedPresets, type BrewListRow } from "@/components/list-controls";
+import { ApplyListPrefs, BrewList, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, SavedPresets, type BrewListRow } from "@/components/list-controls";
 import { Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseBrewsParams } from "@/lib/lists/params";
@@ -115,7 +115,7 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
               )}
             </div>
           ) : (
-            <BrewDensityList rows={rows as BrewListRow[]} />
+            <BrewList rows={rows as BrewListRow[]} />
           )}
           {page.hasMore ? (
             <div className="mt-3 text-center">

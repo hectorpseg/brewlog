@@ -10,10 +10,7 @@ import { cn } from "./ui/utils";
 
 // Compact journal row for coffee history: one glanceable line per brew plus a
 // quiet status line. Tapping opens the full brew detail. Deliberately smaller
-// than BrewCard — no duplicated coffee context, no hero numeral.
-// The same row doubles as the Brew list compact density: pass coffeeName and
-// brewScore there (both already on the brews_list row) so scanning keeps the
-// identity and rating that coffee history gets from its surrounding context.
+// than BrewCard - no duplicated coffee context, no hero numeral.
 export function BrewHistoryRow({ brew, coffeeName, brewScore }: {
   brew: {
     id: string;

@@ -33,7 +33,7 @@ Input.displayName = "Input";
 
 export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
   ({ className, ...p }, ref) => (
-    <select ref={ref} className={cn(fieldCls, className)} {...p} />
+    <select ref={ref} className={cn(fieldCls, "select-field", className)} {...p} />
   ),
 );
 Select.displayName = "Select";
