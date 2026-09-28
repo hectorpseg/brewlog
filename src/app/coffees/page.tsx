@@ -5,6 +5,7 @@ import { listCoffeesPage } from "@/lib/db/queries";
 import { resetDevData, seedDevData } from "@/app/actions";
 import { ApplyListPrefs, ListSearchBox, ListSortSelect, NoListMatches } from "@/components/list-controls";
 import { EntityCard } from "@/components/entity-card";
+import { BrewCoffeeAction } from "@/components/quick-actions";
 import { Button, Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseCoffeeParams } from "@/lib/lists/params";
@@ -78,18 +79,21 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           ) : (
             <ul className="mt-2 flex flex-col gap-2">
               {rows.map((c) => (
-                <li key={String(c.id)}>
-                  <EntityCard href={`/coffees/${String(c.id)}`} label={`${String(c.name)} - view and edit`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="font-medium">{String(c.name)}</div>
-                        <div className="tnum text-sm text-ink2">
-                          {c.remaining_weight_g != null ? `~${String(c.remaining_weight_g)} g remaining` : "remaining unknown"}
+                <li key={String(c.id)} className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <EntityCard href={`/coffees/${String(c.id)}`} label={`${String(c.name)} - view and edit`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <div className="font-medium">{String(c.name)}</div>
+                          <div className="tnum text-sm text-ink2">
+                            {c.remaining_weight_g != null ? `~${String(c.remaining_weight_g)} g remaining` : "remaining unknown"}
+                          </div>
                         </div>
+                        <ChevronRight size={20} aria-hidden className="shrink-0 text-ink3" />
                       </div>
-                      <ChevronRight size={20} aria-hidden className="shrink-0 text-ink3" />
-                    </div>
-                  </EntityCard>
+                    </EntityCard>
+                  </div>
+                  <BrewCoffeeAction coffeeId={String(c.id)} coffeeName={String(c.name)} />
                 </li>
               ))}
             </ul>
