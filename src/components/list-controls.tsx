@@ -1,13 +1,14 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { Coffee } from "lucide-react";
 import { Label, Select } from "./ui/controls";
 import { NoMatches, SearchField } from "./search-field";
 import { listHref } from "@/lib/lists/params";
 import { toggleFavorite } from "@/app/actions";
 import { BrewCard, type BrewCardData } from "./brew-card";
+import { cn } from "./ui/utils";
 import { deletePreset, mergeStoredPrefs, readListPrefs, readSavedPresets, savePreset, writeListPrefs, type ListName, type ListPrefs, type SavedPreset } from "@/lib/lists/prefs";
 
 // List navigation runs inside a transition so isPending stays true for the
@@ -262,16 +263,30 @@ function BrewListItem({ b }: { b: BrewListRow }) {
 type NewFromThisProps = {
   coffeeId: string | null;
 };
+// Pending guard needs no state: useLinkStatus flips only when this link's
+// navigation starts, so other rows stay tappable and a re-tap is a no-op
+// (the router already targets the same URL). No prefetch, so pending fires.
 export function NewFromThis({ coffeeId }: NewFromThisProps) {
+  const href = coffeeId ? `/brews/new?coffee=${encodeURIComponent(coffeeId)}&copy=1` : "/brews/new";
   return (
     <Link
-      href={coffeeId ? `/brews/new?coffee=${encodeURIComponent(coffeeId)}&copy=1` : "/brews/new"}
+      href={href}
       replace
+      prefetch={false}
       className="inline-flex min-h-9 items-center gap-1 rounded-full border border-ember/40 bg-ember/5 px-2.5 py-1 text-xs font-medium text-ember active:scale-[0.97]"
     >
       <Coffee size={13} aria-hidden />
-      New from this
+      <NewFromThisLabel />
     </Link>
+  );
+}
+
+function NewFromThisLabel() {
+  const { pending } = useLinkStatus();
+  return (
+    <span className={cn("pointer-events-none", pending && "opacity-40")} aria-hidden={pending}>
+      New from this
+    </span>
   );
 }
 export function NoListMatches({ query, base, params }: { query: string; base: string; params: Params }) {

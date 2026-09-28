@@ -1,4 +1,4 @@
-import { ChevronRight, Heart, Loader2 } from "lucide-react";
+import { ChevronRight, Heart } from "lucide-react";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatBrewScore } from "@/lib/domain/brew-score";
@@ -89,16 +89,12 @@ export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, 
             onClick={onFavoriteToggle}
             className="relative z-10 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] text-ink3 transition-colors hover:bg-line/50 disabled:opacity-70"
           >
-            {favoritePending ? (
-              <Loader2 size={18} aria-hidden className="animate-spin" />
-            ) : (
-              <Heart
-                size={22}
-                aria-hidden
-                fill={isFavorite ? "currentColor" : "none"}
-                className={isFavorite ? "text-ember" : "text-ink3"}
-              />
-            )}
+            <Heart
+              size={22}
+              aria-hidden
+              fill={isFavorite ? "currentColor" : "none"}
+              className={cn("transition-opacity", isFavorite ? "text-ember opacity-100" : "text-ink3", favoritePending && "opacity-30")}
+            />
           </button>
         )}
       </div>
