@@ -13,7 +13,7 @@ import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { splitSeconds, toSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate } from "@/lib/domain/brew-date";
 import { SaveStateBadge } from "@/components/save-state";
-import { SectionNav, TastingDisclaimer } from "@/components/section-nav";
+import { TastingDisclaimer } from "@/components/section-nav";
 
 export function BrewEditor({ userId, brew, observation, tastings, pours, sessions }: {
   userId: string;
@@ -120,14 +120,7 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
         <p className="text-sm text-ink2">Everything on this page saves itself.</p>
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
-      <SectionNav items={[
-        { id: "sec-equipment", label: "Equipment" },
-        { id: "sec-pours", label: "Pours" },
-        { id: "sec-expected", label: "Expected" },
-        { id: "sec-result", label: "Result" },
-        { id: "sec-tasting", label: "Tasting" },
-      ]} />
-      <Card>
+      <Card id="sec-recipe" className="scroll-mt-14">
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Dose g</Label><Input value={form.doseG} inputMode="decimal" onChange={(e) => set("doseG", e.target.value)} /></div>
           <div><Label>Water g</Label><Input value={form.waterG} inputMode="decimal" onChange={(e) => set("waterG", e.target.value)} /></div>

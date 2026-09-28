@@ -1,10 +1,10 @@
 "use client";
 import { useOptimistic, useTransition } from "react";
-import { Star } from "lucide-react";
+import { Heart } from "lucide-react";
 
-// Star toggle for brew rows and detail headers. Optimistic: the star flips
-// instantly, the bound server action persists, revalidation settles the
-// truth. 44px target, visible control — never a gesture-only action.
+// Heart toggle for brew rows and detail headers. Optimistic: the heart
+// flips instantly, the bound server action persists, revalidation
+// settles the truth. 44px target, visible control — never a gesture-only action.
 export function FavoriteButton({ brewId, isFavorite, toggle }: {
   brewId: string;
   isFavorite: boolean;
@@ -23,7 +23,7 @@ export function FavoriteButton({ brewId, isFavorite, toggle }: {
       })}
       className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] border border-line bg-card active:scale-[0.97]"
     >
-      <Star
+      <Heart
         size={20}
         aria-hidden
         fill={optimistic ? "currentColor" : "none"}
