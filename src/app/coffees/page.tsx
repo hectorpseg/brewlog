@@ -13,9 +13,10 @@ import { PAGE_SIZE, listHref, parseCoffeeParams } from "@/lib/lists/params";
 type SP = Record<string, string | string[] | undefined>;
 
 export default async function CoffeesPage({ searchParams }: { searchParams: Promise<SP & { error?: string }> }) {
-  await requireUser("/coffees");
   const sp = await searchParams;
   const p = parseCoffeeParams(sp);
+  // Full list state survives the login bounce (?next= carries the query).
+  await requireUser(listHref("/coffees", { q: p.q, sort: p.sort, count: p.count }));
   const params = { q: p.q, sort: p.sort, count: p.count };
   const explicit = { sort: "sort" in sp ? p.sort : undefined };
   const coffees = await listCoffeesPage({ q: p.q, sort: p.sort, limit: p.count, offset: 0 }).catch(() => null);

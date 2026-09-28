@@ -3,7 +3,8 @@ import { Search, X } from "lucide-react";
 import { Button, Input, Label } from "./ui/controls";
 
 // Shared list search: labeled, 44px, immediate, with an explicit clear.
-// Filtering itself stays in the parent (local rows, no requests).
+// Typing only rewrites the URL (debounced in ListSearchBox); the server
+// executes the search. CompareSelectors is the one local-filter exception.
 export function SearchField({ id, label, placeholder, value, onChange }: {
   id: string;
   label: string;
