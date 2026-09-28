@@ -215,6 +215,10 @@ export type BrewsPageOpts = {
   sort: "newest" | "oldest" | "top";
   limit: number;
   offset: number;
+  tasted?: boolean;
+  untasted?: boolean;
+  hasScore?: boolean;
+  noScore?: boolean;
 };
 
 // Brews index page: newest/oldest/top, coffee + session + favorite filters,
@@ -242,6 +246,18 @@ export async function listBrewsPage(opts: BrewsPageOpts): Promise<ListPage<Recor
   if (opts.session === "none") query = query.is("session_id", null);
   else if (opts.session !== "all") query = query.eq("session_id", opts.session);
   if (opts.fav === "only") query = query.eq("is_favorite", true);
+  if (opts.tasted) {
+    query = query.or(
+      "acidity.not.is.null,sweetness.not.is.null,body.not.is.null,clarity.not.is.null,bitterness.not.is.null,astringency.not.is.null,intensity.not.is.null,balance.not.is.null,finish.not.is.null,hot_notes.not.is.null,warm_notes.not.is.null,cold_notes.not.is.null,freeform_notes.not.is.null",
+    );
+  }
+  if (opts.untasted) {
+    for (const f of ["acidity", "sweetness", "body", "clarity", "bitterness", "astringency", "intensity", "balance", "finish", "hot_notes", "warm_notes", "cold_notes", "freeform_notes"]) {
+      query = query.is(f, null);
+    }
+  }
+  if (opts.hasScore) query = query.not("brew_score", "is", null);
+  if (opts.noScore) query = query.is("brew_score", null);
   if (opts.q) query = query.ilike("search_blob", `%${escapeLike(opts.q)}%`);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -317,6 +333,13 @@ export async function listSessionsPage(opts: SessionsPageOpts): Promise<ListPage
 }
 
 export type CuppingsPageOpts = { q: string; sort: "newest" | "oldest"; limit: number; offset: number };
+
+export async function getCupping(id: string): Promise<Record<string, unknown> | null> {
+  const db = await createClient();
+  const { data, error } = await db.from("cuppings").select("*, coffees(id, name)").eq("id", id).single();
+  if (error) return null;
+  return data;
+}
 
 export async function listCuppingsPage(opts: CuppingsPageOpts): Promise<ListPage<Record<string, unknown>>> {
   const db = await createClient();

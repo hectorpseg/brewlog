@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveCompareIds, toComparableBrew, toCompareOption } from "@/lib/domain/brew-diff";
+import { filterBrewOptions, resolveCompareIds, stepActive, toComparableBrew, toCompareOption, type BrewOption } from "@/lib/domain/brew-diff";
 import { diffBrews } from "@/lib/domain/compare";
 import { formatDuration } from "@/lib/domain/brew-time";
 
@@ -112,6 +112,46 @@ describe("toCompareOption", () => {
   });
   it("omits the session segment when unassigned", () => {
     expect(toCompareOption({ ...row, sessions: null }).label).not.toContain("Phase 1");
+  });
+  it("exposes a compact title + detail row", () => {
+    const o = toCompareOption(row);
+    expect(o.title).toBe("Competencia");
+    expect(o.detail).toContain("1:15");
+    expect(o.detail).toContain("15 g → 225 g");
+    expect(o.detail).toContain("Sep 20");
+  });
+});
+
+describe("filterBrewOptions", () => {
+  const opts: BrewOption[] = [
+    { id: "a", label: "1:15 · Competencia · Sep 20" },
+    { id: "b", label: "1:16 · Washed · Sep 21" },
+    { id: "c", label: "1:14 · Natural · Sep 22" },
+  ];
+  it("shows everything when the query is empty", () => {
+    expect(filterBrewOptions(opts, "", "a")).toHaveLength(3);
+    expect(filterBrewOptions(opts, "  ", "a")).toHaveLength(3);
+  });
+  it("matches case-insensitively on the label", () => {
+    expect(filterBrewOptions(opts, "washed", "x").map((o) => o.id)).toEqual(["b"]);
+    expect(filterBrewOptions(opts, "NATURAL", "x").map((o) => o.id)).toEqual(["c"]);
+  });
+  it("keeps the selected brew listed even when it does not match", () => {
+    expect(filterBrewOptions(opts, "washed", "c").map((o) => o.id)).toEqual(["b", "c"]);
+  });
+});
+
+describe("stepActive", () => {
+  it("enters the list at the first/last item", () => {
+    expect(stepActive(-1, 1, 3)).toBe(0);
+    expect(stepActive(-1, -1, 3)).toBe(2);
+  });
+  it("wraps both directions", () => {
+    expect(stepActive(2, 1, 3)).toBe(0);
+    expect(stepActive(0, -1, 3)).toBe(2);
+  });
+  it("returns -1 for an empty list", () => {
+    expect(stepActive(-1, 1, 0)).toBe(-1);
   });
 });
 

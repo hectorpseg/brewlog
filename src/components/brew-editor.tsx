@@ -13,7 +13,7 @@ import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { splitSeconds, toSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate } from "@/lib/domain/brew-date";
 import { SaveStateBadge } from "@/components/save-state";
-import { SectionNav, TastingDisclaimer } from "@/components/section-nav";
+import { TastingDisclaimer } from "@/components/section-nav";
 
 export function BrewEditor({ userId, brew, observation, tastings, pours, sessions }: {
   userId: string;
@@ -120,24 +120,26 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
         <p className="text-sm text-ink2">Everything on this page saves itself.</p>
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
-      <SectionNav items={[
-        { id: "sec-equipment", label: "Equipment" },
-        { id: "sec-pours", label: "Pours" },
-        { id: "sec-expected", label: "Expected" },
-        { id: "sec-result", label: "Result" },
-        { id: "sec-observations", label: "Observations" },
-      ]} />
-      <Card>
+      <Card id="sec-recipe" className="scroll-mt-14">
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Dose g</Label><Input value={form.doseG} inputMode="decimal" onChange={(e) => set("doseG", e.target.value)} /></div>
           <div><Label>Water g</Label><Input value={form.waterG} inputMode="decimal" onChange={(e) => set("waterG", e.target.value)} /></div>
-          <div><Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} value={form.brewedAt ?? ""} onChange={(e) => set("brewedAt", e.target.value)} /></div>
-          <div><Label>Temp C</Label><Input value={form.tempC} inputMode="decimal" onChange={(e) => set("tempC", e.target.value)} /></div>
           <div><Label>Grind clicks</Label><Input value={form.grindClicks} inputMode="numeric" onChange={(e) => set("grindClicks", e.target.value)} /></div>
+          <div><Label>Temp C</Label><Input value={form.tempC} inputMode="decimal" onChange={(e) => set("tempC", e.target.value)} /></div>
+          <div className="col-span-2"><Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} value={form.brewedAt ?? ""} onChange={(e) => set("brewedAt", e.target.value)} /></div>
+          <div className="col-span-2">
+            <Label>Brew time</Label>
+            <MinutesSecondsInput
+              minutes={form.brewTimeMin ?? ""}
+              seconds={form.brewTimeSec ?? ""}
+              onMinutes={(v) => setTime("min", v)}
+              onSeconds={(v) => setTime("sec", v)}
+            />
+          </div>
         </div>
         {sessions.length > 0 ? (
           <div className="mt-3">
-            <Label htmlFor="brew-session">Session</Label>
+            <Label htmlFor="brew-session">Session (optional)</Label>
             <Select id="brew-session" value={form.sessionId ?? ""} onChange={(e) => set("sessionId", e.target.value)}>
               <option value="">No session</option>
               {sessions.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
@@ -154,19 +156,10 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
             <div><Label>Filter</Label><Input value={form.filter ?? ""} onChange={(e) => set("filter", e.target.value)} /></div>
             <div><Label>Water</Label><Input value={form.waterSource ?? ""} onChange={(e) => set("waterSource", e.target.value)} /></div>
           </div>
-          <div className="mt-3">
-            <Label>Brew time</Label>
-            <MinutesSecondsInput
-              minutes={form.brewTimeMin ?? ""}
-              seconds={form.brewTimeSec ?? ""}
-              onMinutes={(v) => setTime("min", v)}
-              onSeconds={(v) => setTime("sec", v)}
-            />
-          </div>
         </Card>
       </details>
       <details open id="sec-pours" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Pours - timed additions, optional</summary>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Pours (optional)</summary>
         <Card>
           <PourEditor
             rows={pourRowsFromJson(form.pours)}
@@ -178,16 +171,17 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
       <Card id="sec-expected" className="scroll-mt-14">
         <Label htmlFor="brew-expected">Expected from this brew</Label>
         <Textarea id="brew-expected" rows={2} className="mt-1" placeholder="What do you expect before tasting?" value={form.expectedText ?? ""} onChange={(e) => set("expectedText", e.target.value)} />
+        <p className="mt-1 text-xs text-ink2">Fresh expectation for this brew only - never copied to the next brew.</p>
       </Card>
-      <details open id="sec-result" className="scroll-mt-14">
+      <details id="sec-result" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Result</summary>
         <Card>
           <div><Label>Final beverage g</Label><Input value={form.finalBeverageG ?? ""} inputMode="decimal" onChange={(e) => set("finalBeverageG", e.target.value)} /></div>
-          <div className="mt-3"><Label>Process notes</Label><Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} /></div>
+          <div className="mt-3"><Label>Brew notes</Label><Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} /></div>
         </Card>
       </details>
-      <details open id="sec-observations" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Observations - what you perceived, never a diagnosis</summary>
+      <details open id="sec-tasting" className="scroll-mt-14">
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Tasting</summary>
         <Card>
           <TastingDisclaimer />
           <div className="mt-2">

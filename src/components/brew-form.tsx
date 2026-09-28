@@ -142,13 +142,14 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
       </div>
       {recipeFrom ? <Card><p className="text-sm text-ink2">Starting from the last recipe - change only what changed. Tinted fields are inherited; editing one returns it to normal.</p></Card> : null}
       <SectionNav items={[
+        { id: "sec-recipe", label: "Recipe" },
         { id: "sec-equipment", label: "Equipment" },
         { id: "sec-pours", label: "Pours" },
         { id: "sec-expected", label: "Expected" },
         { id: "sec-result", label: "Result" },
         { id: "sec-tasting", label: "Tasting" },
       ]} />
-      <Card>
+      <Card id="sec-recipe" className="scroll-mt-14">
         <Label htmlFor="coffeeId">Coffee *</Label>
         <Select id="coffeeId" className={inh("coffeeId")} {...form.register("coffeeId")}>
           <option value="">Pick a coffee…</option>
@@ -167,7 +168,6 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           <div><Label>Water g *</Label><Input type="number" step="any" inputMode="decimal" className={inh("waterG")} {...form.register("waterG")} /></div>
           <div><Label>Grind clicks</Label><Input type="number" inputMode="numeric" className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
           <div><Label>Temp C</Label><Input type="number" step="any" inputMode="decimal" className={inh("tempC")} {...form.register("tempC")} /></div>
-          <div><Label>Filter</Label><Input className={inh("filter")} {...form.register("filter")} /></div>
           <div className="col-span-2">
             <Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} {...form.register("brewedAt")} />
           </div>
@@ -197,6 +197,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Grinder</Label><Input className={inh("grinder")} {...form.register("grinder")} /></div>
             <div><Label>Dripper</Label><Input className={inh("dripper")} {...form.register("dripper")} /></div>
+            <div><Label>Filter</Label><Input className={inh("filter")} {...form.register("filter")} /></div>
             <div><Label>Water</Label><Input className={inh("waterSource")} {...form.register("waterSource")} /></div>
           </div>
         </Card>

@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { requireUser } from "@/lib/supabase/require-user";
 import { listCoffeesPage } from "@/lib/db/queries";
 import { resetDevData, seedDevData } from "@/app/actions";
-import { ApplyListPrefs, ListSearchBox, ListSortSelect, NoListMatches } from "@/components/list-controls";
-import { EntityCard } from "@/components/entity-card";
-import { BrewCoffeeAction } from "@/components/quick-actions";
+import { ApplyListPrefs, CoffeeList, ListNavProvider, ListSearchBox, ListSortPills, NoListMatches } from "@/components/list-controls";
 import { Button, Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseCoffeeParams } from "@/lib/lists/params";
+import type { CoffeeCardData } from "@/components/coffee-card";
 
 type SP = Record<string, string | string[] | undefined>;
+
+const SECTION_LABEL = "mb-0 text-[11px] font-medium tracking-wide text-ink3 uppercase";
 
 export default async function CoffeesPage({ searchParams }: { searchParams: Promise<SP & { error?: string }> }) {
   const sp = await searchParams;
@@ -25,7 +25,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   const devSeed = process.env.ALLOW_DEV_SEED === "true";
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <h1 className="font-display text-2xl">Coffees</h1>
         <Link href="/coffees/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">+ Coffee</Link>
       </div>
@@ -47,15 +47,17 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
       {coffees === null ? (
         <Card><p className="text-sm">Supabase is not reachable. Check your connection, then reload.</p></Card>
       ) : (
-        <>
+        <ListNavProvider>
           <ListSearchBox
             id="coffee-search"
             label="Search coffees"
             placeholder="Name, origin, process…"
             base="/coffees"
             params={params}
+            labelClassName={SECTION_LABEL}
+            className="placeholder:text-[11px] placeholder:font-medium placeholder:tracking-wide placeholder:text-ink3"
           />
-          <ListSortSelect
+          <ListSortPills
             base="/coffees"
             params={params}
             list="coffees"
@@ -64,41 +66,18 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
               { value: "name", label: "Name A–Z" },
             ]}
           />
-          {rows.length === 0 ? (
-            <div className="mt-2">
-              {filtered ? (
-                <NoListMatches query={p.q} base="/coffees" params={params} />
-              ) : (
-                <EmptyState
-                  title="No coffees yet."
-                  body="Add a coffee to start logging brews."
-                  actionHref="/coffees/new"
-                  actionLabel="+ Coffee"
-                />
-              )}
-            </div>
-          ) : (
-            <ul className="mt-2 flex flex-col gap-2">
-              {rows.map((c) => (
-                <li key={String(c.id)} className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <EntityCard href={`/coffees/${String(c.id)}`} label={`${String(c.name)} - view and edit`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <div className="font-medium">{String(c.name)}</div>
-                          <div className="tnum text-sm text-ink2">
-                            {c.remaining_weight_g != null ? `~${String(c.remaining_weight_g)} g remaining` : "remaining unknown"}
-                          </div>
-                        </div>
-                        <ChevronRight size={20} aria-hidden className="shrink-0 text-ink3" />
-                      </div>
-                    </EntityCard>
-                  </div>
-                  <BrewCoffeeAction coffeeId={String(c.id)} coffeeName={String(c.name)} />
-                </li>
-              ))}
-            </ul>
-          )}
+          <CoffeeList rows={rows as CoffeeCardData[]}>
+            {filtered ? (
+              <NoListMatches query={p.q} base="/coffees" params={params} />
+            ) : (
+              <EmptyState
+                title="No coffees yet."
+                body="Add a coffee to start logging brews."
+                actionHref="/coffees/new"
+                actionLabel="+ Coffee"
+              />
+            )}
+          </CoffeeList>
           {coffees.hasMore ? (
             <div className="mt-3 text-center">
               <Link
@@ -111,7 +90,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
               </Link>
             </div>
           ) : null}
-        </>
+        </ListNavProvider>
       )}
     </div>
   );

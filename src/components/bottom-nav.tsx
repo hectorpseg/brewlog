@@ -11,8 +11,10 @@ import { cn } from "./ui/utils";
 export function BottomNav() {
   const path = usePathname();
   if (isPublicPath(path)) return null;
-  const active = PRIMARY_TABS.find((t) => isTabPath(path, t.href));
   const onMore = isMorePath(path);
+  // More wins over prefix matching: /brews/compare nests under /brews but
+  // belongs to More, so the Brews tab must not claim it.
+  const active = onMore ? undefined : PRIMARY_TABS.find((t) => isTabPath(path, t.href));
   return (
     <nav
       aria-label="Primary"

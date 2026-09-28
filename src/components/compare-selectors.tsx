@@ -1,57 +1,21 @@
 "use client";
-import { useState } from "react";
-import { Label, Select } from "./ui/controls";
-import { SearchField } from "./search-field";
+import type { BrewOption } from "@/lib/domain/brew-diff";
+import { BrewCombobox } from "./brew-combobox";
 
-// Independent brew pickers with per-side search over the already-loaded
-// options. Every change pushes a URL so refresh, back/forward, and bookmarks
-// all reproduce the same comparison. This component only reports selection;
-// the shell owns the transition (pending skeleton while loading).
+// Two independent brew pickers over the already-loaded options. Every change
+// pushes a URL so refresh, back/forward, and bookmarks reproduce the same
+// comparison. This component only reports selection; the shell owns the
+// transition (pending skeleton while loading).
 export function CompareSelectors({ brews, aId, bId, onSelect }: {
-  brews: { id: string; label: string }[];
+  brews: BrewOption[];
   aId: string;
   bId: string;
   onSelect: (nextA: string, nextB: string) => void;
 }) {
-  const [queryA, setQueryA] = useState("");
-  const [queryB, setQueryB] = useState("");
-  const qA = queryA.trim().toLowerCase();
-  const qB = queryB.trim().toLowerCase();
-  // The selected brew always stays selectable, even mid-search.
-  const optionsA = brews.filter((b) => b.id === aId || qA === "" || b.label.toLowerCase().includes(qA));
-  const optionsB = brews.filter((b) => b.id === bId || qB === "" || b.label.toLowerCase().includes(qB));
   return (
     <div className="grid grid-cols-2 gap-3">
-      <div>
-        <SearchField
-          id="compare-search-a"
-          label="Find brew A"
-          placeholder="Coffee, date…"
-          value={queryA}
-          onChange={setQueryA}
-        />
-        <Label htmlFor="compare-a">Brew A</Label>
-        <Select id="compare-a" value={aId} onChange={(e) => onSelect(e.target.value, bId)}>
-          {optionsA.map((b) => (
-            <option key={b.id} value={b.id}>{b.label}</option>
-          ))}
-        </Select>
-      </div>
-      <div>
-        <SearchField
-          id="compare-search-b"
-          label="Find brew B"
-          placeholder="Coffee, date…"
-          value={queryB}
-          onChange={setQueryB}
-        />
-        <Label htmlFor="compare-b">Brew B</Label>
-        <Select id="compare-b" value={bId} onChange={(e) => onSelect(aId, e.target.value)}>
-          {optionsB.map((b) => (
-            <option key={b.id} value={b.id}>{b.label}</option>
-          ))}
-        </Select>
-      </div>
+      <BrewCombobox id="compare-a" label="Brew A" brews={brews} value={aId} onSelect={(id) => onSelect(id, bId)} />
+      <BrewCombobox id="compare-b" label="Brew B" brews={brews} value={bId} onSelect={(id) => onSelect(aId, id)} />
     </div>
   );
 }

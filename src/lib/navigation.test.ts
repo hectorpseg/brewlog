@@ -34,6 +34,12 @@ describe("navigation", () => {
     expect(isMorePath("/brews")).toBe(false);
   });
 
+  it("highlights More (not Brews) on the compare page", () => {
+    expect(isMorePath("/brews/compare")).toBe(true);
+    // guard the overlap: compare nests under /brews by path but belongs to More
+    expect(isTabPath("/brews/compare", "/brews")).toBe(true);
+  });
+
   it("matches tabs with their children", () => {
     expect(isTabPath("/brews/abc", "/brews")).toBe(true);
     expect(isTabPath("/coffees", "/brews")).toBe(false);

@@ -30,7 +30,7 @@ export function SaveStateBadge({ state, onRetry }: { state: SaveState; onRetry?:
       aria-live="polite"
       title={state === "local-draft" ? "Stored on this device, not yet synced" : LABEL[state]}
       className={cn(
-        "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-2.5 text-xs",
+        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-2.5 text-xs",
         state === "error" ? "border-ember text-ember" : "text-ink2",
       )}
     >

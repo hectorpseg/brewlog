@@ -11,6 +11,7 @@ import { DeleteButton } from "@/components/delete-button";
 import { FavoriteButton } from "@/components/favorite-button";
 import { ShareCardButtons, ShareCardPreview } from "@/components/share-card";
 import { SectionHeader } from "@/components/ui/controls";
+import { SectionNav } from "@/components/section-nav";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
@@ -69,19 +70,26 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     <div className="flex flex-col gap-4">
       <div>
         <BackLink href="/brews" label="Brews" />
-        <p className="text-sm text-ink2">{coffeeName ?? "Brew"}</p>
-        <h1 className="tnum font-display text-4xl leading-none">
-          {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
+        <h1 className="tnum font-display text-3xl leading-none">
+          {typeof brew.coffee_id === "string" && typeof coffeeName === "string" ? (
+            <Link href={`/coffees/${brew.coffee_id}`} className="font-medium text-ember underline">
+              {coffeeName}
+            </Link>
+          ) : (
+            coffeeName ?? "Brew"
+          )}
         </h1>
-        <p className="tnum mt-1 text-sm text-ink2">
-          Brewed {formatBrewDate(brew.brewed_at ?? brew.created_at)} · {brew.dose_g} g / {brew.water_g} g · {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} clicks
+        <p className="mt-1 text-sm text-ink2">
+          Brewed {formatBrewDate(brew.brewed_at ?? brew.created_at)} · {brew.dose_g} g / {brew.water_g} g · ratio {formatRatio(Number(brew.dose_g), Number(brew.water_g))} · {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} clicks
           {formatDuration(brew.total_time_sec) ? ` · ${formatDuration(brew.total_time_sec)}` : ""}
           {brew.final_beverage_g ? ` · → ${brew.final_beverage_g} g` : ""}
         </p>
-        <p className="mt-1 text-sm text-ink2">
+        <p className="mt-2 text-sm text-ink2">
           {BREW_LIFECYCLE_LABEL[status]}
           {warnings.length > 0 ? ` · ${warnings.join(" · ")}` : ""}
-          {score !== null ? ` · Score ${formatBrewScore(score)}` : ""}
+          {score !== null ? (
+            <span className="ml-1 inline-flex min-h-7 items-center rounded-full bg-ink px-2.5 text-sm font-medium text-white">{formatBrewScore(score)}</span>
+          ) : null}
         </p>
         <p className="mt-1 text-sm text-ink2">
           Session ·{" "}
@@ -93,29 +101,37 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
             "None"
           )}
         </p>
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2">
           <CopySummaryButton text={summary} />
           <FavoriteButton brewId={id} isFavorite={isFavorite} toggle={favorite} />
         </div>
       </div>
       <div>
+        <SectionNav items={[
+          { id: "sec-recipe", label: "Recipe" },
+          { id: "sec-equipment", label: "Equipment" },
+          { id: "sec-pours", label: "Pours" },
+          { id: "sec-expected", label: "Expected" },
+          { id: "sec-result", label: "Result" },
+          { id: "sec-tasting", label: "Tasting" },
+        ]} />
         <SectionHeader>Recipe</SectionHeader>
         <div className="mt-2">
           <BrewEditor
-        userId={user.id}
-        brew={brew}
-        observation={obs}
-        tastings={tastings}
-        pours={pours}
-        sessions={sessions.map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))}
-      />
+            userId={user.id}
+            brew={brew}
+            observation={obs}
+            tastings={tastings}
+            pours={pours}
+            sessions={sessions.map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))}
+          />
         </div>
       </div>
       <Link
         href={`/brews/new?coffee=${brew.coffee_id}&copy=1`}
         className="min-h-11 rounded-[10px] bg-ember px-4 py-2 text-center font-medium text-white"
       >
-        Copy as next brew
+        New from this
       </Link>
       <Link
         href={`/brews/compare?a=${brew.id}`}
