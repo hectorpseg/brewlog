@@ -2,11 +2,11 @@
 // states exactly what dies, what survives, and what gets unlinked — records
 // are never silently orphaned.
 
-export type DeletionKind = "coffee" | "brew" | "session" | "experiment" | "cupping";
+export type DeletionKind = "coffee" | "brew" | "session" | "cupping";
 
 export function describeDeletion(
   kind: DeletionKind,
-  counts: { brews?: number; observations?: number; tastings?: number; pours?: number; experiments?: number },
+  counts: { brews?: number; observations?: number; tastings?: number; pours?: number },
 ): { title: string; body: string; confirm: string } {
   const n = (c: number | undefined, one: string, many: string) =>
     `${c ?? 0} ${c === 1 ? one : many}`;
@@ -14,26 +14,20 @@ export function describeDeletion(
     case "coffee":
       return {
         title: "Delete this coffee?",
-        body: `${n(counts.brews, "brew", "brews")} and ${n(counts.observations, "tasting note set", "tasting note sets")} will be permanently deleted. Linked experiments are kept but unlinked. This cannot be undone.`,
+        body: `${n(counts.brews, "brew", "brews")} and ${n(counts.observations, "tasting note set", "tasting note sets")} will be permanently deleted. This cannot be undone.`,
         confirm: "Delete coffee",
       };
     case "brew":
       return {
         title: "Delete this brew?",
-        body: `${n(counts.observations, "tasting note set", "tasting note sets")}, ${n(counts.tastings, "tasting entry", "tasting entries")}, and ${n(counts.pours, "structured pour", "structured pours")} will be permanently deleted. Linked experiments are kept but unlinked. The dose is handed back to the coffee's remaining weight. This cannot be undone.`,
+        body: `${n(counts.observations, "tasting note set", "tasting note sets")}, ${n(counts.tastings, "tasting entry", "tasting entries")}, and ${n(counts.pours, "structured pour", "structured pours")} will be permanently deleted. The dose is handed back to the coffee's remaining weight. This cannot be undone.`,
         confirm: "Delete brew",
       };
     case "session":
       return {
         title: "Delete this session?",
-        body: `${n(counts.brews, "brew", "brews")} stay in history, unassigned. Linked experiments are kept but unlinked. This cannot be undone.`,
+        body: `${n(counts.brews, "brew", "brews")} stay in history, unassigned. This cannot be undone.`,
         confirm: "Delete session",
-      };
-    case "experiment":
-      return {
-        title: "Delete this experiment?",
-        body: "Linked brews are kept in history, unlinked. This cannot be undone.",
-        confirm: "Delete experiment",
       };
     case "cupping":
       return {

@@ -1,10 +1,10 @@
-import { getBrew, listBrewIds, listExperimentsForBrew, listTastings, listPours } from "@/lib/db/queries";
+import { getBrew, listBrewIds, listTastings, listPours } from "@/lib/db/queries";
 import { diffBrews } from "@/lib/domain/compare";
 import { COMPARE_NOTE_FIELDS, COMPARE_RECIPE_FIELDS, resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
 import { compareTastings } from "@/lib/domain/tastings";
 import { comparePourFields } from "@/lib/domain/pours";
 import { TastingCompare } from "@/components/tasting-compare";
-import { CompareExperiments, CompareFieldTable, type CompareFieldRow } from "@/components/compare-fields";
+import { CompareFieldTable, type CompareFieldRow } from "@/components/compare-fields";
 import { Card, SectionHeader } from "@/components/ui/controls";
 import { ErrorState } from "@/components/states";
 
@@ -65,14 +65,11 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const notes = rowsFor(COMPARE_NOTE_FIELDS);
   // structured tasting compares separately: Stage → Attribute → A / B.
   // Legacy fixed attributes are gone from the scalar diff above on purpose.
-  // Experiments ride along: shown only when at least one side links any.
-  const [tastingsA, tastingsB, poursA, poursB, experimentsA, experimentsB] = await Promise.all([
+  const [tastingsA, tastingsB, poursA, poursB] = await Promise.all([
     listTastings(rawA.id).catch(() => []),
     listTastings(rawB.id).catch(() => []),
     listPours(rawA.id).catch(() => []),
     listPours(rawB.id).catch(() => []),
-    listExperimentsForBrew(rawA.id).catch(() => []),
-    listExperimentsForBrew(rawB.id).catch(() => []),
   ]);
   const tasting = compareTastings(tastingsA, tastingsB);
   const pourRows: CompareFieldRow[] = comparePourFields(poursA, poursB);
@@ -119,12 +116,6 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
           </Card>
         )}
       </div>
-      {experimentsA.length > 0 || experimentsB.length > 0 ? (
-        <div>
-          <SectionHeader>Experiments</SectionHeader>
-          <CompareExperiments a={experimentsA} b={experimentsB} />
-        </div>
-      ) : null}
     </div>
   );
 }

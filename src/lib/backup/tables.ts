@@ -34,7 +34,8 @@ export const BACKUP_TABLES: TableSpec[] = [
     columns: [
       "id", "user_id", "coffee_id", "session_id", "dose_g", "water_g", "temp_c",
       "grind_clicks", "grinder", "dripper", "filter", "water_source", "pour_count",
-      "total_time_sec", "final_beverage_g", "notes", "brewed_at", "created_at", "updated_at",
+      "total_time_sec", "final_beverage_g", "notes", "is_favorite", "expected_text",
+      "brewed_at", "created_at", "updated_at",
     ],
   },
   {
@@ -51,15 +52,6 @@ export const BACKUP_TABLES: TableSpec[] = [
     table: "tastings",
     columns: [
       "id", "user_id", "brew_id", "stage", "attribute", "value", "created_at", "updated_at",
-    ],
-  },
-  {
-    key: "experiments",
-    table: "experiments",
-    columns: [
-      "id", "user_id", "brew_id", "session_id", "hypothesis", "changed_variables",
-      "expected_result", "actual_result", "conclusion", "next_question",
-      "created_at", "updated_at",
     ],
   },
   {

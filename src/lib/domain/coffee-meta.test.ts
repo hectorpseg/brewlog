@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { coffeeSchema } from "@/lib/validation/schemas";
 import { coffeeDetailLine, coffeeMetaLine } from "@/lib/domain/coffee-meta";
-import { matchCoffee } from "@/lib/domain/search";
 import { BACKUP_TABLES } from "@/lib/backup/tables";
 import { buildSqlBackup } from "@/lib/backup/format";
 
@@ -50,15 +51,14 @@ describe("coffee metadata rendering", () => {
 });
 
 describe("coffee metadata search", () => {
-  it("matches new fields", () => {
-    expect(matchCoffee({ name: "Lot", ...META }, "gesha")).toBe(true);
-    expect(matchCoffee({ name: "Lot", ...META }, "mirador")).toBe(true);
-    expect(matchCoffee({ name: "Lot", ...META }, "huila")).toBe(true);
-    expect(matchCoffee({ name: "Lot", ...META }, "1800")).toBe(true);
-    expect(matchCoffee({ name: "Lot", ...META }, "kenya")).toBe(false);
-  });
-  it("legacy rows still match name/origin/process", () => {
-    expect(matchCoffee({ name: "La Palma", origin: "Colombia", process: "Washed" }, "washed")).toBe(true);
+  // Search runs server-side against coffees_list.search_blob (0014): pin the
+  // covered columns statically, the way the backfill migration is pinned.
+  const views = readFileSync(resolve(process.cwd(), "supabase/migrations/0014_list_views.sql"), "utf8");
+  const blob = views.slice(views.indexOf("coffees_list"));
+  it("covers every metadata text field", () => {
+    for (const col of ["c.name", "c.origin", "c.process", "c.variety", "c.producer", "c.country", "c.region", "c.farm", "c.altitude", "c.notes"]) {
+      expect(blob).toContain(col);
+    }
   });
 });
 
@@ -82,7 +82,6 @@ describe("coffee metadata export compatibility", () => {
       brews: [],
       observations: [],
       tastings: [],
-      experiments: [],
       cuppings: [],
     };
     const sql = buildSqlBackup(rows, { exportedAt: "2026-09-22T18:30:00.000Z", userId: "u1" });
@@ -100,7 +99,6 @@ describe("coffee metadata export compatibility", () => {
       brews: [],
       observations: [],
       tastings: [],
-      experiments: [],
       cuppings: [],
     };
     const sql = buildSqlBackup(rows, { exportedAt: "2026-09-22T18:30:00.000Z", userId: "u1" });

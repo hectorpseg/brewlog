@@ -1,15 +1,25 @@
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { requireUser } from "@/lib/supabase/require-user";
-import { listCoffees } from "@/lib/db/queries";
-import { CoffeeList } from "@/components/coffee-list";
+import { listCoffeesPage } from "@/lib/db/queries";
 import { resetDevData, seedDevData } from "@/app/actions";
+import { ApplyListPrefs, ListSearchBox, ListSortSelect, NoListMatches } from "@/components/list-controls";
+import { EntityCard } from "@/components/entity-card";
 import { Button, Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
+import { PAGE_SIZE, listHref, parseCoffeeParams } from "@/lib/lists/params";
 
-export default async function CoffeesPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+type SP = Record<string, string | string[] | undefined>;
+
+export default async function CoffeesPage({ searchParams }: { searchParams: Promise<SP & { error?: string }> }) {
   await requireUser("/coffees");
   const sp = await searchParams;
-  const coffees = await listCoffees().catch(() => null);
+  const p = parseCoffeeParams(sp);
+  const params = { q: p.q, sort: p.sort, count: p.count };
+  const explicit = { sort: "sort" in sp ? p.sort : undefined };
+  const coffees = await listCoffeesPage({ q: p.q, sort: p.sort, limit: p.count, offset: 0 }).catch(() => null);
+  const filtered = p.q !== "";
+  const rows = coffees?.rows ?? [];
   const devSeed = process.env.ALLOW_DEV_SEED === "true";
   return (
     <div>
@@ -31,17 +41,72 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           </div>
         </Card>
       ) : null}
+      <ApplyListPrefs list="coffees" base="/coffees" params={params} explicit={explicit} />
       {coffees === null ? (
         <Card><p className="text-sm">Supabase is not reachable. Check your connection, then reload.</p></Card>
-      ) : coffees.length === 0 ? (
-        <EmptyState
-          title="No coffees yet."
-          body="Add a coffee to start logging brews."
-          actionHref="/coffees/new"
-          actionLabel="+ Coffee"
-        />
       ) : (
-        <CoffeeList coffees={coffees} />
+        <>
+          <ListSearchBox
+            id="coffee-search"
+            label="Search coffees"
+            placeholder="Name, origin, process…"
+            base="/coffees"
+            params={params}
+          />
+          <ListSortSelect
+            base="/coffees"
+            params={params}
+            list="coffees"
+            options={[
+              { value: "recent", label: "Recently added" },
+              { value: "name", label: "Name A–Z" },
+            ]}
+          />
+          {rows.length === 0 ? (
+            <div className="mt-2">
+              {filtered ? (
+                <NoListMatches query={p.q} base="/coffees" params={params} />
+              ) : (
+                <EmptyState
+                  title="No coffees yet."
+                  body="Add a coffee to start logging brews."
+                  actionHref="/coffees/new"
+                  actionLabel="+ Coffee"
+                />
+              )}
+            </div>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-2">
+              {rows.map((c) => (
+                <li key={String(c.id)}>
+                  <EntityCard href={`/coffees/${String(c.id)}`} label={`${String(c.name)} - view and edit`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="font-medium">{String(c.name)}</div>
+                        <div className="tnum text-sm text-ink2">
+                          {c.remaining_weight_g != null ? `~${String(c.remaining_weight_g)} g remaining` : "remaining unknown"}
+                        </div>
+                      </div>
+                      <ChevronRight size={20} aria-hidden className="shrink-0 text-ink3" />
+                    </div>
+                  </EntityCard>
+                </li>
+              ))}
+            </ul>
+          )}
+          {coffees.hasMore ? (
+            <div className="mt-3 text-center">
+              <Link
+                href={listHref("/coffees", { ...params, count: p.count + PAGE_SIZE })}
+                replace
+                scroll={false}
+                className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium active:scale-[0.97]"
+              >
+                Show more
+              </Link>
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );
