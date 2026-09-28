@@ -52,10 +52,8 @@ export function writeListPrefs(storage: Writer | undefined | null, list: ListNam
 }
 
 // --- Saved filter combinations ------------------------------------------------
-// ponytail: named presets are local UI memory in the same doc, scoped per
-// list — never a table, never global. A preset captures sort/filter only
-// (never search text or page size); applying it rebuilds the URL and the
-// backend still executes the query.
+// Still used by the sessions list (out of scope for the brew list redesign).
+// The brew list no longer uses presets; it restores last-used state instead.
 
 export type SavedPreset = { name: string; prefs: ListPrefs };
 export const MAX_PRESETS = 10;
@@ -110,29 +108,5 @@ export function deletePreset(storage: Writer | undefined | null, list: ListName,
 }
 
 // --- Brew list density --------------------------------------------------------
-// ponytail: one value, not a settings system. Same philosophy as list prefs
-// (per-device localStorage, fails safe, scoped to the brew list) but a
-// separate key on purpose: density is view memory, never part of saved filter
-// presets and never a URL query param — search/filter/sort URLs stay short
-// and shareable regardless of how the viewer likes to scan.
-
-export const DENSITY_KEY = "brewlog:brews-density";
-export type BrewDensity = "comfortable" | "compact";
-
-export function readBrewDensity(storage: Reader | undefined | null): BrewDensity {
-  if (!storage) return "comfortable";
-  try {
-    return storage.getItem(DENSITY_KEY) === "compact" ? "compact" : "comfortable";
-  } catch {
-    return "comfortable";
-  }
-}
-
-export function writeBrewDensity(storage: Writer | undefined | null, density: BrewDensity): void {
-  if (!storage) return;
-  try {
-    storage.setItem(DENSITY_KEY, density);
-  } catch {
-    // nicety only
-  }
-}
+// REMOVED: The comfortable/compact density toggle has been removed from the
+// brew list. The list now uses a compact layout only.

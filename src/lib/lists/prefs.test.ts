@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DENSITY_KEY, MAX_PRESETS, PREFS_KEY, deletePreset, readBrewDensity, readListPrefs, readPrefs, readSavedPresets, savePreset, writeBrewDensity, writeListPrefs } from "@/lib/lists/prefs";
+import { MAX_PRESETS, PREFS_KEY, deletePreset, readListPrefs, readPrefs, readSavedPresets, savePreset, writeListPrefs } from "@/lib/lists/prefs";
 
 function memStore(initial: Record<string, string> = {}) {
   const data = { ...initial };
@@ -63,31 +63,5 @@ describe("saved presets", () => {
   it("ignores garbage shapes", () => {
     const s = memStore({ [PREFS_KEY]: JSON.stringify({ saved: { brews: [{ nope: 1 }, null, "x"] } }) });
     expect(readSavedPresets(s, "brews")).toEqual([]);
-  });
-});
-
-describe("brew density", () => {
-  it("defaults to comfortable without storage", () => {
-    expect(readBrewDensity(undefined)).toBe("comfortable");
-    expect(readBrewDensity(null)).toBe("comfortable");
-    expect(readBrewDensity(memStore())).toBe("comfortable");
-  });
-  it("round-trips compact and degrades garbage to comfortable", () => {
-    const s = memStore();
-    writeBrewDensity(s, "compact");
-    expect(readBrewDensity(s)).toBe("compact");
-    expect(s.peek()[DENSITY_KEY]).toBe("compact");
-    writeBrewDensity(s, "comfortable");
-    expect(readBrewDensity(s)).toBe("comfortable");
-    expect(readBrewDensity(memStore({ [DENSITY_KEY]: "cozy" }))).toBe("comfortable");
-  });
-  it("never throws on hostile storage and never touches filter prefs", () => {
-    const bad = { getItem: () => { throw new Error("denied"); }, setItem: () => { throw new Error("denied"); } };
-    expect(readBrewDensity(bad)).toBe("comfortable");
-    expect(() => writeBrewDensity(bad, "compact")).not.toThrow();
-    const s = memStore();
-    writeBrewDensity(s, "compact");
-    expect(readSavedPresets(s, "brews")).toEqual([]);
-    expect(readListPrefs(s, "brews")).toEqual({});
   });
 });
