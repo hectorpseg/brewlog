@@ -13,9 +13,10 @@ import { PAGE_SIZE, listHref, parseCuppingParams } from "@/lib/lists/params";
 type SP = Record<string, string | string[] | undefined>;
 
 export default async function CuppingsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  await requireUser("/cuppings");
   const sp = await searchParams;
   const p = parseCuppingParams(sp);
+  // Full list state survives the login bounce (?next= carries the query).
+  await requireUser(listHref("/cuppings", { q: p.q, sort: p.sort, count: p.count }));
   const params = { q: p.q, sort: p.sort, count: p.count };
   const explicit = { sort: "sort" in sp ? p.sort : undefined };
   const cuppings = await listCuppingsPage({ q: p.q, sort: p.sort, limit: p.count, offset: 0 }).catch(() => null);

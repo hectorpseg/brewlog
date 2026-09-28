@@ -11,9 +11,10 @@ import { PAGE_SIZE, listHref, parseSessionParams } from "@/lib/lists/params";
 type SP = Record<string, string | string[] | undefined>;
 
 export default async function SessionsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  await requireUser("/sessions");
   const sp = await searchParams;
   const p = parseSessionParams(sp);
+  // Full list state survives the login bounce (?next= carries the query).
+  await requireUser(listHref("/sessions", { q: p.q, sort: p.sort, has: p.has, count: p.count }));
   const params = { q: p.q, sort: p.sort, has: p.has, count: p.count };
   const explicit = {
     sort: "sort" in sp ? p.sort : undefined,

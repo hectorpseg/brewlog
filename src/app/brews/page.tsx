@@ -16,9 +16,11 @@ type SP = Record<string, string | string[] | undefined>;
 // (one flat query, limit+1 for hasMore). The URL is the state — refresh and
 // back/forward preserve it; prefs fill in sort/filter only when absent.
 export default async function BrewsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  await requireUser("/brews");
   const sp = await searchParams;
   const p = parseBrewsParams(sp);
+  // Full list state survives the login bounce: ?next= carries search,
+  // filter, sort, and page size, not just the bare path.
+  await requireUser(listHref("/brews", { q: p.q, sort: p.sort, session: p.session, coffee: p.coffee, fav: p.fav, count: p.count }));
   const params = { q: p.q, sort: p.sort, session: p.session, coffee: p.coffee, fav: p.fav, count: p.count };
   const explicit = {
     sort: "sort" in sp ? p.sort : undefined,
