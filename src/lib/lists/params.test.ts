@@ -25,6 +25,15 @@ describe("parseBrewsParams", () => {
     expect(parseBrewsParams({ sort: "top" }).sort).toBe("top");
     expect(listHref("/brews", { sort: "top", count: 20 })).toBe("/brews?sort=top");
   });
+  it("parses secondary filter flags", () => {
+    const p = parseBrewsParams({ tasted: "1", untasted: "1", "has-score": "1", "no-score": "1" });
+    expect(p.tasted).toBe("1");
+    expect(p.untasted).toBe("1");
+    expect(p.hasScore).toBe("1");
+    expect(p.noScore).toBe("1");
+    expect(parseBrewsParams({ tasted: "yes", "has-score": "0" }).tasted).toBeUndefined();
+    expect(parseBrewsParams({ "has-score": "0" }).hasScore).toBeUndefined();
+  });
   it("degrades garbage to defaults instead of erroring queries", () => {
     expect(parseBrewsParams({ sort: "top", session: "'; DROP", coffee: "abc", fav: "many", count: "zzz" })).toEqual({
       q: "", sort: "top", session: "all", coffee: "", fav: "all", count: PAGE_SIZE,
@@ -65,5 +74,11 @@ describe("toQuery/listHref", () => {
   });
   it("resets count on search/filter/sort changes", () => {
     expect(toQuery({ q: "x", count: 60 }, true)).toBe("?q=x");
+  });
+  it("keeps a grown page and secondary filters when expanding", () => {
+    expect(listHref("/brews", { q: "x", tasted: "1", "has-score": "1", count: 40 })).toBe(
+      "/brews?q=x&tasted=1&has-score=1&count=40",
+    );
+    expect(toQuery({ tasted: "", "has-score": "", count: 20 })).toBe("");
   });
 });

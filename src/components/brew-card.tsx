@@ -1,7 +1,5 @@
-"use client";
-import { Heart } from "lucide-react";
+import { ChevronRight, Heart, Loader2 } from "lucide-react";
 import { formatRatio } from "@/lib/domain/ratio";
-import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatBrewScore } from "@/lib/domain/brew-score";
 import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
@@ -27,13 +25,17 @@ export type BrewCardData = {
 export type BrewCardProps = {
   brew: BrewCardData;
   isFavorite?: boolean;
+  favoritePending?: boolean;
   onFavoriteToggle?: () => void;
   action?: React.ReactNode;
 };
 
-export function BrewCard({ brew, isFavorite, onFavoriteToggle, action }: BrewCardProps) {
-  const dose = Number(brew.dose_g);
-  const water = Number(brew.water_g);
+// Compact brew journal card. The whole card opens the brew (stretched link),
+// so internal actions (favorite, New from this) sit above it at z-10 and never
+// trigger navigation. Hierarchy: coffee name is the identity, then date/dose/
+// ratio, then recipe facts, then status + score. Press feedback is the card
+// itself scaling — no per-control scale to compound.
+export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, action }: BrewCardProps) {
   const status = brewLifecycle(brew, brew.observations as Record<string, unknown> | null | undefined);
   const warnings = brewWarnings(brew);
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
@@ -43,81 +45,67 @@ export function BrewCard({ brew, isFavorite, onFavoriteToggle, action }: BrewCar
   return (
     <div
       className={cn(
-        "rounded-[10px] border border-line bg-card px-3 py-2",
-        isFavorite && "border-ember"
+        "relative cursor-pointer rounded-[10px] border border-line bg-card px-3 py-2 transition-transform hover:bg-paper active:scale-[0.99]",
+        isFavorite && "border-ember",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <a
-          href={`/brews/${brew.id}`}
-          className="min-w-0 flex-1"
-          aria-label={`Brew ${coffeeName || "Brew"} details`}
-        >
-          <div className="text-sm font-medium text-ink1 line-clamp-1">{coffeeName || "Untitled"}</div>
-
-          <div className="text-xs text-ink3 line-clamp-1">
+      <a
+        href={`/brews/${brew.id}`}
+        aria-label={`Open brew ${coffeeName || "details"}`}
+        className="absolute inset-0 rounded-[10px]"
+      />
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-base leading-snug text-ink line-clamp-1">{coffeeName || "Untitled"}</div>
+          <div className="tnum mt-0.5 text-xs text-ink2 line-clamp-1">
             {formatBrewDate(brew.brewed_at ?? brew.created_at)}
+            {" · "}
+            {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g
+            {" · "}
+            {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
           </div>
-
-          <div className="text-xs text-ink2 line-clamp-1">
-            {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g · {formatRatio(dose, water)}
-          </div>
-
-          <div className="text-[10px] text-ink2 line-clamp-1">
+          <div className="tnum text-[11px] text-ink3 line-clamp-1">
             {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} clicks
-            {formatDuration(brew.total_time_sec) ? ` · ${formatDuration(brew.total_time_sec)}` : ""}
             {brew.filter ? ` · ${brew.filter}` : ""}
           </div>
-
-          {brew.session && (
-            <div className="text-[10px] text-ink2">Session · {brew.session.title}</div>
-          )}
-
-          {status !== "in-progress" && (
-            <div className="text-[10px]">
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <div className="min-w-0 text-[11px] text-ink2 line-clamp-1">
               {BREW_LIFECYCLE_LABEL[status]}
+              {warnings.length > 0 ? ` · ${warnings.join(" · ")}` : ""}
             </div>
-          )}
-
-          {warnings.length > 0 && (
-            <div className="text-[10px] text-ink2">
-              {warnings.join(" · ")}
-            </div>
-          )}
-
-          {scored && (
-            <div className="mt-1">
-              <span className="inline-block rounded-full bg-ember/10 px-2 py-0.5 text-[10px] font-medium text-ember">
+            {scored && (
+              <span className="tnum shrink-0 rounded-full bg-ember/10 px-1.5 py-0.5 text-[10px] font-medium text-ember">
                 {formatBrewScore(score)}
               </span>
-            </div>
-          )}
-        </a>
-
+            )}
+          </div>
+        </div>
         {onFavoriteToggle && (
           <button
             type="button"
             aria-pressed={isFavorite}
-            aria-label={isFavorite ? `Remove favorite` : `Favorite this brew`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onFavoriteToggle();
-            }}
-            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] active:scale-[0.97]"
+            aria-label={isFavorite ? "Remove favorite" : "Favorite this brew"}
+            disabled={favoritePending}
+            onClick={onFavoriteToggle}
+            className="relative z-10 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] text-ink3 transition-colors hover:bg-line/50 disabled:opacity-70"
           >
-            <Heart
-              size={18}
-              aria-hidden
-              fill={isFavorite ? "currentColor" : "none"}
-              className={isFavorite ? "text-ink" : "text-ink3"}
-            />
+            {favoritePending ? (
+              <Loader2 size={18} aria-hidden className="animate-spin" />
+            ) : (
+              <Heart
+                size={22}
+                aria-hidden
+                fill={isFavorite ? "currentColor" : "none"}
+                className={isFavorite ? "text-ember" : "text-ink3"}
+              />
+            )}
           </button>
         )}
       </div>
-
       {action && (
-        <div className="mt-2 border-t border-line pt-2">
-          {action}
+        <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-line pt-1.5">
+          <div className="relative z-10">{action}</div>
+          <ChevronRight size={16} aria-hidden className="shrink-0 text-ink3" />
         </div>
       )}
     </div>

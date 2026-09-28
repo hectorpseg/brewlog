@@ -1,12 +1,49 @@
 // ponytail: list prefs are per-device UI memory, not data. One localStorage
 // key for every list (spec: `brewlog:prefs`), each list owning its scope —
-// never a global saved-filter system. Sort/filter only; search text and page
-// size stay session state. Storage is injected so this stays pure + testable.
+// never a global saved-filter system. The brew list remembers the last-used
+// search, sort, and active filters; pagination is never persisted. Storage is
+// injected so this stays pure + testable.
 
 export const PREFS_KEY = "brewlog:prefs";
 
 export type ListName = "brews" | "coffees" | "sessions" | "cuppings";
-export type ListPrefs = { sort?: string; session?: string; has?: string; fav?: string };
+export type ListPrefs = {
+  q?: string;
+  sort?: string;
+  session?: string;
+  has?: string;
+  fav?: string;
+  tasted?: string;
+  untasted?: string;
+  "has-score"?: string;
+  "no-score"?: string;
+};
+
+// Brew list "last-used" memory: search, sort, and active filters. Key names
+// match the URL params so restore merges straight into the params map.
+// `count` (pagination) is deliberately absent.
+export const BREWS_LIST_PREF_KEYS: readonly (keyof ListPrefs)[] = [
+  "q", "sort", "session", "fav", "tasted", "untasted", "has-score", "no-score",
+];
+
+// Keys absent from the URL inherit stored prefs; an explicit URL value always
+// wins so clearing a control never resurrects the stored one.
+export function mergeStoredPrefs(
+  params: Record<string, string | number>,
+  explicit: ListPrefs,
+  stored: ListPrefs,
+  keys: readonly (keyof ListPrefs)[],
+): { merged: Record<string, string | number>; changed: boolean } {
+  const merged: Record<string, string | number> = { ...params };
+  let changed = false;
+  for (const k of keys) {
+    if (explicit[k] === undefined && stored[k] !== undefined && stored[k] !== String(params[k] ?? "")) {
+      merged[k] = stored[k] as string;
+      changed = true;
+    }
+  }
+  return { merged, changed };
+}
 export type PrefsDoc = Partial<Record<ListName, ListPrefs>> & {
   saved?: Partial<Record<ListName, SavedPreset[]>>;
 };

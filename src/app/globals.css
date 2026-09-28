@@ -57,3 +57,13 @@ body {
   background: var(--color-line);
   border-radius: 10px;
 }
+
+/* Horizontal strips (recently viewed, filter rows) keep touch scrolling
+   without a visible scrollbar competing with the content. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

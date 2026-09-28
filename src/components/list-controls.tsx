@@ -1,45 +1,77 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { Coffee } from "lucide-react";
 import { Label, Select } from "./ui/controls";
 import { NoMatches, SearchField } from "./search-field";
 import { listHref } from "@/lib/lists/params";
 import { toggleFavorite } from "@/app/actions";
 import { BrewCard, type BrewCardData } from "./brew-card";
-import { deletePreset, readListPrefs, readSavedPresets, savePreset, writeListPrefs, type ListName, type ListPrefs, type SavedPreset } from "@/lib/lists/prefs";
+import { deletePreset, mergeStoredPrefs, readListPrefs, readSavedPresets, savePreset, writeListPrefs, type ListName, type ListPrefs, type SavedPreset } from "@/lib/lists/prefs";
+
+// List navigation runs inside a transition so isPending stays true for the
+// whole server round trip: the list shows its skeleton while search, filter,
+// or sort refetch, and the controls stay usable. Pages without the provider
+// (sessions, coffees, cuppings) fall back to a plain replace.
+type ListNav = { isPending: boolean; navigate: (href: string) => void };
+const ListNavContext = createContext<ListNav | null>(null);
+
+export function ListNavProvider({ children }: { children: React.ReactNode }) {
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  const navigate = (href: string) => {
+    startTransition(() => {
+      router.replace(href, { scroll: false });
+    });
+  };
+  return <ListNavContext.Provider value={{ isPending, navigate }}>{children}</ListNavContext.Provider>;
+}
+
+function useListNav(): ListNav {
+  const ctx = useContext(ListNavContext);
+  const router = useRouter();
+  return { isPending: ctx?.isPending ?? false, navigate: ctx?.navigate ?? ((href: string) => router.replace(href, { scroll: false })) };
+}
 function storage(): Storage | null {
   return typeof window === "undefined" ? null : window.localStorage;
 }
 
 type Params = Record<string, string | number>;
 
-// Mount-only: keys absent from the URL inherit the stored list prefs
-// (sort/filter only — search text and page size stay session state).
-export function ApplyListPrefs({ list, base, params, explicit }: {
+// Last-used list state. On mount, keys absent from the URL inherit the stored
+// prefs. When `persist` is set (the brew list), those same keys are written
+// back on every state change so search, sort, and active filters survive a
+// fresh visit. Pagination is never persisted.
+export function ApplyListPrefs({ list, base, params, explicit, persist }: {
   list: ListName;
   base: string;
   params: Params;
   explicit: ListPrefs;
+  persist?: readonly (keyof ListPrefs)[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const done = useRef(false);
+  const keys = persist ?? (["sort", "session", "has", "fav"] as (keyof ListPrefs)[]);
+  const stateKey = keys.map((k) => String(params[k] ?? "")).join("\u0000");
   useEffect(() => {
-    if (done.current || pathname !== base) return;
-    done.current = true;
-    const stored = readListPrefs(storage(), list);
-    const merged: Params = { ...params };
-    let changed = false;
-    for (const k of ["sort", "session", "has", "fav"] as const) {
-      if (explicit[k] === undefined && stored[k] !== undefined && stored[k] !== String(params[k] ?? "")) {
-        merged[k] = stored[k] as string;
-        changed = true;
-      }
+    if (pathname !== base) return;
+    let merged: Params = { ...params };
+    if (!done.current) {
+      done.current = true;
+      const stored = readListPrefs(storage(), list);
+      const res = mergeStoredPrefs(merged, explicit, stored, keys);
+      merged = res.merged;
+      if (res.changed) router.replace(listHref(base, merged), { scroll: false });
     }
-    if (changed) router.replace(listHref(base, merged), { scroll: false });
+    if (persist) {
+      const next: ListPrefs = { ...readListPrefs(storage(), list) };
+      for (const k of keys) next[k] = String(merged[k] ?? "");
+      writeListPrefs(storage(), list, next);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [stateKey, pathname]);
   return null;
 }
 
@@ -51,7 +83,7 @@ export function ListSearchBox({ id, label, placeholder, base, params }: {
   base: string;
   params: Params;
 }) {
-  const router = useRouter();
+  const { navigate } = useListNav();
   const [local, setLocal] = useState(String(params.q ?? ""));
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Prop-to-state sync for external URL changes (e.g. Clear search): the
@@ -65,7 +97,7 @@ export function ListSearchBox({ id, label, placeholder, base, params }: {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       if (next !== String(params.q ?? "")) {
-        router.replace(listHref(base, { ...params, q: next }, true), { scroll: false });
+        navigate(listHref(base, { ...params, q: next }, true));
       }
     }, 300);
   };
@@ -78,7 +110,7 @@ export function ListSortSelect({ base, params, options, list }: {
   options: { value: string; label: string }[];
   list: ListName;
 }) {
-  const router = useRouter();
+  const { navigate } = useListNav();
   return (
     <div className="mt-3">
       <Label htmlFor={`${list}-sort`}>Sort</Label>
@@ -88,7 +120,7 @@ export function ListSortSelect({ base, params, options, list }: {
         onChange={(e) => {
           const s = storage();
           writeListPrefs(s, list, { ...readListPrefs(s, list), sort: e.target.value });
-          router.replace(listHref(base, { ...params, sort: e.target.value }, true), { scroll: false });
+          navigate(listHref(base, { ...params, sort: e.target.value }, true));
         }}
       >
         {options.map((o) => (
@@ -167,26 +199,63 @@ export function SavedPresets({ base, params, list, current }: {
 
 export type BrewListRow = BrewCardData & { coffee_id?: unknown; is_favorite?: unknown };
 
-export function BrewList({ rows }: { rows: BrewListRow[] }) {
+// Skeleton resembling the compact brew cards it replaces.
+function BrewListSkeleton() {
+  return (
+    <div className="mt-3 flex flex-col gap-2" role="status" aria-label="Loading brews">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="rounded-[10px] border border-line bg-card px-3 py-2">
+          <div className="skeleton h-4 w-2/5" />
+          <div className="skeleton mt-1.5 h-3 w-3/5" />
+          <div className="skeleton mt-1 h-3 w-1/2" />
+          <div className="skeleton mt-1.5 h-3 w-2/5" />
+          <div className="mt-2 flex items-center justify-between border-t border-line pt-2">
+            <div className="skeleton h-7 w-28 rounded-full" />
+            <div className="skeleton h-4 w-4" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function BrewList({ rows, children }: { rows: BrewListRow[]; children?: React.ReactNode }) {
+  const { isPending } = useListNav();
+  if (isPending) return <BrewListSkeleton />;
+  if (rows.length === 0) return <div className="mt-2">{children}</div>;
   return (
     <ul className="mt-3 flex flex-col gap-2">
-      {rows.map((b) => {
-        const coffeeId = typeof b.coffee_id === "string" ? b.coffee_id : null;
-        const isFav = b.is_favorite === true;
-        return (
-          <li key={String(b.id)} className="flex items-start gap-2">
-            <div className="min-w-0 flex-1">
-              <BrewCard
-                brew={b}
-                isFavorite={isFav}
-                onFavoriteToggle={() => toggleFavorite(String(b.id), !isFav)}
-                action={<NewFromThis coffeeId={coffeeId} />}
-              />
-            </div>
-          </li>
-        );
-      })}
+      {rows.map((b) => (
+        <BrewListItem key={String(b.id)} b={b} />
+      ))}
     </ul>
+  );
+}
+
+function BrewListItem({ b }: { b: BrewListRow }) {
+  const [isPending, startTransition] = useTransition();
+  const coffeeId = typeof b.coffee_id === "string" ? b.coffee_id : null;
+  const isFav = b.is_favorite === true;
+  return (
+    <li className="flex items-start gap-2">
+      <div className="min-w-0 flex-1">
+        <BrewCard
+          brew={b}
+          isFavorite={isFav}
+          favoritePending={isPending}
+          onFavoriteToggle={() =>
+            startTransition(async () => {
+              try {
+                await toggleFavorite(String(b.id), !isFav);
+              } catch {
+                // ponytail: no optimistic state to roll back; server rows stay truth
+              }
+            })
+          }
+          action={<NewFromThis coffeeId={coffeeId} />}
+        />
+      </div>
+    </li>
   );
 }
 
@@ -198,19 +267,41 @@ export function NewFromThis({ coffeeId }: NewFromThisProps) {
     <Link
       href={coffeeId ? `/brews/new?coffee=${encodeURIComponent(coffeeId)}&copy=1` : "/brews/new"}
       replace
-      className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-full border border-line bg-card px-3 text-sm text-ink2 active:scale-[0.97]"
+      className="inline-flex min-h-9 items-center gap-1 rounded-full border border-ember/40 bg-ember/5 px-2.5 py-1 text-xs font-medium text-ember active:scale-[0.97]"
     >
+      <Coffee size={13} aria-hidden />
       New from this
     </Link>
   );
 }
 export function NoListMatches({ query, base, params }: { query: string; base: string; params: Params }) {
-  const router = useRouter();
+  const { navigate } = useListNav();
   return (
     <NoMatches
       query={query}
-      onClear={() => router.replace(listHref(base, { ...params, q: "" }, true), { scroll: false })}
+      onClear={() => navigate(listHref(base, { ...params, q: "" }, true))}
     />
+  );
+}
+
+// Filter link that routes through the list transition (skeleton on the
+// list while the server refetches). Renders a real anchor: href stays
+// valid for middle-click/copy, keyboard Enter triggers the click.
+export function ListFilterLink({ href, children, ...rest }: {
+  href: string;
+} & React.ComponentProps<typeof Link>) {
+  const { navigate } = useListNav();
+  return (
+    <Link
+      href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        navigate(href);
+      }}
+      {...rest}
+    >
+      {children}
+    </Link>
   );
 }
 // Horizontally scrollable quick filters. Buttons, never gestures: each tap

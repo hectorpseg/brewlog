@@ -47,6 +47,9 @@ export type BrewsListParams = {
   fav: "all" | "only";
   count: number;
   tasted?: string; // "1" when tasted filter active
+  untasted?: string; // "1" when untasted filter active
+  hasScore?: string; // "1" when has-score filter active
+  noScore?: string; // "1" when no-score filter active
 };
 
 export function parseBrewsParams(sp: Record<string, unknown>): BrewsListParams {
@@ -59,6 +62,9 @@ export function parseBrewsParams(sp: Record<string, unknown>): BrewsListParams {
     fav: oneOf(sp.fav, ["all", "only"] as const, "all"),
     count: cleanCount(sp.count),
     tasted: str(sp.tasted) === "1" ? "1" : undefined,
+    untasted: str(sp.untasted) === "1" ? "1" : undefined,
+    hasScore: str(sp["has-score"]) === "1" ? "1" : undefined,
+    noScore: str(sp["no-score"]) === "1" ? "1" : undefined,
   };
 }
 

@@ -216,6 +216,9 @@ export type BrewsPageOpts = {
   limit: number;
   offset: number;
   tasted?: boolean;
+  untasted?: boolean;
+  hasScore?: boolean;
+  noScore?: boolean;
 };
 
 // Brews index page: newest/oldest/top, coffee + session + favorite filters,
@@ -245,9 +248,16 @@ export async function listBrewsPage(opts: BrewsPageOpts): Promise<ListPage<Recor
   if (opts.fav === "only") query = query.eq("is_favorite", true);
   if (opts.tasted) {
     query = query.or(
-      "observations.acidity.not.is.null,observations.sweetness.not.is.null,observations.body.not.is.null,observations.clarity.not.is.null,observations.bitterness.not.is.null,observations.astringency.not.is.null,observations.intensity.not.is.null,observations.balance.not.is.null,observations.finish.not.is.null,observations.hot_notes.not.is.null,observations.warm_notes.not.is.null,observations.cold_notes.not.is.null,observations.freeform_notes.not.is.null",
+      "acidity.not.is.null,sweetness.not.is.null,body.not.is.null,clarity.not.is.null,bitterness.not.is.null,astringency.not.is.null,intensity.not.is.null,balance.not.is.null,finish.not.is.null,hot_notes.not.is.null,warm_notes.not.is.null,cold_notes.not.is.null,freeform_notes.not.is.null",
     );
   }
+  if (opts.untasted) {
+    for (const f of ["acidity", "sweetness", "body", "clarity", "bitterness", "astringency", "intensity", "balance", "finish", "hot_notes", "warm_notes", "cold_notes", "freeform_notes"]) {
+      query = query.is(f, null);
+    }
+  }
+  if (opts.hasScore) query = query.not("brew_score", "is", null);
+  if (opts.noScore) query = query.is("brew_score", null);
   if (opts.q) query = query.ilike("search_blob", `%${escapeLike(opts.q)}%`);
   const { data, error } = await query;
   if (error) throw new Error(error.message);

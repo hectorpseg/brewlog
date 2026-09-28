@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_PRESETS, PREFS_KEY, deletePreset, readListPrefs, readPrefs, readSavedPresets, savePreset, writeListPrefs } from "@/lib/lists/prefs";
+import { BREWS_LIST_PREF_KEYS, MAX_PRESETS, PREFS_KEY, deletePreset, mergeStoredPrefs, readListPrefs, readPrefs, readSavedPresets, savePreset, writeListPrefs } from "@/lib/lists/prefs";
 
 function memStore(initial: Record<string, string> = {}) {
   const data = { ...initial };
@@ -32,6 +32,28 @@ describe("list prefs", () => {
     const bad = { getItem: () => { throw new Error("denied"); }, setItem: () => { throw new Error("denied"); } };
     expect(readPrefs(bad)).toEqual({});
     expect(() => writeListPrefs(bad, "brews", { sort: "oldest" })).not.toThrow();
+  });
+});
+
+describe("mergeStoredPrefs", () => {
+  const keys = BREWS_LIST_PREF_KEYS;
+  it("restores stored keys the URL omits and never overrides explicit ones", () => {
+    const stored = { q: "tabi", sort: "top", fav: "only", "has-score": "1" };
+    const { merged, changed } = mergeStoredPrefs({ sort: "top", count: 40 }, { sort: "top" }, stored, keys);
+    expect(changed).toBe(true);
+    expect(merged).toEqual({ q: "tabi", sort: "top", fav: "only", "has-score": "1", count: 40 });
+  });
+  it("treats explicit empty values as cleared, not missing", () => {
+    const { merged, changed } = mergeStoredPrefs({ q: "" }, { q: "" }, { q: "tabi", sort: "top" }, keys);
+    expect(changed).toBe(true);
+    expect(merged.q).toBe("");
+    expect(merged.sort).toBe("top");
+  });
+  it("never restores pagination and reports no change when already applied", () => {
+    const { merged, changed } = mergeStoredPrefs({ q: "x", count: 20 }, { q: "x" }, { q: "x" }, keys);
+    expect(changed).toBe(false);
+    expect(merged).toEqual({ q: "x", count: 20 });
+    expect(keys).not.toContain("count");
   });
 });
 
