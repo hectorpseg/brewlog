@@ -1,11 +1,10 @@
 "use client";
-import { Star } from "lucide-react";
+import { Heart } from "lucide-react";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatBrewScore } from "@/lib/domain/brew-score";
 import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
-import { EntityCard } from "./entity-card";
 import { cn } from "./ui/utils";
 
 export type BrewCardData = {
@@ -22,18 +21,17 @@ export type BrewCardData = {
   session?: { title: string } | null;
   coffees?: { name: string } | null;
   observations?: unknown;
-  // Derived score from brews_list (null = untasted, never zero-filled).
   brew_score?: unknown;
 };
 
-// Notebook entry: date first, ratio as the hero numeral, then recipe context,
-// then one quiet status line. Optional action node (e.g. Remove) renders as a
-// sibling — never nested inside the link.
-export function BrewCard({ brew, action, showCoffee = true }: {
+export type BrewCardProps = {
   brew: BrewCardData;
+  isFavorite?: boolean;
+  onFavoriteToggle?: () => void;
   action?: React.ReactNode;
-  showCoffee?: boolean;
-}) {
+};
+
+export function BrewCard({ brew, isFavorite, onFavoriteToggle, action }: BrewCardProps) {
   const dose = Number(brew.dose_g);
   const water = Number(brew.water_g);
   const status = brewLifecycle(brew, brew.observations as Record<string, unknown> | null | undefined);
@@ -41,35 +39,87 @@ export function BrewCard({ brew, action, showCoffee = true }: {
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
   const score = typeof brew.brew_score === "number" || typeof brew.brew_score === "string" ? Number(brew.brew_score) : NaN;
   const scored = Number.isFinite(score);
+
   return (
-    <div>
-      <EntityCard href={`/brews/${brew.id}`} label={`Brew ${formatRatio(dose, water)}`}>
-          <div className="tnum text-xs text-ink3">{formatBrewDate(brew.brewed_at ?? brew.created_at)}</div>
-          <div className="font-display text-3xl leading-none">{formatRatio(dose, water)}</div>
-          <div className="tnum mt-1 text-sm text-ink2">
-            {brew.dose_g ?? "?"} g / {brew.water_g ?? "?"} g
-            {showCoffee && coffeeName ? ` · ${coffeeName}` : ""}
+    <div
+      className={cn(
+        "rounded-[10px] border border-line bg-card px-3 py-2",
+        isFavorite && "border-ember"
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <a
+          href={`/brews/${brew.id}`}
+          className="min-w-0 flex-1"
+          aria-label={`Brew ${coffeeName || "Brew"} details`}
+        >
+          <div className="text-sm font-medium text-ink1 line-clamp-1">{coffeeName || "Untitled"}</div>
+
+          <div className="text-xs text-ink3 line-clamp-1">
+            {formatBrewDate(brew.brewed_at ?? brew.created_at)}
           </div>
-          <div className="tnum mt-0.5 text-sm text-ink2">
+
+          <div className="text-xs text-ink2 line-clamp-1">
+            {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g · {formatRatio(dose, water)}
+          </div>
+
+          <div className="text-[10px] text-ink2 line-clamp-1">
             {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} clicks
             {formatDuration(brew.total_time_sec) ? ` · ${formatDuration(brew.total_time_sec)}` : ""}
             {brew.filter ? ` · ${brew.filter}` : ""}
           </div>
-          {brew.session ? (
-            <div className="mt-0.5 text-sm text-ink2">Session · {brew.session.title}</div>
-          ) : null}
-          {scored ? (
-            <div className="tnum mt-0.5 flex items-center gap-1 text-sm text-ink2">
-              <Star size={14} aria-hidden fill="currentColor" />
-              <span>Score {formatBrewScore(score)}</span>
+
+          {brew.session && (
+            <div className="text-[10px] text-ink2">Session · {brew.session.title}</div>
+          )}
+
+          {status !== "in-progress" && (
+            <div className="text-[10px]">
+              {BREW_LIFECYCLE_LABEL[status]}
             </div>
-          ) : null}
-          <div className={cn("mt-0.5 text-sm", status === "in-progress" ? "text-ember" : "text-ink2")}>
-            {BREW_LIFECYCLE_LABEL[status]}
-            {warnings.length > 0 ? ` · ${warnings.join(" · ")}` : ""}
-          </div>
-      </EntityCard>
-      {action}
+          )}
+
+          {warnings.length > 0 && (
+            <div className="text-[10px] text-ink2">
+              {warnings.join(" · ")}
+            </div>
+          )}
+
+          {scored && (
+            <div className="mt-1">
+              <span className="inline-block rounded-full bg-ember/10 px-2 py-0.5 text-[10px] font-medium text-ember">
+                {formatBrewScore(score)}
+              </span>
+            </div>
+          )}
+        </a>
+
+        {onFavoriteToggle && (
+          <button
+            type="button"
+            aria-pressed={isFavorite}
+            aria-label={isFavorite ? `Remove favorite` : `Favorite this brew`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onFavoriteToggle();
+            }}
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] active:scale-[0.97]"
+          >
+            <Heart
+              size={18}
+              aria-hidden
+              fill={isFavorite ? "currentColor" : "none"}
+              className={isFavorite ? "text-ink" : "text-ink3"}
+            />
+          </button>
+        )}
+      </div>
+
+      {action && (
+        <div className="mt-2 border-t border-line pt-2">
+          {action}
+        </div>
+      )}
     </div>
   );
 }

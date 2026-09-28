@@ -1,22 +1,18 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
-import { getCoffee, listBrewsPage, listRecentViews } from "@/lib/db/queries";
+import { listBrewsPage, listRecentViews } from "@/lib/db/queries";
 import { RecentlyViewed } from "@/components/recently-viewed";
-import { ApplyListPrefs, BrewList, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, SavedPresets, type BrewListRow } from "@/components/list-controls";
-import { Card } from "@/components/ui/controls";
+import { ApplyListPrefs, BrewList, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, type BrewListRow } from "@/components/list-controls";
 import { EmptyState } from "@/components/states";
+import { Card } from "@/components/ui/controls";
+import { cn } from "@/components/ui/utils";
 import { PAGE_SIZE, listHref, parseBrewsParams } from "@/lib/lists/params";
 
 type SP = Record<string, string | string[] | undefined>;
 
-// Server-side list: search/filter/sort/pagination all run against brews_list
-// (one flat query, limit+1 for hasMore). The URL is the state — refresh and
-// back/forward preserve it; prefs fill in sort/filter only when absent.
 export default async function BrewsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const p = parseBrewsParams(sp);
-  // Full list state survives the login bounce: ?next= carries search,
-  // filter, sort, and page size, not just the bare path.
   await requireUser(listHref("/brews", { q: p.q, sort: p.sort, session: p.session, coffee: p.coffee, fav: p.fav, count: p.count }));
   const params = { q: p.q, sort: p.sort, session: p.session, coffee: p.coffee, fav: p.fav, count: p.count };
   const explicit = {
@@ -24,13 +20,24 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
     session: "session" in sp ? p.session : undefined,
     fav: "fav" in sp ? p.fav : undefined,
   };
-  const [page, coffee, recent] = await Promise.all([
-    listBrewsPage({ coffeeId: p.coffee, session: p.session, fav: p.fav, q: p.q, sort: p.sort, limit: p.count, offset: 0 }).catch(() => null),
-    p.coffee ? getCoffee(p.coffee).catch(() => null) : Promise.resolve(null),
+  const hasNoSession = p.session === "none";
+  const hasFavorites = p.fav === "only";
+  const hasTasted = p.tasted === "1";
+
+  const [page, recent] = await Promise.all([
+    listBrewsPage({ coffeeId: p.coffee, session: p.session, fav: p.fav, q: p.q, sort: p.sort, limit: p.count, offset: 0, tasted: hasTasted }).catch(() => null),
     listRecentViews().catch(() => []),
   ]);
-  const filtered = p.q !== "" || p.session !== "all" || p.coffee !== "" || p.fav !== "all";
   const rows = page?.rows ?? [];
+
+  const activeFilterLabels: string[] = [];
+  if (hasNoSession) activeFilterLabels.push("No session");
+  if (hasFavorites) activeFilterLabels.push("Favorites");
+  if (hasTasted) activeFilterLabels.push("Tasted");
+
+  const filterCount = activeFilterLabels.length;
+  const filtered = p.q !== "" || filterCount > 0 || p.coffee !== "";
+
   return (
     <div>
       <div className="mb-4">
@@ -62,53 +69,81 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
                 ]}
               />
             </div>
-          </div>
-          <FilterChips
-            base="/brews"
-            params={params}
-            param="session"
-            list="brews"
-            options={[
-              { value: "all", label: "All brews" },
-              { value: "none", label: "No session" },
-            ]}
-          />
-          <FilterChips
-            base="/brews"
-            params={params}
-            param="fav"
-            list="brews"
-            options={[
-              { value: "all", label: "All" },
-              { value: "only", label: "Favorites" },
-            ]}
-          />
-          {p.coffee ? (
-            <div className="mt-2">
+            <div className="flex gap-2 flex-wrap">
               <Link
-                href={listHref("/brews", { ...params, coffee: "" }, true)}
+                href={listHref("/brews", { ...params, session: p.session === "none" ? "all" : "none" })}
                 replace
-                scroll={false}
-                className="inline-flex min-h-11 items-center gap-1 rounded-full border border-line bg-card px-4 text-sm text-ink2 active:scale-[0.97]"
+                className={cn(
+                  "min-h-11 shrink-0 rounded-full border border-line bg-card px-3 text-sm text-ink2 active:scale-[0.97]",
+                  p.session !== "none" ? "border-ember text-ember" : ""
+                )}
+                aria-pressed={p.session === "none"}
+                aria-label={p.session === "none" ? "Show all brews" : "Show brews with no session"}
               >
-                Coffee: {typeof coffee?.name === "string" ? coffee.name : "selected"} · clear
+                No session
+              </Link>
+              <Link
+                href={listHref("/brews", { ...params, fav: p.fav === "only" ? "all" : "only" })}
+                replace
+                className={cn(
+                  "min-h-11 shrink-0 rounded-full border border-line bg-card px-3 text-sm text-ink2 active:scale-[0.97]",
+                  p.fav === "only" ? "border-ember text-ember" : ""
+                )}
+                aria-pressed={p.fav === "only"}
+                aria-label={p.fav === "only" ? "Show all brews" : "Show favorite brews"}
+              >
+                Favorites
+              </Link>
+              <Link
+                href={listHref("/brews", { ...params, tasted: p.tasted === "1" ? "" : "1" })}
+                replace
+                className={cn(
+                  "min-h-11 shrink-0 rounded-full border border-line bg-card px-3 text-sm text-ink2 active:scale-[0.97]",
+                  hasTasted ? "border-ember text-ember" : ""
+                )}
+                aria-pressed={hasTasted}
+                aria-label={hasTasted ? "Show all brews" : "Show tasted brews"}
+              >
+                Tasted
               </Link>
             </div>
-          ) : null}
-          <SavedPresets
-            base="/brews"
-            params={params}
-            list="brews"
-            current={{ sort: p.sort, session: p.session, fav: p.fav }}
-          />
+            <details className="mt-2 rounded-[10px] border border-line bg-card px-3 py-2">
+              <summary className="cursor-pointer py-2 font-medium text-sm text-ink2">
+                More filters
+              </summary>
+              <div className="mt-1 flex flex-col gap-1">
+                <Link
+                  href={listHref("/brews", { ...params, untasted: "1" })}
+                  replace
+                  className="flex-1 rounded-[10px] border border-line bg-card px-2 py-1.5 text-center text-xs text-ink2 active:scale-[0.97]"
+                >
+                  Untasted
+                </Link>
+                <Link
+                  href={listHref("/brews", { ...params, "has-score": "1" })}
+                  replace
+                  className="flex-1 rounded-[10px] border border-line bg-card px-2 py-1.5 text-center text-xs text-ink2 active:scale-[0.97]"
+                >
+                  Has score
+                </Link>
+                <Link
+                  href={listHref("/brews", { ...params, "no-score": "1" })}
+                  replace
+                  className="flex-1 rounded-[10px] border border-line bg-card px-2 py-1.5 text-center text-xs text-ink2 active:scale-[0.97]"
+                >
+                  No score
+                </Link>
+              </div>
+            </details>
+          </div>
           {rows.length === 0 ? (
             <div className="mt-2">
               {filtered ? (
                 <NoListMatches query={p.q || "these filters"} base="/brews" params={params} />
               ) : (
                 <EmptyState
-                  title="No brews yet."
-                  body="Log your first brew to start building your brew history."
+                  title="No brews found"
+                  body="Nothing matches your current search or filters."
                   actionHref="/brews/new"
                   actionLabel="+ Brew"
                 />
@@ -118,16 +153,14 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
             <BrewList rows={rows as BrewListRow[]} />
           )}
           {page.hasMore ? (
-            <div className="mt-3 text-center">
-              <Link
-                href={listHref("/brews", { ...params, count: p.count + PAGE_SIZE })}
-                replace
-                scroll={false}
-                className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium active:scale-[0.97]"
-              >
-                Show more
-              </Link>
-            </div>
+            <Link
+              href={listHref("/brews", { ...params, count: p.count + PAGE_SIZE }, true)}
+              replace
+              scroll={false}
+              className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium active:scale-[0.97]"
+            >
+              Show more
+            </Link>
           ) : null}
         </>
       )}

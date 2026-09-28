@@ -215,6 +215,7 @@ export type BrewsPageOpts = {
   sort: "newest" | "oldest" | "top";
   limit: number;
   offset: number;
+  tasted?: boolean;
 };
 
 // Brews index page: newest/oldest/top, coffee + session + favorite filters,
@@ -242,6 +243,11 @@ export async function listBrewsPage(opts: BrewsPageOpts): Promise<ListPage<Recor
   if (opts.session === "none") query = query.is("session_id", null);
   else if (opts.session !== "all") query = query.eq("session_id", opts.session);
   if (opts.fav === "only") query = query.eq("is_favorite", true);
+  if (opts.tasted) {
+    query = query.or(
+      "observations.acidity.not.is.null,observations.sweetness.not.is.null,observations.body.not.is.null,observations.clarity.not.is.null,observations.bitterness.not.is.null,observations.astringency.not.is.null,observations.intensity.not.is.null,observations.balance.not.is.null,observations.finish.not.is.null,observations.hot_notes.not.is.null,observations.warm_notes.not.is.null,observations.cold_notes.not.is.null,observations.freeform_notes.not.is.null",
+    );
+  }
   if (opts.q) query = query.ilike("search_blob", `%${escapeLike(opts.q)}%`);
   const { data, error } = await query;
   if (error) throw new Error(error.message);

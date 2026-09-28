@@ -52,10 +52,8 @@ export function writeListPrefs(storage: Writer | undefined | null, list: ListNam
 }
 
 // --- Saved filter combinations ------------------------------------------------
-// ponytail: named presets are local UI memory in the same doc, scoped per
-// list — never a table, never global. A preset captures sort/filter only
-// (never search text or page size); applying it rebuilds the URL and the
-// backend still executes the query.
+// Still used by the sessions list (out of scope for the brew list redesign).
+// The brew list no longer uses presets; it restores last-used state instead.
 
 export type SavedPreset = { name: string; prefs: ListPrefs };
 export const MAX_PRESETS = 10;
@@ -108,3 +106,7 @@ export function deletePreset(storage: Writer | undefined | null, list: ListName,
   const kept = readSavedPresets(storage, list).filter((p) => p.name !== name);
   return writeSavedPresets(storage, list, kept);
 }
+
+// --- Brew list density --------------------------------------------------------
+// REMOVED: The comfortable/compact density toggle has been removed from the
+// brew list. The list now uses a compact layout only.

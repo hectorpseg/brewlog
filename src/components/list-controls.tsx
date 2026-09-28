@@ -1,23 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Label, Select } from "./ui/controls";
 import { NoMatches, SearchField } from "./search-field";
 import { listHref } from "@/lib/lists/params";
 import { toggleFavorite } from "@/app/actions";
 import { BrewCard, type BrewCardData } from "./brew-card";
-import { BrewQuickActions } from "./quick-actions";
-import {
-  deletePreset,
-  readListPrefs,
-  readSavedPresets,
-  savePreset,
-  writeListPrefs,
-  type ListName,
-  type ListPrefs,
-  type SavedPreset,
-} from "@/lib/lists/prefs";
-
+import { deletePreset, readListPrefs, readSavedPresets, savePreset, writeListPrefs, type ListName, type ListPrefs, type SavedPreset } from "@/lib/lists/prefs";
 function storage(): Storage | null {
   return typeof window === "undefined" ? null : window.localStorage;
 }
@@ -109,8 +99,6 @@ export function ListSortSelect({ base, params, options, list }: {
   );
 }
 
-// Named filter/sort presets, local and per-list. Applying one rebuilds the
-// URL (backend still executes); search text and page size are never stored.
 export function SavedPresets({ base, params, list, current }: {
   base: string;
   params: Params;
@@ -176,6 +164,7 @@ export function SavedPresets({ base, params, list, current }: {
     </details>
   );
 }
+
 export type BrewListRow = BrewCardData & { coffee_id?: unknown; is_favorite?: unknown };
 
 export function BrewList({ rows }: { rows: BrewListRow[] }) {
@@ -187,18 +176,32 @@ export function BrewList({ rows }: { rows: BrewListRow[] }) {
         return (
           <li key={String(b.id)} className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <BrewCard brew={b} />
+              <BrewCard
+                brew={b}
+                isFavorite={isFav}
+                onFavoriteToggle={() => toggleFavorite(String(b.id), !isFav)}
+                action={<NewFromThis coffeeId={coffeeId} />}
+              />
             </div>
-            <BrewQuickActions
-              brewId={String(b.id)}
-              coffeeId={coffeeId}
-              isFavorite={isFav}
-              toggle={toggleFavorite.bind(null, String(b.id), !isFav)}
-            />
           </li>
         );
       })}
     </ul>
+  );
+}
+
+type NewFromThisProps = {
+  coffeeId: string | null;
+};
+export function NewFromThis({ coffeeId }: NewFromThisProps) {
+  return (
+    <Link
+      href={coffeeId ? `/brews/new?coffee=${encodeURIComponent(coffeeId)}&copy=1` : "/brews/new"}
+      replace
+      className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-full border border-line bg-card px-3 text-sm text-ink2 active:scale-[0.97]"
+    >
+      New from this
+    </Link>
   );
 }
 export function NoListMatches({ query, base, params }: { query: string; base: string; params: Params }) {
