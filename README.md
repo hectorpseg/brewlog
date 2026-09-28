@@ -50,8 +50,7 @@ production. No fake users, no credentials, no service-role key.
 What you get (all prefixed `Seed · `): 4 coffees (competition lot with unknown
 origin/process, Ethiopia washed, Colombia honey, Brazil beater with no brews),
 2 sessions, 7 brews (grind/ratio/temp/filter/water variations), 5 observations
-(2 brews deliberately unobserved), 4 experiments (incl. one confounded
-two-variable trial and one session-level cupping note).
+(2 brews deliberately unobserved).
 
 Run it:
 

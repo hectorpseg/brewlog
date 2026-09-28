@@ -69,7 +69,15 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     <div className="flex flex-col gap-4">
       <div>
         <BackLink href="/brews" label="Brews" />
-        <p className="text-sm text-ink2">{coffeeName ?? "Brew"}</p>
+        <p className="text-sm text-ink2">
+          {typeof brew.coffee_id === "string" && typeof coffeeName === "string" ? (
+            <Link href={`/coffees/${brew.coffee_id}`} className="font-medium text-ember underline">
+              {coffeeName}
+            </Link>
+          ) : (
+            coffeeName ?? "Brew"
+          )}
+        </p>
         <h1 className="tnum font-display text-4xl leading-none">
           {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
         </h1>

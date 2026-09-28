@@ -13,7 +13,7 @@ export function SectionNav({ items }: { items: { id: string; label: string }[] }
           <a
             key={s.id}
             href={`#${s.id}`}
-            className="min-h-8 shrink-0 rounded-full px-3 py-1 text-sm text-ink2 underline-offset-4 hover:text-ink hover:underline"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 py-1 text-sm text-ink2 underline-offset-4 hover:text-ink hover:underline"
           >
             {s.label}
           </a>
@@ -29,7 +29,8 @@ export function TastingDisclaimer() {
   return (
     <p className="text-xs text-ink2">
       Scores 1-10 are your own enjoyment (higher means you liked it more), not an
-      objective maximum. Not an official SCA score.
+      objective maximum. Not an official SCA score. For attributes like body,
+      higher means you enjoyed it more, not that the coffee objectively had more of it.
     </p>
   );
 }

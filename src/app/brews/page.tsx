@@ -1,11 +1,8 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getCoffee, listBrewsPage, listRecentViews } from "@/lib/db/queries";
-import { toggleFavorite } from "@/app/actions";
-import { BrewCard } from "@/components/brew-card";
-import { BrewQuickActions } from "@/components/quick-actions";
 import { RecentlyViewed } from "@/components/recently-viewed";
-import { ApplyListPrefs, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, SavedPresets } from "@/components/list-controls";
+import { ApplyListPrefs, BrewDensityList, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, SavedPresets, type BrewListRow } from "@/components/list-controls";
 import { Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseBrewsParams } from "@/lib/lists/params";
@@ -118,21 +115,7 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
               )}
             </div>
           ) : (
-            <ul className="mt-2 flex flex-col gap-2">
-              {rows.map((b) => (
-                <li key={String(b.id)} className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <BrewCard brew={b as React.ComponentProps<typeof BrewCard>["brew"]} />
-                  </div>
-                  <BrewQuickActions
-                    brewId={String(b.id)}
-                    coffeeId={typeof b.coffee_id === "string" ? b.coffee_id : null}
-                    isFavorite={b.is_favorite === true}
-                    toggle={toggleFavorite.bind(null, String(b.id), !(b.is_favorite === true))}
-                  />
-                </li>
-              ))}
-            </ul>
+            <BrewDensityList rows={rows as BrewListRow[]} />
           )}
           {page.hasMore ? (
             <div className="mt-3 text-center">

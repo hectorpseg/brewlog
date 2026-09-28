@@ -135,10 +135,6 @@ export function renderShareCardPng(card: ShareCardData): Promise<Blob> {
 
 // --- Share / download / clipboard helpers (capability-detected) ---
 
-export function canNativeShareText(): boolean {
-  return typeof navigator !== "undefined" && typeof (navigator as Navigator & { share?: unknown }).share === "function";
-}
-
 export function canNativeShareImage(): boolean {
   if (typeof navigator === "undefined") return false;
   const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };

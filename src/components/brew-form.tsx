@@ -167,7 +167,6 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           <div><Label>Water g *</Label><Input type="number" step="any" inputMode="decimal" className={inh("waterG")} {...form.register("waterG")} /></div>
           <div><Label>Grind clicks</Label><Input type="number" inputMode="numeric" className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
           <div><Label>Temp C</Label><Input type="number" step="any" inputMode="decimal" className={inh("tempC")} {...form.register("tempC")} /></div>
-          <div><Label>Filter</Label><Input className={inh("filter")} {...form.register("filter")} /></div>
           <div className="col-span-2">
             <Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} {...form.register("brewedAt")} />
           </div>
@@ -197,6 +196,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Grinder</Label><Input className={inh("grinder")} {...form.register("grinder")} /></div>
             <div><Label>Dripper</Label><Input className={inh("dripper")} {...form.register("dripper")} /></div>
+            <div><Label>Filter</Label><Input className={inh("filter")} {...form.register("filter")} /></div>
             <div><Label>Water</Label><Input className={inh("waterSource")} {...form.register("waterSource")} /></div>
           </div>
         </Card>

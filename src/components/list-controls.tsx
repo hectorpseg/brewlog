@@ -4,12 +4,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { Label, Select } from "./ui/controls";
 import { NoMatches, SearchField } from "./search-field";
 import { listHref } from "@/lib/lists/params";
+import { toggleFavorite } from "@/app/actions";
+import { BrewCard, type BrewCardData } from "./brew-card";
+import { BrewHistoryRow } from "./brew-history-row";
+import { BrewQuickActions } from "./quick-actions";
 import {
   deletePreset,
+  readBrewDensity,
   readListPrefs,
   readSavedPresets,
   savePreset,
+  writeBrewDensity,
   writeListPrefs,
+  type BrewDensity,
   type ListName,
   type ListPrefs,
   type SavedPreset,
@@ -171,6 +178,81 @@ export function SavedPresets({ base, params, list, current }: {
         </div>
       </div>
     </details>
+  );
+}
+// Brew list density: Comfortable (full BrewCard) vs Compact (BrewHistoryRow
+// with coffee + score filled in, so scanning keeps identity and rating).
+// Client-side view memory only: the server still executes search/filter/sort/
+// pagination, and density never touches the URL or saved presets.
+export function DensityToggle({ value, onChange }: { value: BrewDensity; onChange: (d: BrewDensity) => void }) {
+  return (
+    <div className="mt-3 flex gap-2" role="group" aria-label="List density">
+      {(["comfortable", "compact"] as const).map((d) => {
+        const on = value === d;
+        return (
+          <button
+            key={d}
+            type="button"
+            aria-pressed={on}
+            onClick={() => { if (!on) onChange(d); }}
+            className={
+              on
+                ? "min-h-11 shrink-0 rounded-full border border-ink bg-ink px-4 text-sm font-medium text-white active:scale-[0.97]"
+                : "min-h-11 shrink-0 rounded-full border border-line bg-card px-4 text-sm text-ink2 active:scale-[0.97]"
+            }
+          >
+            {d === "comfortable" ? "Comfortable" : "Compact"}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export type BrewListRow = BrewCardData & { coffee_id?: unknown; is_favorite?: unknown };
+
+export function BrewDensityList({ rows }: { rows: BrewListRow[] }) {
+  const [density, setDensity] = useState<BrewDensity>("comfortable");
+  // Mount-only like ApplyListPrefs: stored density applies after first paint
+  // so the server HTML (comfortable) always hydrates cleanly.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setDensity(readBrewDensity(storage())); }, []);
+  const change = (d: BrewDensity) => {
+    setDensity(d);
+    writeBrewDensity(storage(), d);
+  };
+  return (
+    <>
+      <DensityToggle value={density} onChange={change} />
+      <ul className="mt-2 flex flex-col gap-2">
+        {rows.map((b) => {
+          const coffeeId = typeof b.coffee_id === "string" ? b.coffee_id : null;
+          const isFav = b.is_favorite === true;
+          const coffeeName = Array.isArray(b.coffees) ? b.coffees[0]?.name : b.coffees?.name;
+          return (
+            <li key={String(b.id)} className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                {density === "compact" ? (
+                  <BrewHistoryRow
+                    brew={b}
+                    coffeeName={typeof coffeeName === "string" ? coffeeName : null}
+                    brewScore={b.brew_score}
+                  />
+                ) : (
+                  <BrewCard brew={b} />
+                )}
+              </div>
+              <BrewQuickActions
+                brewId={String(b.id)}
+                coffeeId={coffeeId}
+                isFavorite={isFav}
+                toggle={toggleFavorite.bind(null, String(b.id), !isFav)}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 export function NoListMatches({ query, base, params }: { query: string; base: string; params: Params }) {

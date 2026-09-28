@@ -28,7 +28,8 @@ export const MORE_LINKS: MoreLink[] = [
 ];
 
 // Overflow destinations highlight the More tab instead of a primary tab.
-export const MORE_PREFIXES = ["/more", "/sessions", "/account"];
+// /brews/compare lives under More even though its path nests under /brews.
+export const MORE_PREFIXES = ["/more", "/sessions", "/account", "/brews/compare"];
 
 // Auth shell: no app chrome here. "/" redirects immediately (see app/page),
 // so hiding the nav there avoids a one-frame authenticated flash.

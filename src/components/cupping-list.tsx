@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { CuppingForm, type CuppingRow } from "./cupping-editor";
 import { DeleteButton } from "./delete-button";
 import { EntityDisclosure } from "./entity-card";
@@ -30,7 +31,18 @@ export function CuppingList({ items }: { items: CuppingListItem[] }) {
                 summary={
                   <>
                     <span className="font-medium">
-                      {i.coffeeName} · {i.cupping.dose_g ?? "?"} g / {i.cupping.water_g ?? "?"} g
+                      {i.coffeeId ? (
+                        <Link
+                          href={`/coffees/${i.coffeeId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-medium text-ember underline"
+                        >
+                          {i.coffeeName}
+                        </Link>
+                      ) : (
+                        i.coffeeName
+                      )}
+                      {" · "}{i.cupping.dose_g ?? "?"} g / {i.cupping.water_g ?? "?"} g
                     </span>
                     <span className="shrink-0 text-xs text-ink3">{formatBrewDate(i.cupping.cupped_at)}</span>
                   </>
