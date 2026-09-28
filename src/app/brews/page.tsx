@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/supabase/require-user";
 import { getCoffee, listBrewsPage, listRecentViews } from "@/lib/db/queries";
 import { toggleFavorite } from "@/app/actions";
 import { BrewCard } from "@/components/brew-card";
-import { FavoriteButton } from "@/components/favorite-button";
+import { BrewQuickActions } from "@/components/quick-actions";
 import { RecentlyViewed } from "@/components/recently-viewed";
 import { ApplyListPrefs, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, SavedPresets } from "@/components/list-controls";
 import { Card } from "@/components/ui/controls";
@@ -16,9 +16,11 @@ type SP = Record<string, string | string[] | undefined>;
 // (one flat query, limit+1 for hasMore). The URL is the state — refresh and
 // back/forward preserve it; prefs fill in sort/filter only when absent.
 export default async function BrewsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  await requireUser("/brews");
   const sp = await searchParams;
   const p = parseBrewsParams(sp);
+  // Full list state survives the login bounce: ?next= carries search,
+  // filter, sort, and page size, not just the bare path.
+  await requireUser(listHref("/brews", { q: p.q, sort: p.sort, session: p.session, coffee: p.coffee, fav: p.fav, count: p.count }));
   const params = { q: p.q, sort: p.sort, session: p.session, coffee: p.coffee, fav: p.fav, count: p.count };
   const explicit = {
     sort: "sort" in sp ? p.sort : undefined,
@@ -122,8 +124,9 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
                   <div className="min-w-0 flex-1">
                     <BrewCard brew={b as React.ComponentProps<typeof BrewCard>["brew"]} />
                   </div>
-                  <FavoriteButton
+                  <BrewQuickActions
                     brewId={String(b.id)}
+                    coffeeId={typeof b.coffee_id === "string" ? b.coffee_id : null}
                     isFavorite={b.is_favorite === true}
                     toggle={toggleFavorite.bind(null, String(b.id), !(b.is_favorite === true))}
                   />

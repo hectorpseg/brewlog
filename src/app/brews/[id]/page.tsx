@@ -9,12 +9,14 @@ import { BackToTop } from "@/components/back-to-top";
 import { CopySummaryButton } from "@/components/copy-summary";
 import { DeleteButton } from "@/components/delete-button";
 import { FavoriteButton } from "@/components/favorite-button";
+import { ShareCardButtons, ShareCardPreview } from "@/components/share-card";
 import { SectionHeader } from "@/components/ui/controls";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { brewFinalScore, formatBrewScore } from "@/lib/domain/brew-score";
 import { formatBrewSummary } from "@/lib/domain/brew-summary";
+import { toShareCardData } from "@/lib/domain/share-card";
 import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
 import { describeDeletion } from "@/lib/domain/deletion";
 
@@ -46,6 +48,13 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
   // Same derived score as the list and Best Rated sort: one function, used
   // with the persisted tasting rows (never observation text).
   const score = brewFinalScore(tastings);
+  // Privacy-safe share snapshot (S8): recipe/result fields only, never notes,
+  // observations, tastings detail, sessions, or IDs.
+  const shareCard = toShareCardData({
+    brew: brew as Record<string, unknown>,
+    coffeeName: typeof coffeeName === "string" ? coffeeName : null,
+    score,
+  });
   const summary = formatBrewSummary({
     brew: brew as Record<string, unknown>,
     coffeeName: typeof coffeeName === "string" ? coffeeName : null,
@@ -114,6 +123,18 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
       >
         Compare this brew
       </Link>
+      <div>
+        <SectionHeader>Share</SectionHeader>
+        <details className="mt-2 rounded-[10px] border border-line bg-card px-3 py-2">
+          <summary className="flex min-h-11 cursor-pointer items-center py-2 font-medium">
+            Share this brew
+          </summary>
+          <div className="flex flex-col gap-3 pb-2">
+            <ShareCardPreview card={shareCard} />
+            <ShareCardButtons card={shareCard} />
+          </div>
+        </details>
+      </div>
       <DeleteButton
         label="Delete brew"
         title={del.title}

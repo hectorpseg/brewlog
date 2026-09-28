@@ -49,10 +49,16 @@ describe("recipeStartingValues", () => {
     expect(v.brewTimeSec).toBeUndefined();
     expect(v.finalBeverageG).toBeUndefined();
     expect(v.notes).toBeUndefined();
+    expect(v.expectedText).toBeUndefined();
     expect(v.hotNotes).toBeUndefined();
     expect(v.warmNotes).toBeUndefined();
     expect(v.coldNotes).toBeUndefined();
     expect(v.freeformNotes).toBeUndefined();
+  });
+
+  it("never copies expected text, even when the previous brew has some", () => {
+    const v = recipeStartingValues({ ...previous, expected_text: "Expect sweet" }, "coffee-1");
+    expect(v.expectedText).toBeUndefined();
   });
 
   it("starts every fresh brew with clean tasting state", () => {

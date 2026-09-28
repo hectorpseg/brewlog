@@ -49,6 +49,9 @@ export const brewSchema = z.object({
   totalTimeSec: optNum(z.coerce.number().int().min(0).max(3600)),
   finalBeverageG: optNum(z.coerce.number().positive().max(2000)),
   notes: z.string().max(2000).nullish(),
+  // S6: free-text expectation for this brew; nullable, blank for old rows,
+  // never copied by "Copy as next brew".
+  expectedText: z.string().max(2000).nullish(),
 });
 export type BrewInput = z.infer<typeof brewSchema>;
 

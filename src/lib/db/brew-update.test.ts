@@ -15,6 +15,13 @@ describe("toBrewUpdateRow", () => {
     expect(toBrewUpdateRow({ sessionId: "" }).session_id).toBeNull();
   });
 
+  it("maps expected text to its column and skips it when blank", () => {
+    expect(toBrewUpdateRow({ expectedText: "Expect sweet" })).toEqual({
+      expected_text: "Expect sweet",
+    });
+    expect(toBrewUpdateRow({ expectedText: "" })).toEqual({});
+  });
+
   it("ignores unknown keys and yields an empty row when nothing changed", () => {
     expect(toBrewUpdateRow({ hotNotes: "x", doseG: undefined })).toEqual({});
   });
@@ -79,6 +86,12 @@ describe("brewEditorDefaults", () => {
     expect(f.pourCount).toBe("");
     expect(f.acidity).toBe("");
     expect(f.hotNotes).toBe("");
+  });
+
+  it("carries expected text into the editor, blank for pre-S6 brews", () => {
+    expect(brewEditorDefaults({ ...brew, expected_text: "Expect sweet" }, observation).expectedText).toBe("Expect sweet");
+    expect(brewEditorDefaults({ ...brew, expected_text: null }, observation).expectedText).toBe("");
+    expect(brewEditorDefaults(brew, observation).expectedText).toBe("");
   });
 
   it("carries structured tastings into the editor draft and keeps legacy notes alongside", () => {
@@ -149,6 +162,11 @@ describe("planBrewSync", () => {
   it("plans only the notes slice for a note edit (recipe write skipped)", () => {
     const plan = planBrewSync({ ...pristine(), hotNotes: "Sweet. Bright." }, pristine());
     expect(plan.slices).toEqual(["notes"]);
+  });
+
+  it("plans only the recipe slice for an expected-text edit", () => {
+    const plan = planBrewSync({ ...pristine(), expectedText: "Expect sweet" }, pristine());
+    expect(plan.slices).toEqual(["recipe"]);
   });
 
   it("plans tastings alone when only the tasting draft changed", () => {
