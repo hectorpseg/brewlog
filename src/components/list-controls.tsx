@@ -4,7 +4,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { Label, Select } from "./ui/controls";
 import { NoMatches, SearchField } from "./search-field";
 import { listHref } from "@/lib/lists/params";
-import { readListPrefs, writeListPrefs, type ListName, type ListPrefs } from "@/lib/lists/prefs";
+import {
+  deletePreset,
+  readListPrefs,
+  readSavedPresets,
+  savePreset,
+  writeListPrefs,
+  type ListName,
+  type ListPrefs,
+  type SavedPreset,
+} from "@/lib/lists/prefs";
 
 function storage(): Storage | null {
   return typeof window === "undefined" ? null : window.localStorage;
@@ -29,7 +38,7 @@ export function ApplyListPrefs({ list, base, params, explicit }: {
     const stored = readListPrefs(storage(), list);
     const merged: Params = { ...params };
     let changed = false;
-    for (const k of ["sort", "session", "has"] as const) {
+    for (const k of ["sort", "session", "has", "fav"] as const) {
       if (explicit[k] === undefined && stored[k] !== undefined && stored[k] !== String(params[k] ?? "")) {
         merged[k] = stored[k] as string;
         changed = true;
@@ -97,8 +106,73 @@ export function ListSortSelect({ base, params, options, list }: {
   );
 }
 
-// Filtered to nothing: echo the query with a working clear (drops q and
-// restarts at the first page, keeps sort/filter).
+// Named filter/sort presets, local and per-list. Applying one rebuilds the
+// URL (backend still executes); search text and page size are never stored.
+export function SavedPresets({ base, params, list, current }: {
+  base: string;
+  params: Params;
+  list: ListName;
+  current: ListPrefs;
+}) {
+  const router = useRouter();
+  const [presets, setPresets] = useState<SavedPreset[]>(() => readSavedPresets(storage(), list));
+  const [name, setName] = useState("");
+  const apply = (p: SavedPreset) => {
+    const s = storage();
+    writeListPrefs(s, list, { ...readListPrefs(s, list), ...p.prefs });
+    router.replace(listHref(base, { ...params, ...p.prefs }, true), { scroll: false });
+  };
+  return (
+    <details className="mt-3">
+      <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-ink2">
+        Saved filters{presets.length > 0 ? ` (${presets.length})` : ""}
+      </summary>
+      <div className="mt-1 flex flex-col gap-2">
+        {presets.map((p) => (
+          <div key={p.name} className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => apply(p)}
+              className="min-h-11 flex-1 rounded-[10px] border border-line bg-card px-3 text-left text-sm active:scale-[0.99]"
+            >
+              {p.name}
+            </button>
+            <button
+              type="button"
+              aria-label={`Delete saved filter ${p.name}`}
+              onClick={() => setPresets(deletePreset(storage(), list, p.name))}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-[10px] border border-line bg-card text-sm text-ink2 active:scale-[0.97]"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={name}
+            maxLength={40}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name this filter…"
+            aria-label="Preset name"
+            className="min-h-11 flex-1 rounded-[10px] border border-line bg-card px-3 text-sm"
+          />
+          <button
+            type="button"
+            disabled={name.trim() === ""}
+            onClick={() => {
+              setPresets(savePreset(storage(), list, name, current));
+              setName("");
+            }}
+            className="min-h-11 shrink-0 rounded-[10px] border border-line bg-card px-4 text-sm font-medium active:scale-[0.97] disabled:opacity-40"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </details>
+  );
+}
 export function NoListMatches({ query, base, params }: { query: string; base: string; params: Params }) {
   const router = useRouter();
   return (
@@ -113,7 +187,7 @@ export function NoListMatches({ query, base, params }: { query: string; base: st
 export function FilterChips({ base, params, param, options, list }: {
   base: string;
   params: Params;
-  param: "session" | "has";
+  param: "session" | "has" | "fav";
   options: { value: string; label: string }[];
   list: ListName;
 }) {

@@ -359,6 +359,19 @@ export async function updateCompetitionSettings(formData: FormData): Promise<voi
   redirect("/account");
 }
 
+// Favorite toggle: single boolean column, RLS-scoped to the caller. Both the
+// list and the detail revalidate so the star survives refresh/navigation.
+export async function toggleFavorite(brewId: string, value: boolean): Promise<void> {
+  const db = await createClient();
+  const { error } = await db
+    .from("brews")
+    .update({ is_favorite: value, updated_at: new Date().toISOString() })
+    .eq("id", brewId);
+  if (error) return;
+  revalidatePath("/brews");
+  revalidatePath(`/brews/${brewId}`);
+}
+
 // --- Deletion ---------------------------------------------------------------
 // ponytail: RLS scopes every delete to the caller — no ownership checks needed
 // in code. Consequences follow the schema: observations cascade with their

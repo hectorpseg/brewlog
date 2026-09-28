@@ -1,7 +1,9 @@
 "use client";
+import { Star } from "lucide-react";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
+import { formatBrewScore } from "@/lib/domain/brew-score";
 import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
 import { EntityCard } from "./entity-card";
 import { cn } from "./ui/utils";
@@ -20,6 +22,8 @@ export type BrewCardData = {
   session?: { title: string } | null;
   coffees?: { name: string } | null;
   observations?: unknown;
+  // Derived score from brews_list (null = untasted, never zero-filled).
+  brew_score?: unknown;
 };
 
 // Notebook entry: date first, ratio as the hero numeral, then recipe context,
@@ -35,6 +39,8 @@ export function BrewCard({ brew, action, showCoffee = true }: {
   const status = brewLifecycle(brew, brew.observations as Record<string, unknown> | null | undefined);
   const warnings = brewWarnings(brew);
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
+  const score = typeof brew.brew_score === "number" || typeof brew.brew_score === "string" ? Number(brew.brew_score) : NaN;
+  const scored = Number.isFinite(score);
   return (
     <div>
       <EntityCard href={`/brews/${brew.id}`} label={`Brew ${formatRatio(dose, water)}`}>
@@ -51,6 +57,12 @@ export function BrewCard({ brew, action, showCoffee = true }: {
           </div>
           {brew.session ? (
             <div className="mt-0.5 text-sm text-ink2">Session · {brew.session.title}</div>
+          ) : null}
+          {scored ? (
+            <div className="tnum mt-0.5 flex items-center gap-1 text-sm text-ink2">
+              <Star size={14} aria-hidden fill="currentColor" />
+              <span>Score {formatBrewScore(score)}</span>
+            </div>
           ) : null}
           <div className={cn("mt-0.5 text-sm", status === "in-progress" ? "text-ember" : "text-ink2")}>
             {BREW_LIFECYCLE_LABEL[status]}

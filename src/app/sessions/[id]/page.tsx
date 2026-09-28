@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
-import { getSession, listBrewCandidates, listSessionBrews } from "@/lib/db/queries";
+import { getSession, listBrewCandidates, listSessionBrews, recordRecentView } from "@/lib/db/queries";
 import { excludeSessionBrews, formatCandidateLabel, type CandidateRow } from "@/lib/domain/sessions";
 import { deleteSession, moveBrewToSession, removeBrewFromSession, updateSession } from "@/app/actions";
 import { Button, Card, Label, SectionHeader, Select } from "@/components/ui/controls";
@@ -32,6 +32,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
   const [brews, allBrews] = await Promise.all([
     listSessionBrews(id).catch(() => [] as BrewRow[]),
     listBrewCandidates().catch(() => [] as CandidateRow[]),
+    recordRecentView("session", id),
   ]);
   const update = updateSession.bind(null, id);
   const candidates = excludeSessionBrews(allBrews as CandidateRow[], id);

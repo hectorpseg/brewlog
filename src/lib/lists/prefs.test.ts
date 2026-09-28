@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PREFS_KEY, readListPrefs, readPrefs, writeListPrefs } from "@/lib/lists/prefs";
+import { MAX_PRESETS, PREFS_KEY, deletePreset, readListPrefs, readPrefs, readSavedPresets, savePreset, writeListPrefs } from "@/lib/lists/prefs";
 
 function memStore(initial: Record<string, string> = {}) {
   const data = { ...initial };
@@ -32,5 +32,36 @@ describe("list prefs", () => {
     const bad = { getItem: () => { throw new Error("denied"); }, setItem: () => { throw new Error("denied"); } };
     expect(readPrefs(bad)).toEqual({});
     expect(() => writeListPrefs(bad, "brews", { sort: "oldest" })).not.toThrow();
+  });
+});
+
+describe("saved presets", () => {
+  it("starts empty and round-trips", () => {
+    const s = memStore();
+    expect(readSavedPresets(s, "brews")).toEqual([]);
+    savePreset(s, "brews", "Top unassigned", { sort: "top", session: "none" });
+    expect(readSavedPresets(s, "brews")).toEqual([{ name: "Top unassigned", prefs: { sort: "top", session: "none" } }]);
+    expect(readSavedPresets(s, "sessions")).toEqual([]);
+  });
+  it("replaces same-name presets and deletes by name", () => {
+    const s = memStore();
+    savePreset(s, "brews", "Fav", { fav: "only" });
+    savePreset(s, "brews", "Fav", { fav: "only", sort: "top" });
+    expect(readSavedPresets(s, "brews")).toEqual([{ name: "Fav", prefs: { fav: "only", sort: "top" } }]);
+    expect(deletePreset(s, "brews", "Fav")).toEqual([]);
+  });
+  it("rejects blank names and caps the list", () => {
+    const s = memStore();
+    savePreset(s, "brews", "   ", { sort: "top" });
+    expect(readSavedPresets(s, "brews")).toEqual([]);
+    for (let i = 0; i < MAX_PRESETS + 3; i++) savePreset(s, "brews", `p${i}`, { sort: "top" });
+    const names = readSavedPresets(s, "brews").map((p) => p.name);
+    expect(names).toHaveLength(MAX_PRESETS);
+    expect(names).not.toContain("p0");
+    expect(names).toContain(`p${MAX_PRESETS + 2}`);
+  });
+  it("ignores garbage shapes", () => {
+    const s = memStore({ [PREFS_KEY]: JSON.stringify({ saved: { brews: [{ nope: 1 }, null, "x"] } }) });
+    expect(readSavedPresets(s, "brews")).toEqual([]);
   });
 });

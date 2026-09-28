@@ -13,17 +13,21 @@ import {
 
 describe("parseBrewsParams", () => {
   it("defaults to newest/all/page-size", () => {
-    expect(parseBrewsParams({})).toEqual({ q: "", sort: "newest", session: "all", coffee: "", count: PAGE_SIZE });
+    expect(parseBrewsParams({})).toEqual({ q: "", sort: "newest", session: "all", coffee: "", fav: "all", count: PAGE_SIZE });
   });
   it("keeps valid values and trims the query", () => {
     const coffee = "123e4567-e89b-12d3-a456-426614174000";
-    expect(parseBrewsParams({ q: "  Origami ", sort: "oldest", session: "none", coffee, count: "40" })).toEqual({
-      q: "Origami", sort: "oldest", session: "none", coffee, count: 40,
+    expect(parseBrewsParams({ q: "  Origami ", sort: "oldest", session: "none", coffee, fav: "only", count: "40" })).toEqual({
+      q: "Origami", sort: "oldest", session: "none", coffee, fav: "only", count: 40,
     });
   });
+  it("accepts the top-rated sort", () => {
+    expect(parseBrewsParams({ sort: "top" }).sort).toBe("top");
+    expect(listHref("/brews", { sort: "top", count: 20 })).toBe("/brews?sort=top");
+  });
   it("degrades garbage to defaults instead of erroring queries", () => {
-    expect(parseBrewsParams({ sort: "top", session: "'; DROP", coffee: "abc", count: "zzz" })).toEqual({
-      q: "", sort: "newest", session: "all", coffee: "", count: PAGE_SIZE,
+    expect(parseBrewsParams({ sort: "top", session: "'; DROP", coffee: "abc", fav: "many", count: "zzz" })).toEqual({
+      q: "", sort: "top", session: "all", coffee: "", fav: "all", count: PAGE_SIZE,
     });
   });
   it("clamps count to 1..MAX_COUNT", () => {

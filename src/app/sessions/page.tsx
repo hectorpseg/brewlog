@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
 import { listSessionsPage } from "@/lib/db/queries";
-import { ApplyListPrefs, FilterChips, ListSearchBox, ListSortSelect, NoListMatches } from "@/components/list-controls";
+import { ApplyListPrefs, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, SavedPresets } from "@/components/list-controls";
 import { EntityCard } from "@/components/entity-card";
 import { Card, SectionHeader } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
@@ -62,6 +62,12 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
                 { value: "brews", label: "Has brews" },
                 { value: "empty", label: "Empty" },
               ]}
+            />
+            <SavedPresets
+              base="/sessions"
+              params={params}
+              list="sessions"
+              current={{ sort: p.sort, has: p.has }}
             />
             {rows.length === 0 ? (
               <div className="mt-2">
