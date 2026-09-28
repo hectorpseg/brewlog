@@ -44,6 +44,8 @@ export function recipeStartingValues(
     brewTimeSec: undefined,
     finalBeverageG: undefined,
     notes: undefined,
+    // S6: expectation belongs to the brew it was written for, never the next
+    expectedText: undefined,
     // tasting always starts clean: never inherited, never invented
     tastings: undefined,
     // structured pours are recipe: inherited when the previous brew has any,

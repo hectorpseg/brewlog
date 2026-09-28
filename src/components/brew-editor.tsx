@@ -13,6 +13,7 @@ import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { splitSeconds, toSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate } from "@/lib/domain/brew-date";
 import { SaveStateBadge } from "@/components/save-state";
+import { SectionNav, TastingDisclaimer } from "@/components/section-nav";
 
 export function BrewEditor({ userId, brew, observation, tastings, pours, sessions }: {
   userId: string;
@@ -119,6 +120,13 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
         <p className="text-sm text-ink2">Everything on this page saves itself.</p>
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
+      <SectionNav items={[
+        { id: "sec-equipment", label: "Equipment" },
+        { id: "sec-pours", label: "Pours" },
+        { id: "sec-expected", label: "Expected" },
+        { id: "sec-result", label: "Result" },
+        { id: "sec-observations", label: "Observations" },
+      ]} />
       <Card>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>Dose g</Label><Input value={form.doseG} inputMode="decimal" onChange={(e) => set("doseG", e.target.value)} /></div>
@@ -137,7 +145,7 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
           </div>
         ) : null}
       </Card>
-      <details open>
+      <details open id="sec-equipment" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Equipment</summary>
         <Card>
           <div className="grid grid-cols-2 gap-3">
@@ -157,7 +165,7 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
           </div>
         </Card>
       </details>
-      <details open>
+      <details open id="sec-pours" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Pours - timed additions, optional</summary>
         <Card>
           <PourEditor
@@ -167,16 +175,22 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
           />
         </Card>
       </details>
-      <details open>
+      <Card id="sec-expected" className="scroll-mt-14">
+        <Label htmlFor="brew-expected">Expected from this brew</Label>
+        <Textarea id="brew-expected" rows={2} className="mt-1" placeholder="What do you expect before tasting?" value={form.expectedText ?? ""} onChange={(e) => set("expectedText", e.target.value)} />
+      </Card>
+      <details open id="sec-result" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Result</summary>
         <Card>
           <div><Label>Final beverage g</Label><Input value={form.finalBeverageG ?? ""} inputMode="decimal" onChange={(e) => set("finalBeverageG", e.target.value)} /></div>
           <div className="mt-3"><Label>Process notes</Label><Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} /></div>
         </Card>
       </details>
-      <details open>
+      <details open id="sec-observations" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Observations - what you perceived, never a diagnosis</summary>
         <Card>
+          <TastingDisclaimer />
+          <div className="mt-2">
           <TastingEditor
             rows={tastingRowsFromJson(form.tastings)}
             onChange={(rows) => set("tastings", tastingRowsToJson(rows))}
@@ -187,6 +201,7 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
             <h3 className="text-base font-medium">Overall notes</h3>
             <Label htmlFor="obs-overall" className="sr-only">Overall notes</Label>
             <Textarea id="obs-overall" rows={2} className="mt-1" value={form.freeformNotes ?? ""} onChange={(e) => set("freeformNotes", e.target.value)} />
+          </div>
           </div>
         </Card>
       </details>

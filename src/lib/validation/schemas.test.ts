@@ -77,3 +77,15 @@ describe("structured tasting payload", () => {
     expect(withTasting.success).toBe(true);
   });
 });
+
+// ponytail: S6 only — expectedText is nullable free text, never required.
+describe("newBrewFormSchema expectedText", () => {
+  it("accepts a brew without expected text (pre-S6 rows stay blank)", () => {
+    expect(newBrewFormSchema.safeParse({ coffeeId, doseG: 15, waterG: 250 }).success).toBe(true);
+  });
+  it("accepts free text and rejects overlong values", () => {
+    const base = { coffeeId, doseG: 15, waterG: 250 };
+    expect(newBrewFormSchema.safeParse({ ...base, expectedText: "Expect sweet" }).success).toBe(true);
+    expect(newBrewFormSchema.safeParse({ ...base, expectedText: "x".repeat(2001) }).success).toBe(false);
+  });
+});

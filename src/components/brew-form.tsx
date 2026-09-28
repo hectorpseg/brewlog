@@ -18,6 +18,7 @@ import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
 import { tastingRowsFromJson, tastingRowsToJson } from "@/lib/domain/tastings";
 import { SaveStateBadge } from "@/components/save-state";
+import { SectionNav, TastingDisclaimer } from "@/components/section-nav";
 import { formatRatio } from "@/lib/domain/ratio";
 
 type CoffeeOption = {
@@ -140,6 +141,13 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
       {recipeFrom ? <Card><p className="text-sm text-ink2">Starting from the last recipe - change only what changed. Tinted fields are inherited; editing one returns it to normal.</p></Card> : null}
+      <SectionNav items={[
+        { id: "sec-equipment", label: "Equipment" },
+        { id: "sec-pours", label: "Pours" },
+        { id: "sec-expected", label: "Expected" },
+        { id: "sec-result", label: "Result" },
+        { id: "sec-tasting", label: "Tasting" },
+      ]} />
       <Card>
         <Label htmlFor="coffeeId">Coffee *</Label>
         <Select id="coffeeId" className={inh("coffeeId")} {...form.register("coffeeId")}>
@@ -183,7 +191,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           </div>
         ) : null}
       </Card>
-      <details open>
+      <details open id="sec-equipment" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Equipment</summary>
         <Card>
           <div className="grid grid-cols-2 gap-3">
@@ -193,7 +201,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           </div>
         </Card>
       </details>
-      <details open>
+      <details open id="sec-pours" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Pours (optional)</summary>
         <Card>
           <PourEditor
@@ -203,7 +211,12 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           />
         </Card>
       </details>
-      <details>
+      <Card id="sec-expected" className="scroll-mt-14">
+        <Label htmlFor="expectedText">Expected from this brew</Label>
+        <Textarea id="expectedText" rows={2} className="mt-1" placeholder="What do you expect before tasting?" {...form.register("expectedText")} />
+        <p className="mt-1 text-xs text-ink2">Fresh expectation for this brew only - never copied to the next brew.</p>
+      </Card>
+      <details id="sec-result" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Result</summary>
         <Card>
           <div>
@@ -218,9 +231,10 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           <div className="mt-3"><Label>Brew notes</Label><Textarea rows={2} {...form.register("notes")} /></div>
         </Card>
       </details>
-      <details open>
+      <details open id="sec-tasting" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Tasting</summary>
         <Card>
+          <TastingDisclaimer />
           <TastingEditor
             rows={tastingRowsFromJson(values.tastings)}
             onChange={(rows) => form.setValue("tastings", tastingRowsToJson(rows), { shouldDirty: true })}

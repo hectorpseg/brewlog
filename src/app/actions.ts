@@ -114,6 +114,7 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
     brewTimeSec: nullish(formData.get("brewTimeSec")),
     finalBeverageG: nullish(formData.get("finalBeverageG")),
     notes: nullish(formData.get("notes")),
+    expectedText: nullish(formData.get("expectedText")),
     tastings: nullish(formData.get("tastings")),
     pours: nullish(formData.get("pours")),
     hotNotes: nullish(formData.get("hotNotes")),
@@ -141,6 +142,7 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
       d.brewTimeSec == null ? undefined : Number(d.brewTimeSec),
     ),
     final_beverage_g: d.finalBeverageG, notes: d.notes,
+    expected_text: d.expectedText,
   }).select("id").single();
   if (error) return { error: error.message };
   // child rows ride along at creation: observation, structured tasting, and

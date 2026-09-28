@@ -42,6 +42,8 @@ export function brewEditorDefaults(
     pourCount: str(brew.pour_count),
     sessionId: str(brew.session_id),
     finalBeverageG: str(brew.final_beverage_g),
+    // S6: nullable free text; old rows read "" (never backfilled).
+    expectedText: str(brew.expected_text),
     brewTimeMin: initialTime.minutes != null ? String(initialTime.minutes) : "",
     brewTimeSec: initialTime.seconds != null ? String(initialTime.seconds) : "",
     notes: str(brew.notes),
@@ -71,6 +73,7 @@ export function toBrewUpdateRow(patch: Record<string, string | undefined>): Reco
     totalTimeSec: "total_time_sec",
     finalBeverageG: "final_beverage_g",
     notes: "notes",
+    expectedText: "expected_text",
     doseG: "dose_g",
     waterG: "water_g",
   };
@@ -96,7 +99,7 @@ export function toBrewUpdateRow(patch: Record<string, string | undefined>): Reco
 export const BREW_RECIPE_KEYS = [
   "doseG", "waterG", "brewedAt", "tempC", "grindClicks", "grinder", "dripper",
   "filter", "waterSource", "pourCount", "sessionId", "finalBeverageG",
-  "brewTimeMin", "brewTimeSec", "totalTimeSec", "notes",
+  "brewTimeMin", "brewTimeSec", "totalTimeSec", "notes", "expectedText",
 ] as const;
 
 export const BREW_NOTE_KEYS = [
