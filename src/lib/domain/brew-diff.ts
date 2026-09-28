@@ -73,16 +73,38 @@ export type CompareOptionRow = {
   sessions: { title: string } | { title: string }[] | null;
 };
 
-export function toCompareOption(b: CompareOptionRow): { id: string; label: string } {
+// Searchable selector option. `label` stays the full searchable string
+// (ratio · coffee · date · session); `title`/`detail` drive the compact
+// two-line result row. Deep-link stubs only carry id+label.
+export type BrewOption = { id: string; label: string; title?: string; detail?: string };
+
+export function toCompareOption(b: CompareOptionRow): BrewOption {
   const coffee = Array.isArray(b.coffees) ? b.coffees[0]?.name : b.coffees?.name;
   const session = Array.isArray(b.sessions) ? b.sessions[0]?.title : b.sessions?.title;
-  const parts = [
-    formatRatio(Number(b.dose_g), Number(b.water_g)),
-    coffee ?? "Coffee",
-    formatBrewDate(b.brewed_at ?? b.created_at),
-  ];
+  const date = formatBrewDate(b.brewed_at ?? b.created_at);
+  const ratio = formatRatio(Number(b.dose_g), Number(b.water_g));
+  const parts = [ratio, coffee ?? "Coffee", date];
   if (session) parts.push(session);
-  return { id: b.id, label: parts.join(" · ") };
+  return {
+    id: b.id,
+    label: parts.join(" · "),
+    title: coffee ?? session ?? "Brew",
+    detail: [date, `${b.dose_g} g → ${b.water_g} g`, ratio].join(" · "),
+  };
+}
+
+// Selected brew always stays listed, even mid-search (matches the old filter).
+export function filterBrewOptions(options: BrewOption[], query: string, selectedId: string): BrewOption[] {
+  const q = query.trim().toLowerCase();
+  if (q === "") return options;
+  return options.filter((o) => o.id === selectedId || o.label.toLowerCase().includes(q));
+}
+
+// Roving highlight for ArrowUp/ArrowDown, wrapping both ways.
+export function stepActive(current: number, delta: number, length: number): number {
+  if (length === 0) return -1;
+  if (current < 0) return delta > 0 ? 0 : length - 1;
+  return (current + delta + length) % length;
 }
 
 // URL state for independent selection: explicit params win when they point at
