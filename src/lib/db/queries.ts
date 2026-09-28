@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { EXPERIMENT_BREW_SELECT, EXPERIMENT_DETAIL_SELECT, mergeBrewIdSet } from "@/lib/domain/experiments";
+import { escapeLike } from "@/lib/lists/params";
 
 // ponytail: one helper per entity, RLS does authz, never accept client user_id
 export async function listCoffees() {
@@ -114,13 +114,6 @@ export async function latestBrew() {
   return data ?? null;
 }
 
-export async function listSessions() {
-  const db = await createClient();
-  const { data, error } = await db.from("sessions").select("*").order("created_at", { ascending: false }).limit(30);
-  if (error) throw new Error(error.message);
-  return data;
-}
-
 export async function getSession(id: string) {
   const db = await createClient();
   const { data, error } = await db.from("sessions").select("*").eq("id", id).single();
@@ -143,97 +136,6 @@ export async function getCompetitionSettings() {
   const { data, error } = await db.from("competition_settings").select("*").limit(1).single();
   if (error) return null;
   return data;
-}
-
-export async function listExperimentsForBrew(brewId: string) {
-  const db = await createClient();
-  // Junction links (Wave 4) plus the legacy single brew_id link, deduped.
-  // Two slim queries, never one request per card.
-  const [legacy, links] = await Promise.all([
-    db.from("experiments").select("*").eq("brew_id", brewId).order("created_at", { ascending: false }),
-    db.from("experiment_brews").select("experiment_id").eq("brew_id", brewId),
-  ]);
-  if (legacy.error) throw new Error(legacy.error.message);
-  const legacyRows = legacy.data ?? [];
-  const linkIds = [...new Set((links.data ?? []).map((r: { experiment_id: string }) => r.experiment_id))]
-    .filter((id) => !legacyRows.some((e: { id: string }) => e.id === id));
-  if (linkIds.length === 0) return legacyRows;
-  const { data, error } = await db.from("experiments").select("*").in("id", linkIds).order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return [...legacyRows, ...(data ?? [])].sort((a: { created_at: string }, b: { created_at: string }) =>
-    b.created_at < a.created_at ? -1 : b.created_at > a.created_at ? 1 : 0,
-  );
-}
-
-// Experiment index: compact rows + linked-brew counts. Counts merge the
-// junction table with legacy brew_id links (deduped per experiment).
-export async function listExperiments() {
-  const db = await createClient();
-  const { data, error } = await db
-    .from("experiments")
-    .select("id, title, hypothesis, status, conclusion, updated_at, brew_id")
-    .order("updated_at", { ascending: false })
-    .limit(50);
-  if (error) throw new Error(error.message);
-  const rows = data ?? [];
-  const ids = rows.map((r: { id: string }) => r.id);
-  let counts = new Map<string, number>();
-  if (ids.length > 0) {
-    const { data: links } = await db.from("experiment_brews").select("experiment_id, brew_id").in("experiment_id", ids);
-    counts = new Map<string, number>();
-    for (const r of rows as { id: string; brew_id: string | null }[]) {
-      const set = new Set<string>();
-      for (const l of (links ?? []) as { experiment_id: string; brew_id: string }[]) {
-        if (l.experiment_id === r.id) set.add(l.brew_id);
-      }
-      if (r.brew_id && !set.has(r.brew_id)) set.add(r.brew_id);
-      counts.set(r.id, set.size);
-    }
-  }
-  return (rows as { id: string }[]).map((r) => ({ ...r, brewCount: counts.get(r.id) ?? 0 }));
-}
-
-// Linked-brew counts for a set of experiments, one query. Merges junction
-// rows with legacy brew_id links, deduped per experiment.
-export async function countExperimentBrews(ids: string[]): Promise<Map<string, number>> {
-  const counts = new Map<string, number>();
-  if (ids.length === 0) return counts;
-  const db = await createClient();
-  const [exps, links] = await Promise.all([
-    db.from("experiments").select("id, brew_id").in("id", ids),
-    db.from("experiment_brews").select("experiment_id, brew_id").in("experiment_id", ids),
-  ]);
-  for (const id of ids) {
-    const set = new Set<string>();
-    for (const l of ((links.data ?? []) as { experiment_id: string; brew_id: string }[])) {
-      if (l.experiment_id === id) set.add(l.brew_id);
-    }
-    const legacy = ((exps.data ?? []) as { id: string; brew_id: string | null }[]).find((e) => e.id === id);
-    if (legacy?.brew_id && !set.has(legacy.brew_id)) set.add(legacy.brew_id);
-    counts.set(id, set.size);
-  }
-  return counts;
-}
-
-// Brews linked to one experiment: junction rows first, legacy brew_id merged
-// in and deduped. Label fields only, for compact linked-brew rows.
-export async function listExperimentBrews(experimentId: string) {
-  const db = await createClient();
-  const [exp, links] = await Promise.all([
-    db.from("experiments").select("brew_id").eq("id", experimentId).single(),
-    db.from("experiment_brews").select("brew_id").eq("experiment_id", experimentId),
-  ]);
-  const linkedIds = ((links.data ?? []) as { brew_id: string }[]).map((l) => l.brew_id);
-  const ids = mergeBrewIdSet(linkedIds, (exp.data?.brew_id as string | null) ?? null);
-  if (ids.length === 0) return [];
-  const { data, error } = await db
-    .from("brews")
-    .select(EXPERIMENT_BREW_SELECT)
-    .in("id", ids)
-    .order("brewed_at", { ascending: false })
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return data ?? [];
 }
 
 // Structured tasting entries for one brew, stage then attribute order.
@@ -264,23 +166,6 @@ export async function listPours(brewId: string) {
   return data;
 }
 
-export async function getExperiment(id: string) {
-  const db = await createClient();
-  // ponytail: the bare `brews` embed is ambiguous since 0009 (PostgREST sees
-  // both the legacy experiments.brew_id FK and the many-to-many path through
-  // experiment_brews, and answers PGRST201). The hint pins the legacy direct
-  // link; junction-linked brews arrive separately via listExperimentBrews and
-  // are merged by the caller. Never drop the hint without a backfill-safe
-  // replacement: legacy rows with brew_id and no junction row must load.
-  const { data, error } = await db
-    .from("experiments")
-    .select(EXPERIMENT_DETAIL_SELECT)
-    .eq("id", id)
-    .single();
-  if (error) throw new Error(error.message);
-  return data;
-}
-
 export async function listCuppings(coffeeId: string) {
   const db = await createClient();
   const { data, error } = await db
@@ -293,14 +178,144 @@ export async function listCuppings(coffeeId: string) {
   return data;
 }
 
-// Cuppings index: every tasting with its coffee, newest first.
-export async function listAllCuppings() {
-  const db = await createClient();
-  const { data, error } = await db
-    .from("cuppings")
-    .select("*, coffees(id, name)")
-    .order("cupped_at", { ascending: false })
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return data;
+// --- Server-side list pages --------------------------------------------------
+// ponytail: every list reads one flat *_list view (see 0014_list_views.sql):
+// search is a single ILIKE on search_blob (one predicate, no or()-over-join
+// quoting pitfalls), filters are plain eq/is, sorts are order(), pages are
+// range(). limit+1 rows are fetched so hasMore needs no count query. The
+// browser receives exactly the current page. RLS flows through the views via
+// security_invoker; queries.ts never accepts a client user_id.
+
+export type ListPage<T> = { rows: T[]; hasMore: boolean };
+
+function pageRange<T>(rows: T[], limit: number): ListPage<T> {
+  if (rows.length <= limit) return { rows, hasMore: false };
+  return { rows: rows.slice(0, limit), hasMore: true };
 }
+
+// search_blob never leaves the server: strip it before rows reach components.
+function withoutBlob(r: Record<string, unknown>): Record<string, unknown> {
+  const copy = { ...r };
+  delete copy.search_blob;
+  return copy;
+}
+
+export type BrewsPageOpts = {
+  coffeeId: string;
+  session: string;
+  q: string;
+  sort: "newest" | "oldest";
+  limit: number;
+  offset: number;
+};
+
+// Brews index page: newest/oldest, coffee + session filters, blob search.
+// Observations ride a second batched query (one round trip for the page, no
+// per-card requests) so lifecycle status renders exactly as before.
+export async function listBrewsPage(opts: BrewsPageOpts): Promise<ListPage<Record<string, unknown>>> {
+  const db = await createClient();
+  const asc = opts.sort === "oldest";
+  let query = db
+    .from("brews_list")
+    .select("*")
+    .order("brewed_at", { ascending: asc })
+    .order("created_at", { ascending: asc })
+    .range(opts.offset, opts.offset + opts.limit);
+  if (opts.coffeeId) query = query.eq("coffee_id", opts.coffeeId);
+  if (opts.session === "none") query = query.is("session_id", null);
+  else if (opts.session !== "all") query = query.eq("session_id", opts.session);
+  if (opts.q) query = query.ilike("search_blob", `%${escapeLike(opts.q)}%`);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  const page = pageRange((data ?? []) as Record<string, unknown>[], opts.limit);
+  const ids = page.rows.map((r) => r.id as string);
+  const obsByBrew = new Map<string, Record<string, unknown>>();
+  if (ids.length > 0) {
+    const { data: obs } = await db.from("observations").select("*").in("brew_id", ids);
+    for (const o of (obs ?? []) as Record<string, unknown>[]) {
+      obsByBrew.set(o.brew_id as string, o);
+    }
+  }
+  const rows = page.rows.map((r) => {
+    const rest = withoutBlob(r);
+    return {
+      ...rest,
+      session: typeof r.session_title === "string" && r.session_title !== ""
+        ? { title: r.session_title as string }
+        : null,
+      coffees: typeof r.coffee_name === "string" && r.coffee_name !== ""
+        ? { name: r.coffee_name as string }
+        : null,
+      observations: obsByBrew.get(r.id as string) ?? null,
+    };
+  });
+  return { rows, hasMore: page.hasMore };
+}
+
+export type CoffeesPageOpts = { q: string; sort: "recent" | "name"; limit: number; offset: number };
+
+export async function listCoffeesPage(opts: CoffeesPageOpts): Promise<ListPage<Record<string, unknown>>> {
+  const db = await createClient();
+  let query = db.from("coffees_list").select("*");
+  query = opts.sort === "name"
+    ? query.order("name", { ascending: true }).order("created_at", { ascending: false })
+    : query.order("created_at", { ascending: false });
+  if (opts.q) query = query.ilike("search_blob", `%${escapeLike(opts.q)}%`);
+  query = query.range(opts.offset, opts.offset + opts.limit);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  const page = pageRange((data ?? []) as Record<string, unknown>[], opts.limit);
+  return {
+    rows: page.rows.map(withoutBlob),
+    hasMore: page.hasMore,
+  };
+}
+
+export type SessionsPageOpts = {
+  q: string;
+  sort: "recent" | "title";
+  has: "all" | "brews" | "empty";
+  limit: number;
+  offset: number;
+};
+
+export async function listSessionsPage(opts: SessionsPageOpts): Promise<ListPage<Record<string, unknown>>> {
+  const db = await createClient();
+  let query = db.from("sessions_list").select("*");
+  query = opts.sort === "title"
+    ? query.order("title", { ascending: true }).order("created_at", { ascending: false })
+    : query.order("created_at", { ascending: false });
+  if (opts.has === "brews") query = query.gt("brew_count", 0);
+  else if (opts.has === "empty") query = query.eq("brew_count", 0);
+  if (opts.q) query = query.ilike("search_blob", `%${escapeLike(opts.q)}%`);
+  query = query.range(opts.offset, opts.offset + opts.limit);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  const page = pageRange((data ?? []) as Record<string, unknown>[], opts.limit);
+  return {
+    rows: page.rows.map(withoutBlob),
+    hasMore: page.hasMore,
+  };
+}
+
+export type CuppingsPageOpts = { q: string; sort: "newest" | "oldest"; limit: number; offset: number };
+
+export async function listCuppingsPage(opts: CuppingsPageOpts): Promise<ListPage<Record<string, unknown>>> {
+  const db = await createClient();
+  const asc = opts.sort === "oldest";
+  let query = db
+    .from("cuppings_list")
+    .select("*")
+    .order("cupped_at", { ascending: asc })
+    .order("created_at", { ascending: asc });
+  if (opts.q) query = query.ilike("search_blob", `%${escapeLike(opts.q)}%`);
+  query = query.range(opts.offset, opts.offset + opts.limit);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  const page = pageRange((data ?? []) as Record<string, unknown>[], opts.limit);
+  return {
+    rows: page.rows.map(withoutBlob),
+    hasMore: page.hasMore,
+  };
+}
+

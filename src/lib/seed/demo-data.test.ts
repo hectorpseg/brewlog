@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   SEED_BREWS,
   SEED_COFFEES,
-  SEED_EXPERIMENTS,
   SEED_OBSERVATIONS,
   SEED_SESSIONS,
   SENSORY_LEVELS,
@@ -17,7 +16,6 @@ describe("seed integrity", () => {
     expect(SEED_COFFEES.length).toBeGreaterThanOrEqual(3);
     expect(SEED_BREWS.length).toBeGreaterThanOrEqual(5);
     expect(SEED_OBSERVATIONS.length).toBeGreaterThanOrEqual(3);
-    expect(SEED_EXPERIMENTS.length).toBeGreaterThanOrEqual(3);
   });
 
   it("uses stable Seed-prefixed names (idempotency keys)", () => {
@@ -37,10 +35,6 @@ describe("seed integrity", () => {
     }
     for (const o of SEED_OBSERVATIONS) expect(brews.has(o.brewSlug)).toBe(true);
     expect(new Set(SEED_OBSERVATIONS.map((o) => o.brewSlug)).size).toBe(SEED_OBSERVATIONS.length);
-    for (const e of SEED_EXPERIMENTS) {
-      if (e.brewSlug) expect(brews.has(e.brewSlug)).toBe(true);
-      if (e.sessionSlug) expect(sessions.has(e.sessionSlug)).toBe(true);
-    }
   });
 
   it("leaves empty/partial states (a coffee with no brews, brews with no observations)", () => {
@@ -83,7 +77,7 @@ describe("seed integrity", () => {
   });
 
   it("keeps observation separate from diagnosis", () => {
-    const blob = JSON.stringify([...SEED_OBSERVATIONS, ...SEED_EXPERIMENTS]).toLowerCase();
+    const blob = JSON.stringify(SEED_OBSERVATIONS).toLowerCase();
     expect(blob).not.toMatch(/underextracted|overextracted|under-extracted/);
   });
 });

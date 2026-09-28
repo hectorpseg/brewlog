@@ -1,13 +1,26 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
-import { listSessions } from "@/lib/db/queries";
+import { listSessionsPage } from "@/lib/db/queries";
+import { ApplyListPrefs, FilterChips, ListSearchBox, ListSortSelect, NoListMatches } from "@/components/list-controls";
 import { EntityCard } from "@/components/entity-card";
 import { Card, SectionHeader } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
-import Link from "next/link";
+import { PAGE_SIZE, listHref, parseSessionParams } from "@/lib/lists/params";
 
-export default async function SessionsPage() {
+type SP = Record<string, string | string[] | undefined>;
+
+export default async function SessionsPage({ searchParams }: { searchParams: Promise<SP> }) {
   await requireUser("/sessions");
-  const sessions = await listSessions().catch(() => null);
+  const sp = await searchParams;
+  const p = parseSessionParams(sp);
+  const params = { q: p.q, sort: p.sort, has: p.has, count: p.count };
+  const explicit = {
+    sort: "sort" in sp ? p.sort : undefined,
+    has: "has" in sp ? p.has : undefined,
+  };
+  const sessions = await listSessionsPage({ q: p.q, sort: p.sort, has: p.has, limit: p.count, offset: 0 }).catch(() => null);
+  const filtered = p.q !== "" || p.has !== "all";
+  const rows = sessions?.rows ?? [];
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -16,30 +29,84 @@ export default async function SessionsPage() {
           + Session
         </Link>
       </div>
+      <ApplyListPrefs list="sessions" base="/sessions" params={params} explicit={explicit} />
       <div>
         <SectionHeader>Past sessions</SectionHeader>
         {sessions === null ? (
           <Card><p className="text-sm">Supabase is not reachable. Check your connection, then reload.</p></Card>
-        ) : sessions.length === 0 ? (
-          <div className="mt-2">
-            <EmptyState
-              title="No sessions yet."
-              body="Use a session to group related experiments."
-              actionHref="/sessions/new"
-              actionLabel="Create session"
-            />
-          </div>
         ) : (
-          <ul className="mt-2 flex flex-col gap-2">
-            {sessions.map((s: { id: string; title: string; notes: string | null }) => (
-              <li key={s.id}>
-                <EntityCard href={`/sessions/${s.id}`} label={s.title}>
-                  <div className="font-medium">{s.title}</div>
-                  {s.notes ? <div className="mt-0.5 text-sm text-ink2">{s.notes}</div> : null}
-                </EntityCard>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ListSearchBox
+              id="session-search"
+              label="Search sessions"
+              placeholder="Title, notes…"
+              base="/sessions"
+              params={params}
+            />
+            <ListSortSelect
+              base="/sessions"
+              params={params}
+              list="sessions"
+              options={[
+                { value: "recent", label: "Recently added" },
+                { value: "title", label: "Title A–Z" },
+              ]}
+            />
+            <FilterChips
+              base="/sessions"
+              params={params}
+              param="has"
+              list="sessions"
+              options={[
+                { value: "all", label: "All sessions" },
+                { value: "brews", label: "Has brews" },
+                { value: "empty", label: "Empty" },
+              ]}
+            />
+            {rows.length === 0 ? (
+              <div className="mt-2">
+                {filtered ? (
+                  <NoListMatches query={p.q || "these filters"} base="/sessions" params={params} />
+                ) : (
+                  <EmptyState
+                    title="No sessions yet."
+                    body="Use a session to group related brews."
+                    actionHref="/sessions/new"
+                    actionLabel="Create session"
+                  />
+                )}
+              </div>
+            ) : (
+              <ul className="mt-2 flex flex-col gap-2">
+                {rows.map((s) => {
+                  const n = Number(s.brew_count ?? 0);
+                  return (
+                    <li key={String(s.id)}>
+                      <EntityCard href={`/sessions/${String(s.id)}`} label={String(s.title)}>
+                        <div className="font-medium">{String(s.title)}</div>
+                        {typeof s.notes === "string" && s.notes !== "" ? (
+                          <div className="mt-0.5 text-sm text-ink2">{s.notes}</div>
+                        ) : null}
+                        <div className="tnum mt-0.5 text-sm text-ink2">{n} {n === 1 ? "brew" : "brews"}</div>
+                      </EntityCard>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {sessions.hasMore ? (
+              <div className="mt-3 text-center">
+                <Link
+                  href={listHref("/sessions", { ...params, count: p.count + PAGE_SIZE })}
+                  replace
+                  scroll={false}
+                  className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium active:scale-[0.97]"
+                >
+                  Show more
+                </Link>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </div>

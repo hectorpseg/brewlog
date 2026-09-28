@@ -6,9 +6,9 @@ describe("navigation", () => {
     expect(PRIMARY_TABS.map((t) => t.href)).toEqual(["/brews", "/coffees", "/cuppings"]);
   });
 
-  it("keeps experiments out of the primary tabs, one tap deep under More", () => {
-    expect(PRIMARY_TABS.map((t) => t.href).some((h) => h.startsWith("/experiments"))).toBe(false);
-    expect(MORE_LINKS.map((l) => l.href)).toContain("/experiments");
+  it("has no experiments destination anywhere in navigation", () => {
+    expect(PRIMARY_TABS.map((t) => t.href).some((h) => h.includes("experiment"))).toBe(false);
+    expect(MORE_LINKS.map((l) => l.href).some((h) => h.includes("experiment"))).toBe(false);
   });
 
   it("keeps compare and sessions one tap deep under More", () => {
@@ -29,7 +29,7 @@ describe("navigation", () => {
   it("marks overflow destinations as More", () => {
     expect(isMorePath("/more")).toBe(true);
     expect(isMorePath("/sessions/abc")).toBe(true);
-    expect(isMorePath("/experiments/abc")).toBe(true);
+    expect(isMorePath("/experiments/abc")).toBe(false);
     expect(isMorePath("/account")).toBe(true);
     expect(isMorePath("/brews")).toBe(false);
   });

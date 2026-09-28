@@ -57,7 +57,7 @@ describe("brew lifecycle", () => {
     expect(brewWarnings({ total_time_sec: 150, session_id: "s" })).toEqual([]);
     expect(brewWarnings({ total_time_sec: 150 })).toEqual(["No session"]);
   });
-  it("reports the legacy experiment brew truthfully once fully loaded", () => {
+  it("reports the legacy brew truthfully once fully loaded", () => {
     // Shape of the hosted legacy brew behind the Wave 4 smoke-test card:
     // 12 g / 200 g, 92C, 65 clicks, no recorded time, assigned session,
     // filter on file, one observation with hot notes. The card hero (ratio
@@ -74,15 +74,15 @@ describe("brew lifecycle", () => {
 });
 
 describe("describeDeletion", () => {
-  it("states brew consequences: notes die, experiments unlink", () => {
-    const d = describeDeletion("brew", { observations: 1, experiments: 2 });
+  it("states brew consequences: notes die, dose returns", () => {
+    const d = describeDeletion("brew", { observations: 1 });
     expect(d.body).toContain("1 tasting note set");
     expect(d.body).toContain("permanently deleted");
-    expect(d.body).toContain("kept but unlinked");
+    expect(d.body).toContain("handed back");
     expect(d.confirm).toBe("Delete brew");
   });
   it("states brew consequences: structured tasting entries die with the brew", () => {
-    const d = describeDeletion("brew", { observations: 1, tastings: 3, experiments: 0 });
+    const d = describeDeletion("brew", { observations: 1, tastings: 3 });
     expect(d.body).toContain("3 tasting entries");
     expect(d.body).toContain("permanently deleted");
   });
@@ -94,10 +94,6 @@ describe("describeDeletion", () => {
   it("states session consequences: brews survive unassigned", () => {
     const d = describeDeletion("session", { brews: 4 });
     expect(d.body).toContain("stay in history, unassigned");
-  });
-  it("states experiment consequences: brews kept", () => {
-    const d = describeDeletion("experiment", {});
-    expect(d.body).toContain("Linked brews are kept in history");
   });
   it("states cupping consequences: only the tasting record goes", () => {
     const d = describeDeletion("cupping", {});

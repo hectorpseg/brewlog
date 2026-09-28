@@ -1,6 +1,4 @@
 import { Fragment } from "react";
-import Link from "next/link";
-import { EXPERIMENT_STATUS_LABEL, experimentStatus, experimentTitle, isExperimentStatus } from "@/lib/domain/experiments";
 
 export type CompareFieldRow = { label: string; a: string; b: string; changed: boolean };
 
@@ -28,63 +26,3 @@ export function CompareFieldTable({ rows }: { rows: CompareFieldRow[] }) {
   );
 }
 
-export type CompareExperiment = {
-  id: string;
-  title?: string | null;
-  status?: string | null;
-  hypothesis: string | null;
-  conclusion: string | null;
-  actual_result: string | null;
-};
-
-// Per-side linked experiments: explicit membership context only, no ranking
-// or inference. Explicit status wins; legacy rows without one fall back to
-// the recorded open/answered state.
-export function CompareExperiments({ a, b }: { a: CompareExperiment[]; b: CompareExperiment[] }) {
-  // Shared membership is useful context: experiments both brews belong to.
-  const bIds = new Set(b.map((e) => e.id));
-  const shared = a.filter((e) => bIds.has(e.id));
-  const stateOf = (e: CompareExperiment) =>
-    isExperimentStatus(e.status) ? EXPERIMENT_STATUS_LABEL[e.status] : experimentStatus(e);
-  return (
-    <div className="mt-2 flex flex-col gap-2">
-      {shared.length > 0 ? (
-        <p className="text-sm text-ink2">
-          Shared experiment{shared.length === 1 ? "" : "s"}:{" "}
-          {shared.map((e, i) => (
-            <span key={e.id}>
-              {i > 0 ? ", " : ""}
-              <Link href={`/experiments/${e.id}`} className="text-ember underline">
-                {experimentTitle(e)}
-              </Link>
-            </span>
-          ))}
-        </p>
-      ) : null}
-      {([
-        ["Brew A", a],
-        ["Brew B", b],
-      ] as const).map(([side, list]) => (
-        <div key={side}>
-          <p className="text-sm font-medium">
-            {side} · {list.length} ({list.filter((e) => experimentStatus(e) === "answered").length} answered)
-          </p>
-          {list.length === 0 ? (
-            <p className="mt-0.5 text-sm text-ink2">No linked experiments.</p>
-          ) : (
-            <ul className="mt-1 flex flex-col gap-1">
-              {list.map((e) => (
-                <li key={e.id}>
-                  <Link href={`/experiments/${e.id}`} className="text-sm text-ember underline">
-                    {experimentTitle(e)}
-                    {" · "}{stateOf(e)}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}

@@ -43,7 +43,6 @@ describe("formatBrewSummary", () => {
       sessionTitle: "Phase 1",
       observation,
       tastings,
-      experiments: [{ status: "answered" }, { status: "open" }],
     });
     expect(text).toBe(
       [
@@ -55,13 +54,12 @@ describe("formatBrewSummary", () => {
         "Cold notes: Clean.",
         "Overall: Best cup this week.",
         "Brew notes: good",
-        "Experiments: 2 (1 answered)",
       ].join("\n"),
     );
     // same input twice, same string — no randomness, no timestamps
     expect(formatBrewSummary({
       brew, coffeeName: "Competencia", sessionTitle: "Phase 1",
-      observation, tastings, experiments: [{ status: "answered" }, { status: "open" }],
+      observation, tastings,
     })).toBe(text);
   });
 
@@ -100,7 +98,7 @@ describe("formatBrewSummary", () => {
     expect(text).toContain("Tasting — Hot: body 4, finish 2; Warm: sweetness 8");
     expect(formatBrewSummary({ brew, tastings: [...shuffled].reverse() })).toBe(text);
   });
-  it("skips garbage tasting rows and reports open experiments plainly", () => {
+  it("skips garbage tasting rows", () => {
     const text = formatBrewSummary({
       brew,
       tastings: [
@@ -108,13 +106,11 @@ describe("formatBrewSummary", () => {
         { stage: "hot", attribute: "", value: 5 },
         { stage: "hot", attribute: "ok", value: "lots" },
       ],
-      experiments: [{ status: "open" }],
     });
     expect(text).not.toContain("Tasting");
-    expect(text).toContain("Experiments: 1 (open)");
   });
-  it("omits the experiments line for historical brews with none linked", () => {
-    const text = formatBrewSummary({ brew, observation });
+  it("never emits an experiments line", () => {
+    const text = formatBrewSummary({ brew, observation, tastings });
     expect(text).not.toContain("Experiments");
   });
 });

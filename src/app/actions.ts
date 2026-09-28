@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { coffeeSchema, newBrewFormSchema, observationSchema, experimentSchema, sessionSchema, competitionSettingsSchema, cuppingSchema, tastingsPayloadSchema, poursPayloadSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
+import { coffeeSchema, newBrewFormSchema, observationSchema, sessionSchema, competitionSettingsSchema, cuppingSchema, tastingsPayloadSchema, poursPayloadSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
 import { toBrewedAtIso } from "@/lib/domain/brew-date";
 import { safeNext } from "@/lib/auth";
 
@@ -319,131 +319,6 @@ export async function upsertPours(brewId: string, entries: { sequence: number; a
   }
 }
 
-export async function createExperiment(formData: FormData): Promise<void> {
-  const parsed = experimentSchema.safeParse({
-    brewId: nullish(formData.get("brewId")),
-    sessionId: nullish(formData.get("sessionId")),
-    title: nullish(formData.get("title")),
-    status: nullish(formData.get("status")),
-    hypothesis: nullish(formData.get("hypothesis")),
-    changedVariables: nullish(formData.get("changedVariables")),
-    expectedResult: nullish(formData.get("expectedResult")),
-    actualResult: nullish(formData.get("actualResult")),
-    conclusion: nullish(formData.get("conclusion")),
-    nextQuestion: nullish(formData.get("nextQuestion")),
-    notes: nullish(formData.get("notes")),
-  });
-  if (!parsed.success) return;
-  const d = parsed.data;
-  const db = await createClient();
-  const { data, error } = await db.from("experiments").insert({
-    brew_id: d.brewId, session_id: d.sessionId, title: d.title,
-    status: d.status ?? "planned",
-    hypothesis: d.hypothesis,
-    changed_variables: d.changedVariables, expected_result: d.expectedResult,
-    actual_result: d.actualResult, conclusion: d.conclusion, next_question: d.nextQuestion,
-    notes: d.notes,
-  }).select("id").single();
-  if (error || !data) return;
-  // Mirror the legacy single link into the junction table so list/detail
-  // queries (junction-first) see it without a second code path.
-  if (d.brewId) {
-    await db.from("experiment_brews").upsert(
-      { experiment_id: data.id, brew_id: d.brewId },
-      { onConflict: "experiment_id,brew_id" },
-    );
-  }
-  // the form lives on the brew page or the experiments index: return to the
-  // explicit returnTo target when given, else to the brew or the new record
-  const returnTo = nullish(formData.get("returnTo"));
-  revalidatePath("/brews");
-  revalidatePath("/experiments");
-  if (d.brewId) revalidatePath(`/brews/${d.brewId}`);
-  redirect(returnTo || (d.brewId ? `/brews/${d.brewId}` : `/experiments/${data.id}`));
-}
-
-export async function updateExperiment(id: string, formData: FormData): Promise<void> {
-  const parsed = experimentSchema.safeParse({
-    brewId: nullish(formData.get("brewId")),
-    sessionId: nullish(formData.get("sessionId")),
-    title: nullish(formData.get("title")),
-    status: nullish(formData.get("status")),
-    hypothesis: nullish(formData.get("hypothesis")),
-    changedVariables: nullish(formData.get("changedVariables")),
-    expectedResult: nullish(formData.get("expectedResult")),
-    actualResult: nullish(formData.get("actualResult")),
-    conclusion: nullish(formData.get("conclusion")),
-    nextQuestion: nullish(formData.get("nextQuestion")),
-    notes: nullish(formData.get("notes")),
-  });
-  if (!parsed.success) return;
-  const d = parsed.data;
-  const db = await createClient();
-  const patch: Record<string, unknown> = {
-    title: d.title,
-    hypothesis: d.hypothesis,
-    changed_variables: d.changedVariables, expected_result: d.expectedResult,
-    actual_result: d.actualResult, conclusion: d.conclusion, next_question: d.nextQuestion,
-    notes: d.notes,
-    updated_at: new Date().toISOString(),
-  };
-  // Status is explicit user state: only write it when the form sent one, so
-  // legacy forms that predate the field cannot reset it to the default.
-  if (d.status) patch.status = d.status;
-  // Legacy single link is preserved read-only here: linking now happens
-  // through link/unlinkBrewToExperiment (junction table). The column is only
-  // written when the form explicitly carries a brew id (brew-page inline form).
-  if (d.brewId !== undefined) patch.brew_id = d.brewId;
-  if (d.sessionId !== undefined) patch.session_id = d.sessionId;
-  const { error } = await db.from("experiments").update(patch).eq("id", id);
-  if (error) return;
-  if (d.brewId) {
-    await db.from("experiment_brews").upsert(
-      { experiment_id: id, brew_id: d.brewId },
-      { onConflict: "experiment_id,brew_id" },
-    );
-  }
-  revalidatePath("/brews");
-  revalidatePath("/experiments");
-  revalidatePath(`/experiments/${id}`);
-  if (d.brewId) revalidatePath(`/brews/${d.brewId}`);
-  // the edit form is reached from a brew or the experiment page: return to
-  // the explicit target when given
-  const returnTo = nullish(formData.get("returnTo"));
-  redirect(returnTo || (d.brewId ? `/brews/${d.brewId}` : `/experiments/${id}`));
-}
-
-// Explicit linking: add an existing brew to an experiment (junction row only,
-// the brew record itself is untouched). Idempotent via upsert.
-export async function linkBrewToExperiment(formData: FormData): Promise<void> {
-  const experimentId = nullish(formData.get("experimentId"));
-  const brewId = nullish(formData.get("brewId"));
-  if (!experimentId || !brewId) return;
-  const db = await createClient();
-  const { error } = await db.from("experiment_brews").upsert(
-    { experiment_id: experimentId, brew_id: brewId },
-    { onConflict: "experiment_id,brew_id" },
-  );
-  if (error) return;
-  revalidatePath(`/experiments/${experimentId}`);
-  revalidatePath(`/brews/${brewId}`);
-  redirect(nullish(formData.get("returnTo")) || `/experiments/${experimentId}`);
-}
-
-// Explicit unlinking: remove the junction row only, the brew stays in
-// history. A matching legacy brew_id link is cleared too so the brew does
-// not ghost back through the old column.
-export async function unlinkBrewFromExperiment(experimentId: string, brewId: string): Promise<void> {
-  const db = await createClient();
-  await db.from("experiment_brews").delete().eq("experiment_id", experimentId).eq("brew_id", brewId);
-  const { data: exp } = await db.from("experiments").select("brew_id").eq("id", experimentId).single();
-  if (exp?.brew_id === brewId) {
-    await db.from("experiments").update({ brew_id: null, updated_at: new Date().toISOString() }).eq("id", experimentId);
-  }
-  revalidatePath(`/experiments/${experimentId}`);
-  revalidatePath(`/brews/${brewId}`);
-}
-
 export async function createSession(formData: FormData): Promise<void> {
   const parsed = sessionSchema.safeParse({ title: nullish(formData.get("title")), notes: nullish(formData.get("notes")) });
   if (!parsed.success) return;
@@ -488,8 +363,7 @@ export async function updateCompetitionSettings(formData: FormData): Promise<voi
 // ponytail: RLS scopes every delete to the caller — no ownership checks needed
 // in code. Consequences follow the schema: observations cascade with their
 // brew; coffee delete cascades its brews; session delete keeps brews
-// (unassigned); experiment links null out (experiments survive, detached).
-// Each confirm UI states this explicitly via describeDeletion().
+// (unassigned). Each confirm UI states this explicitly via describeDeletion().
 
 export async function deleteBrew(id: string): Promise<void> {
   const { restoredAfter } = await import("@/lib/domain/inventory");
@@ -528,16 +402,6 @@ export async function deleteSession(id: string): Promise<void> {
   revalidatePath("/sessions");
   revalidatePath("/brews");
   redirect("/sessions");
-}
-
-export async function deleteExperiment(id: string, brewId: string | null): Promise<void> {
-  const db = await createClient();
-  const { error } = await db.from("experiments").delete().eq("id", id);
-  if (error) return;
-  // junction rows cascade with the experiment; linked brews stay in history.
-  revalidatePath("/brews");
-  revalidatePath("/experiments");
-  redirect(brewId ? `/brews/${brewId}` : "/experiments");
 }
 
 function cuppedAtIso(dateStr?: string | null): string {
@@ -697,14 +561,7 @@ async function deleteSeedRows(db: Awaited<ReturnType<typeof createClient>>): Pro
   const coffeeIds = (coffees ?? []).map((c) => c.id);
   const { data: sessions } = await db.from("sessions").select("id").in("title", SEED_SESSION_TITLES);
   const sessionIds = (sessions ?? []).map((s) => s.id);
-  let brewIds: string[] = [];
-  if (coffeeIds.length > 0) {
-    const { data: brews } = await db.from("brews").select("id").in("coffee_id", coffeeIds);
-    brewIds = (brews ?? []).map((b) => b.id);
-  }
-  // experiments first: coffee delete cascades brews but only nulls experiment brew links
-  if (brewIds.length > 0) await db.from("experiments").delete().in("brew_id", brewIds);
-  if (sessionIds.length > 0) await db.from("experiments").delete().in("session_id", sessionIds);
+  // coffee delete cascades its brews (sessions only unassign)
   if (coffeeIds.length > 0) await db.from("coffees").delete().in("id", coffeeIds);
   if (sessionIds.length > 0) await db.from("sessions").delete().in("id", sessionIds);
 }
@@ -712,7 +569,7 @@ async function deleteSeedRows(db: Awaited<ReturnType<typeof createClient>>): Pro
 export async function seedDevData(): Promise<void> {
   if (!seedAllowed()) return;
   const {
-    SEED_BREWS, SEED_COFFEES, SEED_EXPERIMENTS, SEED_OBSERVATIONS, SEED_SESSIONS,
+    SEED_BREWS, SEED_COFFEES, SEED_OBSERVATIONS, SEED_SESSIONS,
   } = await import("@/lib/seed/demo-data");
   const db = await createClient();
   const { data } = await db.auth.getUser();
@@ -761,17 +618,6 @@ export async function seedDevData(): Promise<void> {
       intensity: o.intensity, balance: o.balance, finish: o.finish,
       hot_notes: o.hotNotes, warm_notes: o.warmNotes, cold_notes: o.coldNotes,
       freeform_notes: o.freeformNotes, created_at: daysAgoIso(o.daysAgo),
-    });
-    if (error) redirect(`/coffees?error=${encodeURIComponent(error.message)}`);
-  }
-  for (const e of SEED_EXPERIMENTS) {
-    const { error } = await db.from("experiments").insert({
-      brew_id: e.brewSlug ? brewIds[e.brewSlug] : undefined,
-      session_id: e.sessionSlug ? sessionIds[e.sessionSlug] : undefined,
-      hypothesis: e.hypothesis, changed_variables: e.changedVariables,
-      expected_result: e.expectedResult, actual_result: e.actualResult,
-      conclusion: e.conclusion, next_question: e.nextQuestion,
-      created_at: daysAgoIso(e.daysAgo),
     });
     if (error) redirect(`/coffees?error=${encodeURIComponent(error.message)}`);
   }

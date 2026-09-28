@@ -59,18 +59,6 @@ export type SeedObservation = {
   daysAgo: number;
 };
 
-export type SeedExperiment = {
-  brewSlug?: string;
-  sessionSlug?: string;
-  hypothesis?: string;
-  changedVariables?: string;
-  expectedResult?: string;
-  actualResult?: string;
-  conclusion?: string;
-  nextQuestion?: string;
-  daysAgo: number;
-};
-
 export const SEED_SESSIONS: SeedSession[] = [
   {
     slug: "phase1",
@@ -250,49 +238,6 @@ export const SEED_OBSERVATIONS: SeedObservation[] = [
     warmNotes: "Black tea and apricot. Minerals added structure.",
     coldNotes: "Still sweet cold. Promising direction.",
     daysAgo: 3,
-  },
-];
-
-export const SEED_EXPERIMENTS: SeedExperiment[] = [
-  {
-    brewSlug: "comp-grind68",
-    hypothesis: "The baseline cup is slightly thin; a finer grind raises extraction without changing concentration.",
-    changedVariables: "Grind 70 → 68 clicks (one variable).",
-    expectedResult: "More sweetness and body, clarity roughly unchanged.",
-    actualResult: "Sweetness and body up, finish longer. No added bitterness.",
-    conclusion: "68 confirmed better than 70 for this lot. New baseline grind.",
-    nextQuestion: "Does ratio 1:14 add intensity without the bitter edge?",
-    daysAgo: 8,
-  },
-  {
-    brewSlug: "comp-ratio14",
-    hypothesis: "The 68-click cup needs more concentration to carry sweetness cold.",
-    changedVariables: "Ratio 1:15 → 1:14 (one variable, grind held at 68).",
-    expectedResult: "More intensity, similar extraction character.",
-    actualResult: "Intensity up, but bitterness emerged as it cooled. Balance worse.",
-    conclusion: "1:14 over-concentrates this lot. Return to 1:15.",
-    nextQuestion: "Is the Wave filter limiting clarity before touching ratio again?",
-    daysAgo: 6,
-  },
-  {
-    brewSlug: "comp-wave",
-    hypothesis: "Wave flat-bed will even out extraction vs the conical Abaca.",
-    changedVariables: "Filter Abaca → Wave AND temp 92 → 93C (two variables — mistake).",
-    expectedResult: "Cleaner cup, similar intensity.",
-    actualResult: "Muted aromatics, slower drawdown. Cannot separate filter effect from temp effect.",
-    conclusion: "Confounded experiment. Repeat Wave at 92C before judging the filter.",
-      nextQuestion: "Wave at 92C, grind 68, ratio 1:15 - direct Abaca comparison?",
-    daysAgo: 4,
-  },
-  {
-    sessionSlug: "cupping",
-    hypothesis: "The practice lot suits medium-high extraction; watch whether acidity stays integrated as it cools.",
-      changedVariables: "n/a - cupping baseline, no brew variable changed.",
-    expectedResult: "Floral/citrus aromatics, sweetness developing warm.",
-    actualResult: "Red apple, brown sugar warm; acidity disconnected slightly when fully cold.",
-    conclusion: "Favor recipes that preserve warm-phase sweetness into the cold cup.",
-    nextQuestion: "Pull the 1:15 baseline and evaluate hot/warm/cold against this cupping.",
-    daysAgo: 10,
   },
 ];
 

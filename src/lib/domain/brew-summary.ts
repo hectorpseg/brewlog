@@ -14,8 +14,6 @@ export type SummaryPour = {
   sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown;
   bloom?: unknown; pattern?: unknown; note?: unknown;
 };
-export type SummaryExperiment = { status: "open" | "answered" };
-
 type SummaryInput = {
   brew: Record<string, unknown>;
   coffeeName?: string | null;
@@ -23,7 +21,6 @@ type SummaryInput = {
   observation?: Record<string, unknown> | null;
   tastings?: SummaryTasting[] | null;
   pours?: SummaryPour[] | null;
-  experiments?: SummaryExperiment[] | null;
 };
 
 function text(v: unknown): string | null {
@@ -45,7 +42,7 @@ const NOTE_LABELS = [
 ] as const;
 
 export function formatBrewSummary(input: SummaryInput): string {
-  const { brew, coffeeName, sessionTitle, observation, tastings, pours, experiments } = input;
+  const { brew, coffeeName, sessionTitle, observation, tastings, pours } = input;
   const lines: string[] = [];
 
   const day = typeof brew.brewed_at === "string" && brew.brewed_at !== ""
@@ -141,12 +138,6 @@ export function formatBrewSummary(input: SummaryInput): string {
   }
   const processNotes = text(brew.notes);
   if (processNotes) lines.push(`Brew notes: ${processNotes}`);
-
-  const exps = experiments ?? [];
-  if (exps.length > 0) {
-    const answered = exps.filter((e) => e.status === "answered").length;
-    lines.push(`Experiments: ${exps.length}${answered > 0 ? ` (${answered} answered)` : " (open)"}`);
-  }
 
   return lines.join("\n");
 }

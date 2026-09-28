@@ -29,7 +29,6 @@ function fixture(): TableRows {
     observations: [
       { id: "o1", user_id: userId, brew_id: brewId, acidity: "bright", sweetness: null, body: null, clarity: null, bitterness: null, astringency: null, intensity: null, balance: null, finish: null, hot_notes: null, warm_notes: null, cold_notes: null, freeform_notes: null, created_at: "2026-09-20T12:00:00.000Z", updated_at: "2026-09-20T12:00:00.000Z" },
     ],
-    experiments: [],
     cuppings: [],
     tastings: [],
   };
@@ -54,9 +53,17 @@ describe("export envelope", () => {
   it("represents every user-owned entity", () => {
     const keys = Object.keys(buildEnvelope(fixture(), userId, "x").data).sort();
     expect(keys).toEqual(
-      ["brews", "coffees", "competitionSettings", "cuppings", "experiments", "observations", "sessions", "tastings"].sort(),
+      ["brews", "coffees", "competitionSettings", "cuppings", "observations", "sessions", "tastings"].sort(),
     );
     expect(BACKUP_TABLES.map((t) => t.key).sort()).toEqual(keys);
+  });
+  it("safely ignores obsolete keys from old backups (e.g. experiments)", () => {
+    const legacy = { ...fixture(), experiments: [{ id: "e-old" }] };
+    expect(countRows(legacy).experiments).toBeUndefined();
+    const sql = buildSqlBackup(legacy, { exportedAt: "2026-09-22T18:30:00.000Z", userId });
+    expect(sql).not.toContain("e-old");
+    expect(sql).not.toContain('"experiments"');
+    expect(sql.trimEnd().endsWith("COMMIT;")).toBe(true);
   });
 });
 
