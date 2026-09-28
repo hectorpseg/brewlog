@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
 import { requireUser } from "@/lib/supabase/require-user";
 import { listBrewsPage, listRecentViews } from "@/lib/db/queries";
 import { RecentlyViewed } from "@/components/recently-viewed";
-import { ApplyListPrefs, BrewList, ListFilterLink, ListNavProvider, ListSearchBox, ListSortSelect, NoListMatches, type BrewListRow } from "@/components/list-controls";
+import { ApplyListPrefs, BrewFilterBar, BrewList, ListNavProvider, ListSearchBox, ListSortPills, NoListMatches, type BrewListRow } from "@/components/list-controls";
 import { EmptyState } from "@/components/states";
 import { Card } from "@/components/ui/controls";
-import { cn } from "@/components/ui/utils";
 import { PAGE_SIZE, listHref, parseBrewsParams } from "@/lib/lists/params";
 import { BREWS_LIST_PREF_KEYS, type ListPrefs } from "@/lib/lists/prefs";
 
 type SP = Record<string, string | string[] | undefined>;
+
+const SECTION_LABEL = "mb-0 text-[11px] font-medium tracking-wide text-ink3 uppercase";
 
 export default async function BrewsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
@@ -76,7 +76,7 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
-      <div className="mb-4">
+      <div className="mb-3">
         <h1 className="font-display text-2xl">Brews</h1>
       </div>
       <ApplyListPrefs list="brews" base="/brews" params={params} explicit={explicit} persist={BREWS_LIST_PREF_KEYS} />
@@ -91,90 +91,20 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
             placeholder="Coffee, session, date, notes…"
             base="/brews"
             params={params}
+            labelClassName={SECTION_LABEL}
+            className="placeholder:text-[11px] placeholder:font-medium placeholder:tracking-wide placeholder:text-ink3"
           />
-          <ListSortSelect
+          <ListSortPills
             base="/brews"
             params={params}
             list="brews"
             options={[
-              { value: "newest", label: "Newest first" },
-              { value: "oldest", label: "Oldest first" },
-              { value: "top", label: "Top rated" },
+              { value: "newest", label: "Newest" },
+              { value: "oldest", label: "Oldest" },
+              { value: "top", label: "Best rated" },
             ]}
           />
-          <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
-            <ListFilterLink
-              href={listHref("/brews", { ...params, session: p.session === "none" ? "all" : "none" }, true)}
-              className={cn(
-                "min-h-11 shrink-0 rounded-full border border-line bg-card px-3 text-sm text-ink2 active:scale-[0.97]",
-                p.session === "none" ? "border-ember text-ember" : ""
-              )}
-              aria-pressed={p.session === "none"}
-              aria-label={p.session === "none" ? "Show all brews" : "Show brews with no session"}
-            >
-              No session
-            </ListFilterLink>
-            <ListFilterLink
-              href={listHref("/brews", { ...params, fav: p.fav === "only" ? "all" : "only" }, true)}
-              className={cn(
-                "min-h-11 shrink-0 rounded-full border border-line bg-card px-3 text-sm text-ink2 active:scale-[0.97]",
-                p.fav === "only" ? "border-ember text-ember" : ""
-              )}
-              aria-pressed={p.fav === "only"}
-              aria-label={p.fav === "only" ? "Show all brews" : "Show favorite brews"}
-            >
-              Favorites
-            </ListFilterLink>
-            <ListFilterLink
-              href={listHref("/brews", { ...params, tasted: hasTasted ? "" : "1" }, true)}
-              className={cn(
-                "min-h-11 shrink-0 rounded-full border border-line bg-card px-3 text-sm text-ink2 active:scale-[0.97]",
-                hasTasted ? "border-ember text-ember" : ""
-              )}
-              aria-pressed={hasTasted}
-              aria-label={hasTasted ? "Show all brews" : "Show tasted brews"}
-            >
-              Tasted
-            </ListFilterLink>
-            <details className="group shrink-0">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-full border border-line bg-card px-3 text-sm text-ink2 active:scale-[0.97]">
-                More filters
-                <ChevronDown size={14} aria-hidden className="transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="mt-1 flex w-28 flex-col gap-1.5">
-                <ListFilterLink
-                  href={listHref("/brews", { ...params, untasted: hasUntasted ? "" : "1" }, true)}
-                  className={cn(
-                    "min-h-9 shrink-0 rounded-full border px-2.5 py-1 text-xs active:scale-[0.97]",
-                    hasUntasted ? "border-ember text-ember" : "border-line bg-card text-ink2"
-                  )}
-                  aria-pressed={hasUntasted}
-                >
-                  Untasted
-                </ListFilterLink>
-                <ListFilterLink
-                  href={listHref("/brews", { ...params, "has-score": hasScoreFilter ? "" : "1" }, true)}
-                  className={cn(
-                    "min-h-9 shrink-0 rounded-full border px-2.5 py-1 text-xs active:scale-[0.97]",
-                    hasScoreFilter ? "border-ember text-ember" : "border-line bg-card text-ink2"
-                  )}
-                  aria-pressed={hasScoreFilter}
-                >
-                  Has score
-                </ListFilterLink>
-                <ListFilterLink
-                  href={listHref("/brews", { ...params, "no-score": hasNoScoreFilter ? "" : "1" }, true)}
-                  className={cn(
-                    "min-h-9 shrink-0 rounded-full border px-2.5 py-1 text-xs active:scale-[0.97]",
-                    hasNoScoreFilter ? "border-ember text-ember" : "border-line bg-card text-ink2"
-                  )}
-                  aria-pressed={hasNoScoreFilter}
-                >
-                  No score
-                </ListFilterLink>
-              </div>
-            </details>
-          </div>
+          <BrewFilterBar base="/brews" params={params} />
           <BrewList rows={rows as BrewListRow[]}>
             {filtered ? (
               <NoListMatches query={p.q || "these filters"} base="/brews" params={params} />
@@ -192,7 +122,7 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
               href={listHref("/brews", { ...params, count: p.count + PAGE_SIZE })}
               replace
               scroll={false}
-              className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium active:scale-[0.97]"
+              className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium transition-transform duration-150 active:scale-[0.97]"
             >
               Show more
             </Link>

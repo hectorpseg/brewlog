@@ -1,3 +1,5 @@
+import { formatBrewDate, formatReceived } from "./brew-date";
+
 // ponytail: pure display helpers so old rows (all metadata null) render
 // exactly as before. No inference, no formatting of values.
 export type CoffeeMeta = {
@@ -31,4 +33,13 @@ export function coffeeDetailLine(c: CoffeeMeta): string | null {
     text(c.altitude),
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+// Coffee list date: prefer the user-entered received date, fall back to the
+// audit timestamp when unknown. Label makes the source clear.
+export function formatCoffeeListDate(receivedDate?: string | null, createdAt?: string | null): string {
+  if (receivedDate != null && receivedDate !== "") {
+    return `Received ${formatReceived(receivedDate)}`;
+  }
+  return `Added ${formatBrewDate(createdAt)}`;
 }

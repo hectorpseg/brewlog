@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { coffeeSchema } from "@/lib/validation/schemas";
-import { coffeeDetailLine, coffeeMetaLine } from "@/lib/domain/coffee-meta";
+import { coffeeDetailLine, coffeeMetaLine, formatCoffeeListDate } from "@/lib/domain/coffee-meta";
 import { BACKUP_TABLES } from "@/lib/backup/tables";
 import { buildSqlBackup } from "@/lib/backup/format";
 
@@ -47,6 +47,17 @@ describe("coffee metadata rendering", () => {
     expect(coffeeMetaLine({ origin: "Colombia", process: "Washed" })).toBe("Colombia · Washed");
     expect(coffeeDetailLine(META)).toBe("Gesha · La Palma · Colombia · Huila · El Mirador · 1800-2000 masl");
     expect(coffeeDetailLine({ variety: "Gesha" })).toBe("Gesha");
+  });
+});
+
+describe("coffee list date", () => {
+  it("prefers the received date and labels it", () => {
+    expect(formatCoffeeListDate("2026-09-19")).toMatch(/^Received Sep/);
+    expect(formatCoffeeListDate("last week")).toBe("Received last week");
+  });
+  it("falls back to the added date when received is unknown", () => {
+    expect(formatCoffeeListDate(null, "2026-09-19T12:00:00.000Z")).toMatch(/^Added Sep/);
+    expect(formatCoffeeListDate("", null)).toBe("Added -");
   });
 });
 

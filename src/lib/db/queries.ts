@@ -334,6 +334,13 @@ export async function listSessionsPage(opts: SessionsPageOpts): Promise<ListPage
 
 export type CuppingsPageOpts = { q: string; sort: "newest" | "oldest"; limit: number; offset: number };
 
+export async function getCupping(id: string): Promise<Record<string, unknown> | null> {
+  const db = await createClient();
+  const { data, error } = await db.from("cuppings").select("*, coffees(id, name)").eq("id", id).single();
+  if (error) return null;
+  return data;
+}
+
 export async function listCuppingsPage(opts: CuppingsPageOpts): Promise<ListPage<Record<string, unknown>>> {
   const db = await createClient();
   const asc = opts.sort === "oldest";

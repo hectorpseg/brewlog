@@ -1,20 +1,23 @@
 "use client";
 import { Search, X } from "lucide-react";
 import { Button, Input, Label } from "./ui/controls";
+import { cn } from "./ui/utils";
 
 // Shared list search: labeled, 44px, immediate, with an explicit clear.
 // Typing only rewrites the URL (debounced in ListSearchBox); the server
 // executes the search. CompareSelectors is the one local-filter exception.
-export function SearchField({ id, label, placeholder, value, onChange }: {
+export function SearchField({ id, label, placeholder, value, onChange, labelClassName, className }: {
   id: string;
   label: string;
   placeholder: string;
   value: string;
   onChange: (next: string) => void;
+  labelClassName?: string;
+  className?: string;
 }) {
   return (
     <div className="mt-3">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={labelClassName}>{label}</Label>
       <div className="relative">
         <Search size={18} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink3" />
         <Input
@@ -24,7 +27,7 @@ export function SearchField({ id, label, placeholder, value, onChange }: {
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="pl-9 pr-10"
+          className={cn("pl-9 pr-10", className)}
         />
         {value !== "" ? (
           <button

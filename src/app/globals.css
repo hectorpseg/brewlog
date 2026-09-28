@@ -29,6 +29,11 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Display headings are UI labels: keep "ff" in "Coffees" from joining. */
+.font-display {
+  font-variant-ligatures: none;
+}
+
 /* ember focus ring, never suppressed */
 :focus-visible {
   outline: 2px solid var(--color-ember);

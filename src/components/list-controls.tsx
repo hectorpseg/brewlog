@@ -1,20 +1,21 @@
 "use client";
-import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
+import { createContext, useContext, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link, { useLinkStatus } from "next/link";
-import { Coffee } from "lucide-react";
+import { ChevronDown, Coffee } from "lucide-react";
 import { Label, Select } from "./ui/controls";
 import { NoMatches, SearchField } from "./search-field";
 import { listHref } from "@/lib/lists/params";
 import { toggleFavorite } from "@/app/actions";
 import { BrewCard, type BrewCardData } from "./brew-card";
+import { CoffeeCard, CoffeeListSkeleton, type CoffeeCardData } from "./coffee-card";
 import { cn } from "./ui/utils";
 import { deletePreset, mergeStoredPrefs, readListPrefs, readSavedPresets, savePreset, writeListPrefs, type ListName, type ListPrefs, type SavedPreset } from "@/lib/lists/prefs";
 
 // List navigation runs inside a transition so isPending stays true for the
 // whole server round trip: the list shows its skeleton while search, filter,
 // or sort refetch, and the controls stay usable. Pages without the provider
-// (sessions, coffees, cuppings) fall back to a plain replace.
+// (sessions) fall back to a plain replace.
 type ListNav = { isPending: boolean; navigate: (href: string) => void };
 const ListNavContext = createContext<ListNav | null>(null);
 
@@ -29,7 +30,7 @@ export function ListNavProvider({ children }: { children: React.ReactNode }) {
   return <ListNavContext.Provider value={{ isPending, navigate }}>{children}</ListNavContext.Provider>;
 }
 
-function useListNav(): ListNav {
+export function useListNav(): ListNav {
   const ctx = useContext(ListNavContext);
   const router = useRouter();
   return { isPending: ctx?.isPending ?? false, navigate: ctx?.navigate ?? ((href: string) => router.replace(href, { scroll: false })) };
@@ -77,12 +78,14 @@ export function ApplyListPrefs({ list, base, params, explicit, persist }: {
 }
 
 // Server executes the search; typing only debounces the URL push.
-export function ListSearchBox({ id, label, placeholder, base, params }: {
+export function ListSearchBox({ id, label, placeholder, base, params, labelClassName, className }: {
   id: string;
   label: string;
   placeholder: string;
   base: string;
   params: Params;
+  labelClassName?: string;
+  className?: string;
 }) {
   const { navigate } = useListNav();
   const [local, setLocal] = useState(String(params.q ?? ""));
@@ -102,7 +105,7 @@ export function ListSearchBox({ id, label, placeholder, base, params }: {
       }
     }, 300);
   };
-  return <SearchField id={id} label={label} placeholder={placeholder} value={local} onChange={push} />;
+  return <SearchField id={id} label={label} placeholder={placeholder} value={local} onChange={push} labelClassName={labelClassName} className={className} />;
 }
 
 export function ListSortSelect({ base, params, options, list }: {
@@ -128,6 +131,59 @@ export function ListSortSelect({ base, params, options, list }: {
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </Select>
+    </div>
+  );
+}
+
+function ListSectionLabel({ children }: { children: React.ReactNode }) {
+  return <div className="mb-0 text-[11px] font-medium tracking-wide text-ink3 uppercase">{children}</div>;
+}
+
+// Compact sort pills for /brews: always visible, immediate optimistic active
+// state, and disabled while the list transition is pending.
+export function ListSortPills({ base, params, options, list, label = "Sort by" }: {
+  base: string;
+  params: Params;
+  options: { value: string; label: string }[];
+  list: ListName;
+  label?: string;
+}) {
+  const { isPending, navigate } = useListNav();
+  const [, startTransition] = useTransition();
+  const [optimisticSort, setOptimisticSort] = useOptimistic(String(params.sort));
+  return (
+    <div className="mt-2">
+      <ListSectionLabel>{label}</ListSectionLabel>
+      <div className="no-scrollbar mt-1.5 flex gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label="Sort options">
+        {options.map((o) => {
+          const on = optimisticSort === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={on}
+              disabled={isPending}
+              onClick={() => {
+                if (on || isPending) return;
+                startTransition(() => {
+                  setOptimisticSort(o.value);
+                  const s = storage();
+                  writeListPrefs(s, list, { ...readListPrefs(s, list), sort: o.value });
+                  navigate(listHref(base, { ...params, sort: o.value }, true));
+                });
+              }}
+              className={cn(
+                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96] disabled:opacity-60",
+                on
+                  ? "bg-ember text-white"
+                  : "border border-line bg-card text-ink2 hover:bg-paper"
+              )}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -233,26 +289,45 @@ export function BrewList({ rows, children }: { rows: BrewListRow[]; children?: R
   );
 }
 
+export function CoffeeList({ rows, children }: { rows: CoffeeCardData[]; children?: React.ReactNode }) {
+  const { isPending } = useListNav();
+  if (isPending) return <CoffeeListSkeleton />;
+  if (rows.length === 0) return <div className="mt-2">{children}</div>;
+  return (
+    <ul className="mt-3 flex flex-col gap-2">
+      {rows.map((c) => (
+        <li key={c.id}>
+          <CoffeeCard coffee={c} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function BrewListItem({ b }: { b: BrewListRow }) {
   const [isPending, startTransition] = useTransition();
   const coffeeId = typeof b.coffee_id === "string" ? b.coffee_id : null;
   const isFav = b.is_favorite === true;
+  const [optimisticFav, setOptimisticFav] = useOptimistic(isFav);
+  const next = !optimisticFav;
   return (
     <li className="flex items-start gap-2">
       <div className="min-w-0 flex-1">
         <BrewCard
           brew={b}
-          isFavorite={isFav}
+          isFavorite={optimisticFav}
           favoritePending={isPending}
-          onFavoriteToggle={() =>
+          onFavoriteToggle={() => {
+            if (isPending) return;
             startTransition(async () => {
+              setOptimisticFav(next);
               try {
-                await toggleFavorite(String(b.id), !isFav);
+                await toggleFavorite(String(b.id), next);
               } catch {
-                // ponytail: no optimistic state to roll back; server rows stay truth
+                setOptimisticFav(!next);
               }
-            })
-          }
+            });
+          }}
           action={<NewFromThis coffeeId={coffeeId} />}
         />
       </div>
@@ -273,7 +348,7 @@ export function NewFromThis({ coffeeId }: NewFromThisProps) {
       href={href}
       replace
       prefetch={false}
-      className="inline-flex min-h-9 items-center gap-1 rounded-full border border-ember/40 bg-ember/5 px-2.5 py-1 text-xs font-medium text-ember active:scale-[0.97]"
+      className="inline-flex min-h-9 items-center gap-1 rounded-full border border-ember/40 bg-ember/5 px-2.5 py-1 text-xs font-medium text-ember transition-transform duration-150 active:scale-[0.97]"
     >
       <Coffee size={13} aria-hidden />
       <NewFromThisLabel />
@@ -355,6 +430,110 @@ export function FilterChips({ base, params, param, options, list }: {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// Compact AND-filter toolbar for /brews. Primary filters are always visible;
+// secondary filters share the same pill treatment and appear inline when
+// "More filters" is expanded. State is optimistic and controls are disabled
+// while the list transition is pending so spam clicks cannot queue conflicting
+// navigations; useOptimistic reverts automatically if navigation fails or is
+// cancelled.
+export function BrewFilterBar({ base, params }: {
+  base: string;
+  params: Params;
+}) {
+  const { isPending, navigate } = useListNav();
+  const [, startTransition] = useTransition();
+  const [showMore, setShowMore] = useState(false);
+  const [optimisticParams, setOptimisticParams] = useOptimistic({
+    session: params.session,
+    fav: params.fav,
+    tasted: params.tasted,
+    untasted: params.untasted,
+    "has-score": params["has-score"],
+    "no-score": params["no-score"],
+  });
+
+  const hasNoSession = optimisticParams.session === "none";
+  const hasFavorites = optimisticParams.fav === "only";
+  const hasTasted = optimisticParams.tasted === "1";
+  const hasUntasted = optimisticParams.untasted === "1";
+  const hasScoreFilter = optimisticParams["has-score"] === "1";
+  const hasNoScoreFilter = optimisticParams["no-score"] === "1";
+
+  const toggle = (next: typeof optimisticParams) => {
+    if (isPending) return;
+    startTransition(() => {
+      setOptimisticParams(next);
+      navigate(listHref(base, { ...params, ...next }, true));
+    });
+  };
+
+  const pill = (label: string, active: boolean, onClick: () => void, ariaLabel?: string) => (
+    <button
+      key={label}
+      type="button"
+      aria-pressed={active}
+      aria-label={ariaLabel ?? label}
+      disabled={isPending}
+      onClick={onClick}
+      className={cn(
+        "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96] disabled:opacity-60",
+        active
+          ? "bg-ember text-white"
+          : "border border-line bg-card text-ink2 hover:bg-paper"
+      )}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="mt-2">
+      <ListSectionLabel>Filters</ListSectionLabel>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filters">
+        {pill(
+          "No session",
+          hasNoSession,
+          () => toggle({ ...optimisticParams, session: hasNoSession ? "all" : "none" }),
+          hasNoSession ? "Show all brews" : "Show brews with no session"
+        )}
+        {pill(
+          "Favorites",
+          hasFavorites,
+          () => toggle({ ...optimisticParams, fav: hasFavorites ? "all" : "only" }),
+          hasFavorites ? "Show all brews" : "Show favorite brews"
+        )}
+        {pill(
+          "Tasted",
+          hasTasted,
+          () => toggle({ ...optimisticParams, tasted: hasTasted ? "" : "1" }),
+          hasTasted ? "Show all brews" : "Show tasted brews"
+        )}
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          aria-expanded={showMore}
+          className={cn(
+            "flex shrink-0 items-center gap-0.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96]",
+            showMore
+              ? "bg-ink text-white"
+              : "border border-line bg-card text-ink2 hover:bg-paper"
+          )}
+        >
+          More filters
+          <ChevronDown size={12} aria-hidden className={cn("transition-transform duration-150", showMore && "rotate-180")} />
+        </button>
+        {showMore && (
+          <>
+            {pill("Untasted", hasUntasted, () => toggle({ ...optimisticParams, untasted: hasUntasted ? "" : "1" }))}
+            {pill("Has score", hasScoreFilter, () => toggle({ ...optimisticParams, "has-score": hasScoreFilter ? "" : "1" }))}
+            {pill("No score", hasNoScoreFilter, () => toggle({ ...optimisticParams, "no-score": hasNoScoreFilter ? "" : "1" }))}
+          </>
+        )}
+      </div>
     </div>
   );
 }
