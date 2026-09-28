@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
-import { getBrew, listSessionOptions, listTastings, listPours } from "@/lib/db/queries";
-import { deleteBrew } from "@/app/actions";
+import { getBrew, listSessionOptions, listTastings, listPours, recordRecentView } from "@/lib/db/queries";
+import { deleteBrew, toggleFavorite } from "@/app/actions";
 import { BrewEditor } from "@/components/brew-editor";
 import { BackLink } from "@/components/back-link";
 import { BackToTop } from "@/components/back-to-top";
 import { CopySummaryButton } from "@/components/copy-summary";
 import { DeleteButton } from "@/components/delete-button";
+import { FavoriteButton } from "@/components/favorite-button";
 import { SectionHeader } from "@/components/ui/controls";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
+import { brewFinalScore, formatBrewScore } from "@/lib/domain/brew-score";
 import { formatBrewSummary } from "@/lib/domain/brew-summary";
 import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
 import { describeDeletion } from "@/lib/domain/deletion";
@@ -26,6 +28,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     listSessionOptions().catch(() => []),
     listTastings(id).catch(() => []),
     listPours(id).catch(() => []),
+    recordRecentView("brew", id),
   ]);
   const obs = Array.isArray(brew.observations) ? brew.observations[0] ?? null : brew.observations ?? null;
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
@@ -38,6 +41,11 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     pours: pours.length,
   });
   const remove = deleteBrew.bind(null, id);
+  const isFavorite = brew.is_favorite === true;
+  const favorite = toggleFavorite.bind(null, id, !isFavorite);
+  // Same derived score as the list and Best Rated sort: one function, used
+  // with the persisted tasting rows (never observation text).
+  const score = brewFinalScore(tastings);
   const summary = formatBrewSummary({
     brew: brew as Record<string, unknown>,
     coffeeName: typeof coffeeName === "string" ? coffeeName : null,
@@ -64,6 +72,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
         <p className="mt-1 text-sm text-ink2">
           {BREW_LIFECYCLE_LABEL[status]}
           {warnings.length > 0 ? ` · ${warnings.join(" · ")}` : ""}
+          {score !== null ? ` · Score ${formatBrewScore(score)}` : ""}
         </p>
         <p className="mt-1 text-sm text-ink2">
           Session ·{" "}
@@ -75,8 +84,9 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
             "None"
           )}
         </p>
-        <div className="mt-1">
+        <div className="mt-1 flex items-center gap-2">
           <CopySummaryButton text={summary} />
+          <FavoriteButton brewId={id} isFavorite={isFavorite} toggle={favorite} />
         </div>
       </div>
       <div>

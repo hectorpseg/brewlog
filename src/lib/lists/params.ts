@@ -41,9 +41,10 @@ export function escapeLike(q: string): string {
 
 export type BrewsListParams = {
   q: string;
-  sort: "newest" | "oldest";
+  sort: "newest" | "oldest" | "top";
   session: string; // "all" | "none" | session uuid
   coffee: string; // coffee uuid or ""
+  fav: "all" | "only";
   count: number;
 };
 
@@ -51,9 +52,10 @@ export function parseBrewsParams(sp: Record<string, unknown>): BrewsListParams {
   const sessionRaw = str(sp.session);
   return {
     q: cleanQuery(sp.q),
-    sort: oneOf(sp.sort, ["newest", "oldest"] as const, "newest"),
+    sort: oneOf(sp.sort, ["newest", "oldest", "top"] as const, "newest"),
     session: sessionRaw === "none" ? "none" : cleanId(sessionRaw) || "all",
     coffee: cleanId(sp.coffee),
+    fav: oneOf(sp.fav, ["all", "only"] as const, "all"),
     count: cleanCount(sp.count),
   };
 }

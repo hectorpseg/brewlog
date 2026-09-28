@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
-import { getCoffee, listBrewsPage } from "@/lib/db/queries";
+import { getCoffee, listBrewsPage, listRecentViews } from "@/lib/db/queries";
+import { toggleFavorite } from "@/app/actions";
 import { BrewCard } from "@/components/brew-card";
-import { ApplyListPrefs, FilterChips, ListSearchBox, ListSortSelect, NoListMatches } from "@/components/list-controls";
+import { FavoriteButton } from "@/components/favorite-button";
+import { RecentlyViewed } from "@/components/recently-viewed";
+import { ApplyListPrefs, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, SavedPresets } from "@/components/list-controls";
 import { Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseBrewsParams } from "@/lib/lists/params";
@@ -16,16 +19,18 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
   await requireUser("/brews");
   const sp = await searchParams;
   const p = parseBrewsParams(sp);
-  const params = { q: p.q, sort: p.sort, session: p.session, coffee: p.coffee, count: p.count };
+  const params = { q: p.q, sort: p.sort, session: p.session, coffee: p.coffee, fav: p.fav, count: p.count };
   const explicit = {
     sort: "sort" in sp ? p.sort : undefined,
     session: "session" in sp ? p.session : undefined,
+    fav: "fav" in sp ? p.fav : undefined,
   };
-  const [page, coffee] = await Promise.all([
-    listBrewsPage({ coffeeId: p.coffee, session: p.session, q: p.q, sort: p.sort, limit: p.count, offset: 0 }).catch(() => null),
+  const [page, coffee, recent] = await Promise.all([
+    listBrewsPage({ coffeeId: p.coffee, session: p.session, fav: p.fav, q: p.q, sort: p.sort, limit: p.count, offset: 0 }).catch(() => null),
     p.coffee ? getCoffee(p.coffee).catch(() => null) : Promise.resolve(null),
+    listRecentViews().catch(() => []),
   ]);
-  const filtered = p.q !== "" || p.session !== "all" || p.coffee !== "";
+  const filtered = p.q !== "" || p.session !== "all" || p.coffee !== "" || p.fav !== "all";
   const rows = page?.rows ?? [];
   return (
     <div>
@@ -33,6 +38,7 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
         <h1 className="font-display text-2xl">Brews</h1>
       </div>
       <ApplyListPrefs list="brews" base="/brews" params={params} explicit={explicit} />
+      <RecentlyViewed items={recent} />
       {page === null ? (
         <Card><p className="text-sm">Supabase is not reachable. Check your connection, then reload.</p></Card>
       ) : (
@@ -53,6 +59,7 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
                 options={[
                   { value: "newest", label: "Newest first" },
                   { value: "oldest", label: "Oldest first" },
+                  { value: "top", label: "Top rated" },
                 ]}
               />
             </div>
@@ -67,6 +74,16 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
               { value: "none", label: "No session" },
             ]}
           />
+          <FilterChips
+            base="/brews"
+            params={params}
+            param="fav"
+            list="brews"
+            options={[
+              { value: "all", label: "All" },
+              { value: "only", label: "Favorites" },
+            ]}
+          />
           {p.coffee ? (
             <div className="mt-2">
               <Link
@@ -79,6 +96,12 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
               </Link>
             </div>
           ) : null}
+          <SavedPresets
+            base="/brews"
+            params={params}
+            list="brews"
+            current={{ sort: p.sort, session: p.session, fav: p.fav }}
+          />
           {rows.length === 0 ? (
             <div className="mt-2">
               {filtered ? (
@@ -95,7 +118,16 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
           ) : (
             <ul className="mt-2 flex flex-col gap-2">
               {rows.map((b) => (
-                <li key={String(b.id)}><BrewCard brew={b as React.ComponentProps<typeof BrewCard>["brew"]} /></li>
+                <li key={String(b.id)} className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <BrewCard brew={b as React.ComponentProps<typeof BrewCard>["brew"]} />
+                  </div>
+                  <FavoriteButton
+                    brewId={String(b.id)}
+                    isFavorite={b.is_favorite === true}
+                    toggle={toggleFavorite.bind(null, String(b.id), !(b.is_favorite === true))}
+                  />
+                </li>
               ))}
             </ul>
           )}

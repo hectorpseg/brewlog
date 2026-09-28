@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
-import { getCoffee, listBrews, listCuppings } from "@/lib/db/queries";
+import { getCoffee, listBrews, listCuppings, recordRecentView } from "@/lib/db/queries";
 import { deleteCoffee, deleteCupping, updateCoffee, updateCupping } from "@/app/actions";
 import { CoffeeEditor } from "@/components/coffee-editor";
 import { BackLink } from "@/components/back-link";
@@ -24,6 +24,7 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
   const [brews, cuppings] = await Promise.all([
     listBrews(id).catch(() => []),
     listCuppings(id).catch(() => []),
+    recordRecentView("coffee", id),
   ]);
   const update = updateCoffee.bind(null, id);
   const noted = brews.filter((b: { observations?: unknown }) => {
