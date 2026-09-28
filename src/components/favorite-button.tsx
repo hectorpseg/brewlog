@@ -2,8 +2,8 @@
 import { useOptimistic, useTransition } from "react";
 import { Heart } from "lucide-react";
 
-// Heart toggle for brew rows. Outline heart when not favorite, filled heart when favorite.
-// Optimistic: the heart flips instantly, the bound server action persists, revalidation
+// Heart toggle for brew rows and detail headers. Optimistic: the heart
+// flips instantly, the bound server action persists, revalidation
 // settles the truth. 44px target, visible control — never a gesture-only action.
 export function FavoriteButton({ brewId, isFavorite, toggle }: {
   brewId: string;

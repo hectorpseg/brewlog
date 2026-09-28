@@ -142,13 +142,14 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
       </div>
       {recipeFrom ? <Card><p className="text-sm text-ink2">Starting from the last recipe - change only what changed. Tinted fields are inherited; editing one returns it to normal.</p></Card> : null}
       <SectionNav items={[
+        { id: "sec-recipe", label: "Recipe" },
         { id: "sec-equipment", label: "Equipment" },
         { id: "sec-pours", label: "Pours" },
         { id: "sec-expected", label: "Expected" },
         { id: "sec-result", label: "Result" },
         { id: "sec-tasting", label: "Tasting" },
       ]} />
-      <Card>
+      <Card id="sec-recipe" className="scroll-mt-14">
         <Label htmlFor="coffeeId">Coffee *</Label>
         <Select id="coffeeId" className={inh("coffeeId")} {...form.register("coffeeId")}>
           <option value="">Pick a coffee…</option>

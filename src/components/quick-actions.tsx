@@ -29,7 +29,7 @@ export function BrewQuickActions({ brewId, coffeeId, isFavorite, toggle }: {
       {coffeeId ? (
         <Link
           href={copyNextBrewHref(coffeeId)}
-          aria-label={`Copy brew ${brewId} as next brew`}
+          aria-label={`New from this brew ${brewId}`}
           className={iconBtn}
         >
           <Copy size={20} aria-hidden className="text-ink3" />
