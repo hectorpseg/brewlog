@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { requireUser } from "@/lib/supabase/require-user";
 import { listSessionsPage } from "@/lib/db/queries";
 import { ApplyListPrefs, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, SavedPresets } from "@/components/list-controls";
@@ -89,11 +90,16 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
                   return (
                     <li key={String(s.id)}>
                       <EntityCard href={`/sessions/${String(s.id)}`} label={String(s.title)}>
-                        <div className="font-medium">{String(s.title)}</div>
-                        {typeof s.notes === "string" && s.notes !== "" ? (
-                          <div className="mt-0.5 text-sm text-ink2">{s.notes}</div>
-                        ) : null}
-                        <div className="tnum mt-0.5 text-sm text-ink2">{n} {n === 1 ? "brew" : "brews"}</div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <div className="font-medium">{String(s.title)}</div>
+                            {typeof s.notes === "string" && s.notes !== "" ? (
+                              <div className="mt-0.5 text-sm text-ink2">{s.notes}</div>
+                            ) : null}
+                            <div className="tnum mt-0.5 text-sm text-ink2">{n} {n === 1 ? "brew" : "brews"}</div>
+                          </div>
+                          <ChevronRight size={20} aria-hidden className="shrink-0 text-ink3" />
+                        </div>
                       </EntityCard>
                     </li>
                   );
