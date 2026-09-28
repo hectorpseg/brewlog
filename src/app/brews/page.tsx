@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
 import { listBrewsPage, listRecentViews } from "@/lib/db/queries";
 import { RecentlyViewed } from "@/components/recently-viewed";
-import { ApplyListPrefs, BrewList, FilterChips, ListSearchBox, ListSortSelect, NoListMatches, type BrewListRow } from "@/components/list-controls";
+import { ApplyListPrefs, BrewList, ListSearchBox, ListSortSelect, NoListMatches, type BrewListRow } from "@/components/list-controls";
 import { EmptyState } from "@/components/states";
 import { Card } from "@/components/ui/controls";
 import { cn } from "@/components/ui/utils";
