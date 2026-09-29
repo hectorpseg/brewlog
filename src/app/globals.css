@@ -24,6 +24,16 @@ body {
   min-height: 100dvh;
 }
 
+/* SSR the startup overlay without flashing it in ordinary browser tabs. */
+.launch-splash {
+  display: none;
+}
+@media (display-mode: standalone) {
+  .launch-splash {
+    display: flex;
+  }
+}
+
 /* tabular measurements so dose/water never jitter */
 .tnum {
   font-variant-numeric: tabular-nums;

@@ -9,14 +9,14 @@ import {
 
 // ponytail: standalone-PWA lifecycle overlay, deliberately separate from
 // route loading (app/loading.tsx owns that). Fixed overlay = zero layout
-// shift; renders null on server and first client paint = no hydration
-// mismatch. Purely visual: never navigates, never touches auth or data, so
-// re-entry preserves route and form state by construction.
+// shift; server and first client render match. CSS only exposes the SSR
+// overlay in standalone mode. Purely visual: never navigates or touches auth
+// or data, so startup and re-entry preserve the current route and form state.
 export function LaunchSplash() {
-  const [render, setRender] = useState(false);
-  const [visible, setVisible] = useState(false);
+  const [render, setRender] = useState(true);
+  const [visible, setVisible] = useState(true);
   const timers = useRef<number[]>([]);
-  const showing = useRef(false);
+  const showing = useRef(true);
   const hiddenAt = useRef(0);
   const loadHandler = useRef<(() => void) | null>(null);
 
@@ -39,8 +39,8 @@ export function LaunchSplash() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     setRender(true);
     setVisible(true);
-    // Mount = shell hydrated; route data still loads under its own
-    // skeletons (never the splash). No Supabase/database wait here.
+    // Re-entry waits for the shell only; route changes keep their own
+    // skeletons rather than turning the splash into a navigation loader.
     later(() => {
       if (reduced) {
         setVisible(false);
@@ -61,7 +61,24 @@ export function LaunchSplash() {
   }, [later, hide]);
 
   useEffect(() => {
-    if (readsStandalonePwa()) show();
+    if (readsStandalonePwa()) {
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const waitForReady = () => {
+        if (document.readyState === "complete") {
+          hide();
+          return;
+        }
+        loadHandler.current = hide;
+        window.addEventListener("load", hide, { once: true });
+      };
+      // ponytail: SSR paints the overlay before hydration; load marks the end
+      // of the initial streamed route, not background fetches.
+      later(waitForReady, reduced ? 0 : LAUNCH_SPLASH_SHOW_MS);
+    } else {
+      setRender(false);
+      setVisible(false);
+      showing.current = false;
+    }
     const onVisibility = () => {
       if (document.visibilityState === "hidden") {
         hiddenAt.current = Date.now();
@@ -80,7 +97,7 @@ export function LaunchSplash() {
       timers.current = [];
       showing.current = false;
     };
-  }, [show]);
+  }, [hide, later, show]);
 
   if (!render) return null;
   return (
@@ -88,7 +105,7 @@ export function LaunchSplash() {
       role="status"
       aria-label="Loading BrewLog"
       aria-hidden={!visible}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-paper px-6 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]"
+      className="launch-splash fixed inset-0 z-50 flex-col items-center justify-center gap-6 bg-paper px-6 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]"
       style={{
         opacity: visible ? 1 : 0,
         transition: "opacity 200ms ease-out",
