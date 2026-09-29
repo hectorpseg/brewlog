@@ -120,33 +120,36 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
         <p className="text-sm text-ink2">Everything on this page saves itself.</p>
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
-      <Card id="sec-recipe" className="scroll-mt-14">
-        <div className="grid grid-cols-2 gap-3">
-          <div><Label>Dose g</Label><Input value={form.doseG} inputMode="decimal" onChange={(e) => set("doseG", e.target.value)} /></div>
-          <div><Label>Water g</Label><Input value={form.waterG} inputMode="decimal" onChange={(e) => set("waterG", e.target.value)} /></div>
-          <div><Label>Grind clicks</Label><Input value={form.grindClicks} inputMode="numeric" onChange={(e) => set("grindClicks", e.target.value)} /></div>
-          <div><Label>Temp C</Label><Input value={form.tempC} inputMode="decimal" onChange={(e) => set("tempC", e.target.value)} /></div>
-          <div className="col-span-2"><Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} value={form.brewedAt ?? ""} onChange={(e) => set("brewedAt", e.target.value)} /></div>
-          <div className="col-span-2">
-            <Label>Brew time</Label>
-            <MinutesSecondsInput
-              minutes={form.brewTimeMin ?? ""}
-              seconds={form.brewTimeSec ?? ""}
-              onMinutes={(v) => setTime("min", v)}
-              onSeconds={(v) => setTime("sec", v)}
-            />
+      <details open id="sec-recipe" className="scroll-mt-14">
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Recipe</summary>
+        <Card>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Dose g</Label><Input value={form.doseG} inputMode="decimal" onChange={(e) => set("doseG", e.target.value)} /></div>
+            <div><Label>Water g</Label><Input value={form.waterG} inputMode="decimal" onChange={(e) => set("waterG", e.target.value)} /></div>
+            <div><Label>Grind clicks</Label><Input value={form.grindClicks} inputMode="numeric" onChange={(e) => set("grindClicks", e.target.value)} /></div>
+            <div><Label>Temp C</Label><Input value={form.tempC} inputMode="decimal" onChange={(e) => set("tempC", e.target.value)} /></div>
+            <div className="col-span-2"><Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} value={form.brewedAt ?? ""} onChange={(e) => set("brewedAt", e.target.value)} /></div>
+            <div className="col-span-2">
+              <Label>Brew time</Label>
+              <MinutesSecondsInput
+                minutes={form.brewTimeMin ?? ""}
+                seconds={form.brewTimeSec ?? ""}
+                onMinutes={(v) => setTime("min", v)}
+                onSeconds={(v) => setTime("sec", v)}
+              />
+            </div>
           </div>
-        </div>
-        {sessions.length > 0 ? (
-          <div className="mt-3">
-            <Label htmlFor="brew-session">Session (optional)</Label>
-            <Select id="brew-session" value={form.sessionId ?? ""} onChange={(e) => set("sessionId", e.target.value)}>
-              <option value="">No session</option>
-              {sessions.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
-            </Select>
-          </div>
-        ) : null}
-      </Card>
+          {sessions.length > 0 ? (
+            <div className="mt-3">
+              <Label htmlFor="brew-session">Session (optional)</Label>
+              <Select id="brew-session" value={form.sessionId ?? ""} onChange={(e) => set("sessionId", e.target.value)}>
+                <option value="">No session</option>
+                {sessions.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+              </Select>
+            </div>
+          ) : null}
+        </Card>
+      </details>
       <details open id="sec-equipment" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Equipment</summary>
         <Card>

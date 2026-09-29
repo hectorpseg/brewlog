@@ -33,16 +33,16 @@ export default async function CuppingDetail({ params }: { params: Promise<{ id: 
     <div className="flex flex-col gap-4">
       <div>
         <BackLink href="/cuppings" label="Cuppings" />
-        <h1 className="font-display text-2xl">
+        <h1 className="font-display text-2xl leading-snug text-ink">
           {coffeeId ? (
-            <Link href={`/coffees/${coffeeId}`} className="font-medium text-ember underline">
+            <Link href={`/coffees/${coffeeId}`} className="text-ember no-underline hover:underline focus-visible:underline underline-offset-4">
               {coffeeName}
             </Link>
           ) : (
             coffeeName
           )}
         </h1>
-        <p className="tnum mt-1 text-sm text-ink2">
+        <p className="tnum mt-1 text-xs text-ink2">
           {cupping.dose_g ?? "?"} g / {cupping.water_g ?? "?"} g · {formatBrewDate(cupping.cupped_at)}
         </p>
       </div>

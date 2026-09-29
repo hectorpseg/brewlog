@@ -37,16 +37,16 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
     <div className="flex flex-col gap-4">
       <div>
         <BackLink href="/coffees" label="Coffees" />
-        <h1 className="font-display text-2xl">{coffee.name}</h1>
-        <p className="tnum mt-1 text-sm text-ink2">
+        <h1 className="font-display text-2xl leading-snug text-ink">{coffee.name}</h1>
+        <p className="tnum mt-1 text-xs text-ink2">
           {coffeeMetaLine(coffee)}
         </p>
         {coffeeDetailLine(coffee) ? (
-          <p className="tnum mt-0.5 text-sm text-ink2">
+          <p className="mt-0.5 text-[11px] text-ink3">
             {coffeeDetailLine(coffee)}
           </p>
         ) : null}
-        <p className="tnum mt-0.5 text-sm text-ink2">
+        <p className="tnum mt-0.5 text-[11px] text-ink3">
           ~{coffee.remaining_weight_g ?? "?"} g remaining · Received {formatReceived(coffee.received_date)}
         </p>
         <CoffeeEditor
