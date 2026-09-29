@@ -19,7 +19,7 @@ import {
 // amount - there is no manual pour count input anymore.
 
 // Small binary toggle: pill-sized, not a full-width button.
-const smallToggleCls = "min-h-9 px-3 py-1 text-xs";
+// rounded-[10px] pinned so MeloDrip/Switch-state keep their pre-pill look.
 
 function tempValid(temp: string): boolean {
   if (temp.trim() === "") return true;
@@ -166,14 +166,12 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
                     label="MeloDrip"
                     pressed={r.melodrip}
                     onToggle={() => updateAt(i, { melodrip: !r.melodrip })}
-                    className={smallToggleCls}
                   />
                   {switchOn ? (
                     <Toggle
                       label={r.switchState === "open" ? "Open" : "Closed"}
                       pressed={r.switchState === "open"}
                       onToggle={() => updateAt(i, { switchState: r.switchState === "open" ? "closed" : "open" })}
-                      className={smallToggleCls}
                     />
                   ) : null}
                 </div>

@@ -12,7 +12,7 @@ import type { PourFact } from "@/lib/domain/pours";
 import { pourRowsFromJson, pourRowsToJson } from "@/lib/domain/pours";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
-import { Button, Card, FieldError, Input, Label, SectionHeader, Select, Textarea, Toggle } from "@/components/ui/controls";
+import { Button, Card, FieldError, Input, Label, SectionHeader, Select, Switch, Textarea } from "@/components/ui/controls";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
@@ -185,11 +185,11 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             {" · "}{formatReceived(selectedCoffee.received_date)}
           </p>
         ) : null}
-        <Toggle
-          label="Selected beans"
+        <Switch
+          label="Used selected beans?"
           pressed={values.selectedBeans === true}
           onToggle={() => form.setValue("selectedBeans", !(values.selectedBeans === true), { shouldDirty: true })}
-          className="mt-2 w-full"
+          className="mt-2 w-full justify-end"
         />
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div><Label>Dose g *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.doseG} className={inh("doseG")} {...form.register("doseG")} /></div>
@@ -238,13 +238,13 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             </div>
             <div><Label>Thermal shock</Label><Input error={!!form.formState.errors.thermalShock} className={inh("thermalShock")} {...form.register("thermalShock")} /></div>
             <div><Label>Bypass</Label><Input error={!!form.formState.errors.bypass} className={inh("bypass")} {...form.register("bypass")} /></div>
-            <Toggle
-              label="LilyDrip"
+            <Switch
+              label="Used LilyDrip?"
               pressed={values.lilydrip === true}
               onToggle={() => form.setValue("lilydrip", !(values.lilydrip === true), { shouldDirty: true })}
             />
-            <Toggle
-              label="Hario Switch"
+            <Switch
+              label="Used Hario Switch?"
               pressed={values.harioSwitch === true}
               onToggle={() => form.setValue("harioSwitch", !(values.harioSwitch === true), { shouldDirty: true })}
             />

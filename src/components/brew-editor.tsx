@@ -6,7 +6,7 @@ import { draftKey } from "@/lib/drafts/local-store";
 import { BREW_NOTE_KEYS, brewEditorDefaults, planBrewSync } from "@/lib/db/brew-update";
 import { completeTastingEntries, tastingRowsFromJson, tastingRowsToJson, tastingsUpdatedAt } from "@/lib/domain/tastings";
 import { pourRowsFromJson, pourRowsToJson, poursUpdatedAt } from "@/lib/domain/pours";
-import { Card, Input, Label, Select, Textarea, Toggle } from "@/components/ui/controls";
+import { Card, Input, Label, Select, Switch, Textarea } from "@/components/ui/controls";
 import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
@@ -123,11 +123,11 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
       <details open id="sec-recipe" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Recipe</summary>
         <Card>
-          <Toggle
-            label="Selected beans"
+          <Switch
+            label="Used selected beans?"
             pressed={form.selectedBeans === "true"}
             onToggle={() => set("selectedBeans", form.selectedBeans === "true" ? "false" : "true")}
-            className="mt-1 w-full"
+            className="mt-1 w-full justify-end"
           />
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div><Label>Dose g</Label><Input value={form.doseG} inputMode="decimal" onChange={(e) => set("doseG", e.target.value)} /></div>
@@ -174,13 +174,13 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
             </div>
             <div><Label>Thermal shock</Label><Input value={form.thermalShock ?? ""} onChange={(e) => set("thermalShock", e.target.value)} /></div>
             <div><Label>Bypass</Label><Input value={form.bypass ?? ""} onChange={(e) => set("bypass", e.target.value)} /></div>
-            <Toggle
-              label="LilyDrip"
+            <Switch
+              label="Used LilyDrip?"
               pressed={form.lilydrip === "true"}
               onToggle={() => set("lilydrip", form.lilydrip === "true" ? "false" : "true")}
             />
-            <Toggle
-              label="Hario Switch"
+            <Switch
+              label="Used Hario Switch?"
               pressed={form.harioSwitch === "true"}
               onToggle={() => set("harioSwitch", form.harioSwitch === "true" ? "false" : "true")}
             />

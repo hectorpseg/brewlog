@@ -73,8 +73,9 @@ export function SectionHeader({ children }: { children: React.ReactNode }) {
   return <h2 className="border-b border-line pb-1 font-display text-lg">{children}</h2>;
 }
 
-// Boolean pill toggle (the structured-pour Bloom pattern): aria-pressed,
-// ember fill when on.
+// Compact inline boolean toggle (the PourEditor MeloDrip pattern):
+// aria-pressed, ember fill when on, small enough to never read as a primary
+// action. min-h-9 keeps a usable touch target.
 export function Toggle({ label, pressed, onToggle, className }: { label: string; pressed: boolean; onToggle: () => void; className?: string }) {
   return (
     <button
@@ -82,12 +83,45 @@ export function Toggle({ label, pressed, onToggle, className }: { label: string;
       aria-pressed={pressed}
       onClick={onToggle}
       className={cn(
-        "min-h-11 rounded-[10px] border px-4 py-2 text-sm font-medium transition-transform active:scale-[0.98]",
+        "min-h-9 rounded-[10px] border px-3 py-1 text-xs font-medium transition-transform active:scale-[0.96]",
         pressed ? "border-ember bg-ember text-white" : "border-line bg-card text-ink2",
         className,
       )}
     >
       {label}
+    </button>
+  );
+}
+
+// Compact inline labeled switch for brew-level booleans (Selected beans,
+// LilyDrip, Hario Switch): label first, 36x20 track + 16px thumb grouped
+// behind it. Compact by design (min-h-9, self-start) so it never stretches
+// to grid-row height or adds its own vertical rhythm; the full row is the
+// touch target. Callers wanting a full-width row (Selected beans) pass
+// w-full justify-end. Ember track when on; aria-pressed preserved.
+export function Switch({ label, pressed, onToggle, className }: { label: string; pressed: boolean; onToggle: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onToggle}
+      className={cn("flex min-h-9 items-center self-start gap-2.5 py-1 text-sm font-medium text-ink2", className)}
+    >
+      {label}
+      <span
+        aria-hidden
+        className={cn(
+          "relative h-5 w-9 shrink-0 rounded-full border transition-colors duration-150",
+          pressed ? "border-ember bg-ember" : "border-line bg-ink3/30",
+        )}
+      >
+        <span
+          className={cn(
+            "absolute left-0.5 top-1/2 size-4 -translate-y-1/2 rounded-full bg-white shadow-sm transition-transform duration-150",
+            pressed && "translate-x-4",
+          )}
+        />
+      </span>
     </button>
   );
 }
