@@ -1,6 +1,6 @@
 "use client";
 import { Trash2 } from "lucide-react";
-import { Input, Label, Select } from "@/components/ui/controls";
+import { Input, Label, Select, Textarea, Toggle } from "@/components/ui/controls";
 import { cn } from "@/components/ui/utils";
 import {
   POUR_PATTERNS, emptyPourDraft, formatPourTime, formatPourTotal, parsePourTime,
@@ -8,14 +8,33 @@ import {
 } from "@/lib/domain/pours";
 
 // Compact structured-pour rows for fast entry while brewing: one row per
-// pour with time (m:ss), amount (g), pattern, bloom toggle, optional note.
+// pour with time (m:ss), amount (g), temperature, pattern, bloom toggle,
+// MeloDrip toggle, optional note, and - on Switch brews only - the per-pour
+// Switch position. New pours inherit temperature/MeloDrip/Switch from the
+// previous pour; pour 1 initializes temperature from the Brew's starting
+// temperature when available. brews.temp_c itself is never touched by pours.
 // Sequence is the row order (1-based); reordering is out of scope, matching
 // the tasting editor. Incomplete rows stay local-only until saved. The count
 // line at the top is a read-only counter of complete pours plus their summed
 // amount - there is no manual pour count input anymore.
-export function PourEditor({ rows, legacyCount, onChange }: {
+
+// Small binary toggle: pill-sized, not a full-width button.
+const smallToggleCls = "min-h-9 px-3 py-1 text-xs";
+
+function tempValid(temp: string): boolean {
+  if (temp.trim() === "") return true;
+  const t = Number(temp);
+  return Number.isFinite(t) && t >= 50 && t <= 100;
+}
+
+export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = null, onChange }: {
   rows: PourDraftRow[];
   legacyCount?: number | null;
+  // brew-level Hario Switch: pours show Open/Closed only when it is active
+  switchOn?: boolean;
+  // brew-level starting temperature (string form state); prefills pour 1 only,
+  // never written back to the brew
+  brewTemp?: string | null;
   onChange: (rows: PourDraftRow[]) => void;
 }) {
   function updateAt(index: number, patch: Partial<PourDraftRow>) {
@@ -24,8 +43,14 @@ export function PourEditor({ rows, legacyCount, onChange }: {
   function removeAt(index: number) {
     onChange(rows.filter((_, i) => i !== index));
   }
+  // New pours inherit temperature, MeloDrip, and Switch from the previous
+  // pour. Pour 1 starts from the Brew's starting temperature value (the brew
+  // row itself is never written — brews.temp_c stays untouched by pours).
   function addRow() {
-    onChange([...rows, emptyPourDraft(rows.length === 0)]);
+    const prev = rows[rows.length - 1];
+    const row = emptyPourDraft(rows.length === 0, prev);
+    if (rows.length === 0 && brewTemp != null && brewTemp !== "") row.temp = brewTemp;
+    onChange([...rows, row]);
   }
   const { count, totalG } = pourCountAndTotal(rows);
   const total = formatPourTotal(count, totalG);
@@ -123,10 +148,42 @@ export function PourEditor({ rows, legacyCount, onChange }: {
                   {r.bloom ? "Bloom on" : "Bloom"}
                 </button>
               </div>
+              <div className="mt-2 grid grid-cols-2 items-end gap-2">
+                <div>
+                  <Label htmlFor={`pour-${i}-temp`}>Temp °C</Label>
+                  <Input
+                    id={`pour-${i}-temp`}
+                    inputMode="decimal"
+                    placeholder={i === 0 && brewTemp ? brewTemp : undefined}
+                    autoComplete="off"
+                    value={r.temp}
+                    onChange={(e) => updateAt(i, { temp: e.target.value })}
+                    aria-invalid={!tempValid(r.temp)}
+                  />
+                </div>
+                <div className="flex min-h-11 items-center gap-2">
+                  <Toggle
+                    label="MeloDrip"
+                    pressed={r.melodrip}
+                    onToggle={() => updateAt(i, { melodrip: !r.melodrip })}
+                    className={smallToggleCls}
+                  />
+                  {switchOn ? (
+                    <Toggle
+                      label={r.switchState === "open" ? "Open" : "Closed"}
+                      pressed={r.switchState === "open"}
+                      onToggle={() => updateAt(i, { switchState: r.switchState === "open" ? "closed" : "open" })}
+                      className={smallToggleCls}
+                    />
+                  ) : null}
+                </div>
+              </div>
               <div className="mt-2">
                 <Label htmlFor={`pour-${i}-note`} className="sr-only">Pour {i + 1} note</Label>
-                <Input
+                <Textarea
                   id={`pour-${i}-note`}
+                  rows={1}
+                  maxLength={500}
                   placeholder="Note (optional)"
                   autoComplete="off"
                   value={r.note}

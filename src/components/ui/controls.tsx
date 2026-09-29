@@ -72,3 +72,22 @@ export function Label({ className, ...p }: React.LabelHTMLAttributes<HTMLLabelEl
 export function SectionHeader({ children }: { children: React.ReactNode }) {
   return <h2 className="border-b border-line pb-1 font-display text-lg">{children}</h2>;
 }
+
+// Boolean pill toggle (the structured-pour Bloom pattern): aria-pressed,
+// ember fill when on.
+export function Toggle({ label, pressed, onToggle, className }: { label: string; pressed: boolean; onToggle: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onToggle}
+      className={cn(
+        "min-h-11 rounded-[10px] border px-4 py-2 text-sm font-medium transition-transform active:scale-[0.98]",
+        pressed ? "border-ember bg-ember text-white" : "border-line bg-card text-ink2",
+        className,
+      )}
+    >
+      {label}
+    </button>
+  );
+}

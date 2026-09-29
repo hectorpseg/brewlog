@@ -60,7 +60,9 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const rowsFor = (fields: readonly string[]): CompareFieldRow[] =>
     fields
       .map((label) => ({ label, a: a[label], b: b[label], changed: changedKeys.has(label) }))
-      .filter((r) => r.a !== "-" || r.b !== "-");
+      // hidden when both sides are absent ("-" = unrecorded) or both flagged
+      // "No": false is the not-null default, so two No's carry no signal.
+      .filter((r) => (r.a !== "-" || r.b !== "-") && !(r.a === "No" && r.b === "No"));
   const recipe = rowsFor(COMPARE_RECIPE_FIELDS);
   const notes = rowsFor(COMPARE_NOTE_FIELDS);
   // structured tasting compares separately: Stage → Attribute → A / B.
@@ -72,7 +74,13 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     listPours(rawB.id).catch(() => []),
   ]);
   const tasting = compareTastings(tastingsA, tastingsB);
-  const pourRows: CompareFieldRow[] = comparePourFields(poursA, poursB);
+  const pourRows: CompareFieldRow[] = comparePourFields(
+    poursA,
+    poursB,
+    // Switch positions only make sense (and only display) when one of the
+    // compared brews actually uses the Hario Switch.
+    rawA.hario_switch === true || rawB.hario_switch === true,
+  );
   const changedCount = [...changedKeys].filter((k) => a[k] !== "-" || b[k] !== "-").length;
   return (
     <div className="flex flex-col gap-4">
