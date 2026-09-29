@@ -9,16 +9,17 @@ import {
 
 // ponytail: standalone-PWA lifecycle overlay, deliberately separate from
 // route loading (app/loading.tsx owns that). Fixed overlay = zero layout
-// shift; server and first client render match. CSS only exposes the SSR
-// overlay in standalone mode. Purely visual: never navigates or touches auth
-// or data, so startup and re-entry preserve the current route and form state.
+// shift; server and first client render match. CSS exposes the SSR overlay in
+// standalone mode and JS hides it in browser tabs. Purely visual: never
+// navigates or touches auth or data, so startup and re-entry preserve the
+// current route and form state.
 export function LaunchSplash() {
-  const [render, setRender] = useState(true);
   const [visible, setVisible] = useState(true);
   const timers = useRef<number[]>([]);
   const showing = useRef(true);
   const hiddenAt = useRef(0);
   const loadHandler = useRef<(() => void) | null>(null);
+  const overlay = useRef<HTMLDivElement>(null);
 
   const later = useCallback((fn: () => void, ms: number) => {
     timers.current.push(window.setTimeout(fn, ms));
@@ -28,7 +29,6 @@ export function LaunchSplash() {
     loadHandler.current = null;
     setVisible(false);
     later(() => {
-      setRender(false);
       showing.current = false;
     }, LAUNCH_SPLASH_FADE_MS);
   }, [later]);
@@ -36,15 +36,14 @@ export function LaunchSplash() {
   const show = useCallback(() => {
     if (showing.current) return;
     showing.current = true;
+    if (overlay.current) overlay.current.style.display = "flex";
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    setRender(true);
     setVisible(true);
     // Re-entry waits for the shell only; route changes keep their own
     // skeletons rather than turning the splash into a navigation loader.
     later(() => {
       if (reduced) {
         setVisible(false);
-        setRender(false);
         showing.current = false;
         return;
       }
@@ -61,7 +60,11 @@ export function LaunchSplash() {
   }, [later, hide]);
 
   useEffect(() => {
+    const el = overlay.current;
     if (readsStandalonePwa()) {
+      // Legacy iOS reports navigator.standalone without supporting the
+      // display-mode media query; force the overlay visible when JS sees it.
+      if (el) el.style.display = "flex";
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const waitForReady = () => {
         if (document.readyState === "complete") {
@@ -74,10 +77,9 @@ export function LaunchSplash() {
       // ponytail: SSR paints the overlay before hydration; load marks the end
       // of the initial streamed route, not background fetches.
       later(waitForReady, reduced ? 0 : LAUNCH_SPLASH_SHOW_MS);
-    } else {
-      setRender(false);
-      setVisible(false);
-      showing.current = false;
+    } else if (el) {
+      // Browser tabs are already hidden by the standalone-only CSS gate.
+      el.style.display = "none";
     }
     const onVisibility = () => {
       if (document.visibilityState === "hidden") {
@@ -99,9 +101,9 @@ export function LaunchSplash() {
     };
   }, [hide, later, show]);
 
-  if (!render) return null;
   return (
     <div
+      ref={overlay}
       role="status"
       aria-label="Loading BrewLog"
       aria-hidden={!visible}

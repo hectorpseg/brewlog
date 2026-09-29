@@ -83,7 +83,7 @@ export function useAutosave<T extends Record<string, unknown>>({
         store.clear(key);
       }
     });
-  }, [key, store]);
+  }, [key, store, draftMaxAgeMs]);
 
   // Local UI state updates freely; only persistence is debounced. First mount
   // records the baseline and does nothing — opening a form is not an edit.
