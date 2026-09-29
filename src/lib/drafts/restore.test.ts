@@ -30,4 +30,14 @@ describe("shouldRestoreDraft", () => {
     expect(shouldRestoreDraft(Number.NaN, server)).toBe(false);
     expect(shouldRestoreDraft(Date.now(), "not-a-date")).toBe(false);
   });
+
+  it("rejects a draft older than maxAgeMs even with no server row", () => {
+    const now = Date.now();
+    expect(shouldRestoreDraft(now - 60_000, null, 30_000)).toBe(false);
+  });
+
+  it("restores a draft within maxAgeMs", () => {
+    const now = Date.now();
+    expect(shouldRestoreDraft(now - 10_000, null, 30_000)).toBe(true);
+  });
 });

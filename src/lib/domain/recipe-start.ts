@@ -2,7 +2,41 @@ import { defaultBrewedDate } from "./brew-date";
 import { pourRowsToJson, pourServerRowsToDraft, type PourFact } from "./pours";
 import type { NewBrewFormInput } from "../validation/schemas";
 
-export type PreviousBrew = Record<string, string | number | undefined> | null;
+export type PreviousBrew = Record<string, string | number | null | undefined> | null;
+
+// React key for the new-brew form: two navigations produce the same form only
+// when they initialize it identically. react-hook-form ignores fresh
+// defaultValues on an already-mounted instance, so a /brews/new -> /brews/new
+// click-path (Continue from last brew, New from this) must remount when the
+// initialization source changes; keeping the key for an unchanged source
+// preserves a half-typed form across null re-renders.
+export function formInitKey(copySourceId: string | null | undefined, coffeeId?: string): string {
+  return copySourceId ? `copy-${copySourceId}` : `blank${coffeeId ? `-${coffeeId}` : ""}`;
+}
+
+// Which fields were actually carried over from the previous brew. Used to
+// apply inherited-field tinting only to inputs that received a value; empty
+// fields must not look inherited just because a copy source exists.
+export function inheritedFieldNames(
+  previous: PreviousBrew,
+  pours?: PourFact[] | null,
+): Set<keyof NewBrewFormInput> {
+  const p = previous ?? {};
+  const inherited = new Set<keyof NewBrewFormInput>();
+  if (p.coffee_id != null && p.coffee_id !== "") inherited.add("coffeeId");
+  if (p.session_id != null && p.session_id !== "") inherited.add("sessionId");
+  if (p.dose_g != null && p.dose_g !== "") inherited.add("doseG");
+  if (p.water_g != null && p.water_g !== "") inherited.add("waterG");
+  if (p.temp_c != null && p.temp_c !== "") inherited.add("tempC");
+  if (p.grind_clicks != null && p.grind_clicks !== "") inherited.add("grindClicks");
+  if (p.grinder != null && p.grinder !== "") inherited.add("grinder");
+  if (p.dripper != null && p.dripper !== "") inherited.add("dripper");
+  if (p.filter != null && p.filter !== "") inherited.add("filter");
+  if (p.water_source != null && p.water_source !== "") inherited.add("waterSource");
+  if (p.pour_count != null && p.pour_count !== "") inherited.add("pourCount");
+  if ((pours ?? []).length > 0) inherited.add("pours");
+  return inherited;
+}
 
 // "Create new Brew from previous recipe": starting values for a fresh brew
 // form. Copies recipe/equipment only - dose, water, temperature, grind,

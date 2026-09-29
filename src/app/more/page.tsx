@@ -17,7 +17,7 @@ export default async function MorePage() {
                 <Icon size={18} aria-hidden className="shrink-0 text-ink2" />
                 {label}
               </div>
-              <div className="mt-0.5 pl-7 text-sm text-ink2">{body}</div>
+              <div className="mt-0.5 pl-[38px] text-sm text-ink2">{body}</div>
             </Link>
           </li>
         ))}

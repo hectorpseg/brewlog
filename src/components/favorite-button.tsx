@@ -1,12 +1,12 @@
 "use client";
 import { useOptimistic, useTransition } from "react";
 import { Heart } from "lucide-react";
+import { cn } from "@/components/ui/utils";
 
 // Heart toggle for brew rows and detail headers. Optimistic: the heart
 // flips instantly, the bound server action persists, revalidation
 // settles the truth. 44px target, visible control — never a gesture-only action.
-export function FavoriteButton({ brewId, isFavorite, toggle }: {
-  brewId: string;
+export function FavoriteButton({ isFavorite, toggle }: {
   isFavorite: boolean;
   toggle: () => Promise<void>;
 }) {
@@ -16,18 +16,18 @@ export function FavoriteButton({ brewId, isFavorite, toggle }: {
     <button
       type="button"
       aria-pressed={optimistic}
-      aria-label={optimistic ? `Unfavorite brew ${brewId}` : `Favorite brew ${brewId}`}
+      aria-label={optimistic ? "Remove favorite" : "Favorite this brew"}
       onClick={() => startTransition(async () => {
         setOptimistic(!optimistic);
         await toggle();
       })}
-      className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] border border-line bg-card bg-card active:scale-[0.97] fave-btn"
+      className="relative z-10 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] text-ink3 transition-all duration-150 hover:bg-line/50 active:scale-[0.92]"
     >
       <Heart
-        size={20}
+        size={22}
         aria-hidden
         fill={optimistic ? "currentColor" : "none"}
-        className={optimistic ? "text-ink" : "text-ink3"}
+        className={cn("transition-all duration-150", optimistic ? "text-ember" : "text-ink3")}
       />
     </button>
   );

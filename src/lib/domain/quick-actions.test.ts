@@ -12,4 +12,8 @@ describe("copyNextBrewHref", () => {
   it("encodes coffee ids instead of breaking the URL", () => {
     expect(copyNextBrewHref("a/b?c=d")).toBe("/brews/new?coffee=a%2Fb%3Fc%3Dd&copy=1");
   });
+
+  it("targets the specific brew when a brewId is provided", () => {
+    expect(copyNextBrewHref("abc-123", "brew-1")).toBe("/brews/new?brew=brew-1&copy=1");
+  });
 });

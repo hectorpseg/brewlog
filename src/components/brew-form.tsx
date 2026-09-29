@@ -7,19 +7,20 @@ import { TriangleAlert } from "lucide-react";
 import { newBrewFormSchema, type NewBrewFormInput } from "@/lib/validation/schemas";
 import { splitSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate, formatReceived } from "@/lib/domain/brew-date";
-import { recipeStartingValues } from "@/lib/domain/recipe-start";
+import { inheritedFieldNames, recipeStartingValues } from "@/lib/domain/recipe-start";
 import type { PourFact } from "@/lib/domain/pours";
 import { pourRowsFromJson, pourRowsToJson } from "@/lib/domain/pours";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
-import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui/controls";
+import { Button, Card, FieldError, Input, Label, SectionHeader, Select, Textarea } from "@/components/ui/controls";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
 import { tastingRowsFromJson, tastingRowsToJson } from "@/lib/domain/tastings";
-import { SaveStateBadge } from "@/components/save-state";
+
 import { SectionNav, TastingDisclaimer } from "@/components/section-nav";
 import { formatRatio } from "@/lib/domain/ratio";
+import { cn } from "@/components/ui/utils";
 
 type CoffeeOption = {
   id: string;
@@ -42,7 +43,7 @@ type Props = {
 
 function defaults(recipeFrom?: Record<string, unknown> | null, coffeeId?: string, pours?: PourFact[] | null): Partial<NewBrewFormInput> {
   return recipeStartingValues(
-    (recipeFrom ?? null) as Record<string, string | number | undefined> | null,
+    (recipeFrom ?? null) as Record<string, string | number | null | undefined> | null,
     coffeeId ?? "",
     pours ?? null,
   );
@@ -61,13 +62,26 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
   // eslint-disable-next-line react-hooks/incompatible-library
   const values = form.watch();
   const key = draftKey(userId, "brew", recipeFrom ? `copy-${(recipeFrom as { id?: string }).id ?? "new"}` : "new");
+  // Inherited-field tint applies only to fields that actually carried a value
+  // from the previous brew. An empty copy source must not tint every input.
+  const inherited = inheritedFieldNames(
+    (recipeFrom ?? null) as Record<string, string | number | null | undefined> | null,
+    recipePoursFrom,
+  );
 
-  const { state, retry } = useAutosave({
+  // New Brew uses the explicit Save button; local drafts still recover on
+  // reload, but no autosave status badge is shown because there is no server
+  // row to sync yet.
+  useAutosave({
     key,
     value: values as unknown as Record<string, unknown>,
-    // ponytail: no server row exists yet, so there is nothing to sync —
+    // ponytail: no server row exists yet, so there is nothing to sync -
     // the local draft IS the persistence until submit. Zero requests by design.
     sync: () => Promise.resolve(),
+    // All New Brew creation flows share the same 4-hour draft expiry, so a
+    // stale copy draft can never resurrect and override fresh initialization
+    // values. Within the window, reloads still recover the active draft.
+    draftMaxAgeMs: 4 * 60 * 60 * 1000,
     onRestored: (draft) => {
       const d = draft as unknown as Record<string, string | number | undefined>;
       const reset = { ...(d as unknown as NewBrewFormInput) };
@@ -85,11 +99,11 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
 
   const dose = Number(values.doseG);
   const water = Number(values.waterG);
-  // inherited-field tint: values carried from the previous brew read paper-
-  // tinted until edited. UI state only — nothing persists, fields stay editable.
+  // inherited-field tint: values actually carried from the previous brew read
+  // paper-tinted until edited. Empty copy sources must not tint every input.
   const dirty = form.formState.dirtyFields;
   const inh = (name: keyof NewBrewFormInput) =>
-    recipeFrom && !dirty[name] ? "bg-paper" : "";
+    inherited.has(name) && !dirty[name] ? "bg-paper" : "";
   // ponytail: context comes from the already-loaded list — selecting a coffee
   // never fires a request.
   const selectedCoffee = coffees.find((c) => c.id === values.coffeeId);
@@ -122,23 +136,29 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
     }
   }
 
+  const ratioLabel = formatRatio(dose, water);
+  const showRatio = ratioLabel !== "-";
+
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <div className="flex items-end justify-between gap-2">
         <div>
-          <div className="tnum font-display text-5xl leading-none" aria-live="polite">
-            {formatRatio(dose, water)}
-          </div>
-          <div className="tnum mt-1 text-sm text-ink2">
-            {Number.isFinite(dose) ? dose : "?"} g / {Number.isFinite(water) ? water : "?"} g
+          {showRatio ? (
+            <div className="tnum font-display text-3xl leading-none" aria-live="polite">
+              {ratioLabel}
+            </div>
+          ) : null}
+          <div className={cn("tnum text-xs text-ink2", showRatio && "mt-1")}>
+            {Number.isFinite(dose) ? dose : "?"} g → {Number.isFinite(water) ? water : "?"} g
           </div>
           {overRemaining ? (
             <p className="mt-1 flex min-h-8 items-center gap-1 text-sm text-ember">
-               <TriangleAlert size={16} aria-hidden /> Over remaining - advisory only, saves anyway.
+              <TriangleAlert size={16} aria-hidden />
+              Over remaining - advisory only, saves anyway.
             </p>
           ) : null}
         </div>
-        <SaveStateBadge state={state} onRetry={retry} />
+
       </div>
       {recipeFrom ? <Card><p className="text-sm text-ink2">Starting from the last recipe - change only what changed. Tinted fields are inherited; editing one returns it to normal.</p></Card> : null}
       <SectionNav items={[
@@ -149,13 +169,15 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
         { id: "sec-result", label: "Result" },
         { id: "sec-tasting", label: "Tasting" },
       ]} />
-      <Card id="sec-recipe" className="scroll-mt-14">
+      <div>
+        <SectionHeader>Recipe</SectionHeader>
+        <Card id="sec-recipe" className="mt-2 scroll-mt-14">
         <Label htmlFor="coffeeId">Coffee *</Label>
-        <Select id="coffeeId" className={inh("coffeeId")} {...form.register("coffeeId")}>
+        <Select id="coffeeId" error={!!form.formState.errors.coffeeId} className={inh("coffeeId")} {...form.register("coffeeId")}>
           <option value="">Pick a coffee…</option>
           {coffees.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
-        {form.formState.errors.coffeeId ? <p role="alert" className="mt-1 text-sm text-ember">{form.formState.errors.coffeeId.message}</p> : null}
+        <FieldError>{form.formState.errors.coffeeId?.message}</FieldError>
         {selectedCoffee ? (
           <p className="tnum mt-1 text-sm text-ink2">
             {[selectedCoffee.origin, selectedCoffee.process].filter(Boolean).join(" · ") || "origin/process unknown"}
@@ -164,12 +186,12 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           </p>
         ) : null}
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <div><Label>Dose g *</Label><Input type="number" step="any" inputMode="decimal" className={inh("doseG")} {...form.register("doseG")} /></div>
-          <div><Label>Water g *</Label><Input type="number" step="any" inputMode="decimal" className={inh("waterG")} {...form.register("waterG")} /></div>
-          <div><Label>Grind clicks</Label><Input type="number" inputMode="numeric" className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
-          <div><Label>Temp C</Label><Input type="number" step="any" inputMode="decimal" className={inh("tempC")} {...form.register("tempC")} /></div>
+          <div><Label>Dose g *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.doseG} className={inh("doseG")} {...form.register("doseG")} /></div>
+          <div><Label>Water g *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterG} className={inh("waterG")} {...form.register("waterG")} /></div>
+          <div><Label>Grind clicks</Label><Input type="number" inputMode="numeric" error={!!form.formState.errors.grindClicks} className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
+          <div><Label>Temp C</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.tempC} className={inh("tempC")} {...form.register("tempC")} /></div>
           <div className="col-span-2">
-            <Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} {...form.register("brewedAt")} />
+            <Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} error={!!form.formState.errors.brewedAt} {...form.register("brewedAt")} />
           </div>
           <div className="col-span-2">
             <Label>Brew time</Label>
@@ -184,21 +206,22 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
         {sessions.length > 0 ? (
           <div className="mt-3">
             <Label htmlFor="sessionId">Session (optional)</Label>
-            <Select id="sessionId" className={inh("sessionId")} {...form.register("sessionId")}>
+            <Select id="sessionId" error={!!form.formState.errors.sessionId} className={inh("sessionId")} {...form.register("sessionId")}>
               <option value="">No session</option>
               {sessions.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
             </Select>
           </div>
         ) : null}
       </Card>
+      </div>
       <details open id="sec-equipment" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Equipment</summary>
         <Card>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Grinder</Label><Input className={inh("grinder")} {...form.register("grinder")} /></div>
-            <div><Label>Dripper</Label><Input className={inh("dripper")} {...form.register("dripper")} /></div>
-            <div><Label>Filter</Label><Input className={inh("filter")} {...form.register("filter")} /></div>
-            <div><Label>Water</Label><Input className={inh("waterSource")} {...form.register("waterSource")} /></div>
+            <div><Label>Grinder</Label><Input error={!!form.formState.errors.grinder} className={inh("grinder")} {...form.register("grinder")} /></div>
+            <div><Label>Dripper</Label><Input error={!!form.formState.errors.dripper} className={inh("dripper")} {...form.register("dripper")} /></div>
+            <div><Label>Filter</Label><Input error={!!form.formState.errors.filter} className={inh("filter")} {...form.register("filter")} /></div>
+            <div><Label>Water</Label><Input error={!!form.formState.errors.waterSource} className={inh("waterSource")} {...form.register("waterSource")} /></div>
           </div>
         </Card>
       </details>
@@ -214,7 +237,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
       </details>
       <Card id="sec-expected" className="scroll-mt-14">
         <Label htmlFor="expectedText">Expected from this brew</Label>
-        <Textarea id="expectedText" rows={2} className="mt-1" placeholder="What do you expect before tasting?" {...form.register("expectedText")} />
+        <Textarea id="expectedText" rows={2} className="mt-1" placeholder="What do you expect before tasting?" error={!!form.formState.errors.expectedText} {...form.register("expectedText")} />
         <p className="mt-1 text-xs text-ink2">Fresh expectation for this brew only - never copied to the next brew.</p>
       </Card>
       <details id="sec-result" className="scroll-mt-14">
@@ -224,12 +247,12 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             <Label>
               Final beverage g{minBeverageG != null ? ` (target ≥ ${minBeverageG} g)` : ""}
             </Label>
-            <Input type="number" step="any" inputMode="decimal" {...form.register("finalBeverageG")} />
+            <Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.finalBeverageG} {...form.register("finalBeverageG")} />
             {belowTarget ? (
               <p className="mt-1 text-sm text-ember">Below the {minBeverageG} g target - saves anyway.</p>
             ) : null}
           </div>
-          <div className="mt-3"><Label>Brew notes</Label><Textarea rows={2} {...form.register("notes")} /></div>
+          <div className="mt-3"><Label>Brew notes</Label><Textarea rows={2} error={!!form.formState.errors.notes} {...form.register("notes")} /></div>
         </Card>
       </details>
       <details open id="sec-tasting" className="scroll-mt-14">
@@ -244,7 +267,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           />
           <div className="mt-6 border-t border-line pt-5">
             <h3 className="text-base font-medium">Overall notes</h3>
-            <Textarea rows={2} className="mt-1" aria-label="Overall notes" {...form.register("freeformNotes")} />
+            <Textarea rows={2} className="mt-1" aria-label="Overall notes" error={!!form.formState.errors.freeformNotes} {...form.register("freeformNotes")} />
           </div>
         </Card>
       </details>

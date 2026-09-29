@@ -42,10 +42,10 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
     <div className="flex flex-col gap-4">
       <div>
         <BackLink href="/sessions" label="Sessions" />
-        <h1 className="font-display text-2xl">{session.title}</h1>
-        {session.notes ? <p className="mt-1 text-sm text-ink2">{session.notes}</p> : null}
-        <SessionEditor session={session} update={update} />
+        <h1 className="font-display text-2xl leading-snug text-ink">{session.title}</h1>
+        {session.notes ? <p className="mt-1 text-xs text-ink2">{session.notes}</p> : null}
       </div>
+      <SessionEditor session={session} update={update} />
       <div>
         <SectionHeader>Brews ({brews.length})</SectionHeader>
         {brews.length === 0 ? (

@@ -40,7 +40,17 @@ export async function loadDraftWithMeta<T>(key: string): Promise<DraftMeta<T> | 
 // Server record is authoritative once synchronized: restore a local draft
 // only when it is strictly newer than the server row. Malformed or missing
 // server timestamps resolve in favor of the server (return false).
-export function shouldRestoreDraft(draftSavedAtMs: number, serverUpdatedAtIso?: string | null): boolean {
+// Optional maxAgeMs rejects drafts older than the given window, so an explicit
+// "new" action (e.g. +Brew) does not silently resurrect a stale draft while
+// still allowing recovery within an active session.
+export function shouldRestoreDraft(
+  draftSavedAtMs: number,
+  serverUpdatedAtIso?: string | null,
+  maxAgeMs?: number,
+): boolean {
+  if (maxAgeMs != null && Number.isFinite(maxAgeMs) && Date.now() - draftSavedAtMs > maxAgeMs) {
+    return false;
+  }
   if (serverUpdatedAtIso == null || serverUpdatedAtIso === "") return true;
   const serverMs = Date.parse(serverUpdatedAtIso);
   if (!Number.isFinite(draftSavedAtMs) || !Number.isFinite(serverMs)) return false;

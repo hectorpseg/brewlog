@@ -6,7 +6,8 @@ import { copyNextBrewHref } from "@/lib/domain/quick-actions";
 
 // ponytail: visible quick actions, one shared row so list/detail surfaces
 // converge. Favorite reuses FavoriteButton (no duplicate logic); Copy reuses
-// the existing /brews/new?coffee=X&copy=1 flow (no duplicate copy logic);
+// the existing /brews/new copy flow, passing a brewId for "New from this" or
+// a coffeeId for coffee-level "Brew again" (no duplicate copy logic).
 // Share lives on brew detail via the S8 share card. No gestures: every action
 // here is a native button/link, keyboard-accessible, 44px minimum.
 
@@ -25,10 +26,10 @@ export function BrewQuickActions({ brewId, coffeeId, isFavorite, toggle }: {
 }) {
   return (
     <div className="flex shrink-0 flex-col gap-2">
-      <FavoriteButton brewId={brewId} isFavorite={isFavorite} toggle={toggle} />
+      <FavoriteButton isFavorite={isFavorite} toggle={toggle} />
       {coffeeId ? (
         <Link
-          href={copyNextBrewHref(coffeeId)}
+          href={copyNextBrewHref(coffeeId, brewId)}
           aria-label={`New from this brew ${brewId}`}
           className={iconBtn}
         >
