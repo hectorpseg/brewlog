@@ -50,7 +50,8 @@ export function toShareCardData(input: ShareCardInput): ShareCardData {
     recipeLines.push(ratio != null ? `${recipe.join(" · ")} (1:${ratio})` : recipe.join(" · "));
   }
   const temp = num(brew.temp_c);
-  if (temp != null) recipeLines.push(`Water ${temp}°C`);
+  // brews.temp_c is the starting temperature; per-pour temps may differ
+  if (temp != null) recipeLines.push(`Start ${temp}°C`);
   const clicks = num(brew.grind_clicks);
   if (clicks != null) recipeLines.push(`Grind ${clicks} clicks`);
   for (const key of ["grinder", "dripper", "filter", "water_source"] as const) {

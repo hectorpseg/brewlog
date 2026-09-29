@@ -13,6 +13,7 @@ export type SummaryTasting = { stage: unknown; attribute: unknown; value: unknow
 export type SummaryPour = {
   sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown;
   bloom?: unknown; pattern?: unknown; note?: unknown;
+  temp_c?: unknown;
 };
 type SummaryInput = {
   brew: Record<string, unknown>;
@@ -63,7 +64,9 @@ export function formatBrewSummary(input: SummaryInput): string {
     if (water != null) recipe.push(`${water} g water`);
   }
   const temp = num(brew.temp_c);
-  if (temp != null) recipe.push(`${temp}°C`);
+  // brews.temp_c is the starting temperature (named as such since per-pour
+  // temperatures may differ); pour segments carry their own actual temps
+  if (temp != null) recipe.push(`start ${temp}°C`);
   const clicks = num(brew.grind_clicks);
   if (clicks != null) recipe.push(`${clicks} clicks`);
   for (const key of ["grinder", "dripper", "filter", "water_source"] as const) {
@@ -124,6 +127,9 @@ export function formatBrewSummary(input: SummaryInput): string {
     if (amount == null || when == null) continue;
     if (!isPourPattern(r.pattern)) continue;
     const parts = [`${when}`, `${amount} g`, r.pattern];
+    // per-pour actual temperature, recorded per pour
+    const pourTemp = num(r.temp_c);
+    if (pourTemp != null) parts.push(`${pourTemp}°C`);
     if (r.bloom === true) parts.push("bloom");
     const note = text(r.note)?.replace(/\s+/g, " ");
     if (note) parts.push(note);

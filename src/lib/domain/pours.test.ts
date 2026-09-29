@@ -3,6 +3,7 @@ import {
   comparePourFields,
   comparePours,
   completePourEntries,
+  emptyPourDraft,
   formatPourTime,
   formatPourTotal,
   parsePourTime,
@@ -63,13 +64,20 @@ describe("formatPourTime", () => {
 describe("pour draft JSON", () => {
   it("round-trips editor rows and drops garbage", () => {
     const rows = [
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
-      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "open" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow", temp: "", melodrip: false, switchState: "" },
     ];
     expect(pourRowsFromJson(pourRowsToJson(rows))).toEqual(rows);
     expect(pourRowsFromJson("")).toEqual([]);
     expect(pourRowsFromJson("not json")).toEqual([]);
     expect(pourRowsFromJson(JSON.stringify([{ time: "0:1", nope: true }]))).toEqual([]);
+  });
+  it("defaults enrichment keys for legacy drafts missing them", () => {
+    expect(pourRowsFromJson(JSON.stringify([
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
+    ]))).toEqual([
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
+    ]);
   });
   it("converts server rows to drafts in sequence order", () => {
     const drafts = pourServerRowsToDraft([
@@ -77,41 +85,70 @@ describe("pour draft JSON", () => {
       { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: "" },
     ]);
     expect(drafts).toEqual([
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
-      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "", temp: "", melodrip: false, switchState: "" },
+    ]);
+    // new enrichment columns ride through when present
+    const enriched = pourServerRowsToDraft([
+      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", temp_c: 92, melodrip: true, switch_state: "closed" },
+    ]);
+    expect(enriched).toEqual([
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "closed" },
     ]);
     expect(pourServerRowsToDraft(null)).toEqual([]);
     expect(pourServerRowsToDraft([])).toEqual([]);
   });
 });
 
+describe("emptyPourDraft inheritance", () => {
+  it("inherits temperature, MeloDrip, and Switch from the previous pour", () => {
+    expect(emptyPourDraft(true, { time: "", amount: "", bloom: true, pattern: "circle", note: "", temp: "92", melodrip: true, switchState: "closed" }))
+      .toEqual({ time: "", amount: "", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "closed" });
+    expect(emptyPourDraft(false, { time: "", amount: "", bloom: false, pattern: "pulse", note: "", temp: "90", melodrip: true, switchState: "open" }).temp)
+      .toBe("90");
+  });
+  it("falls back to safe defaults without a previous pour", () => {
+    expect(emptyPourDraft(true)).toEqual({ time: "", amount: "", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" });
+  });
+});
+
 describe("completePourEntries", () => {
   it("keeps complete rows, renumbered 1..n", () => {
     const out = completePourEntries([
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "bloom " },
-      { time: "halfway", amount: "60", bloom: false, pattern: "circular", note: "" },
-      { time: "0:35", amount: "", bloom: false, pattern: "pulse", note: "" },
-      { time: "1:10", amount: "80", bloom: false, pattern: "swirl", note: "" },
-      { time: "1:10", amount: "80", bloom: false, pattern: "pulse", note: "" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "bloom ", temp: "", melodrip: false, switchState: "" },
+      { time: "halfway", amount: "60", bloom: false, pattern: "circular", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "0:35", amount: "", bloom: false, pattern: "pulse", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "1:10", amount: "80", bloom: false, pattern: "swirl", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "1:10", amount: "80", bloom: false, pattern: "pulse", note: "", temp: "", melodrip: false, switchState: "" },
     ]);
     expect(out).toEqual([
-      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: "bloom" },
-      { sequence: 2, amount_g: 80, timing_seconds: 70, bloom: false, pattern: "pulse", note: null },
+      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: "bloom", temp_c: null, melodrip: false, switch_state: null },
+      { sequence: 2, amount_g: 80, timing_seconds: 70, bloom: false, pattern: "pulse", note: null, temp_c: null, melodrip: false, switch_state: null },
     ]);
   });
   it("rejects non-positive amounts", () => {
     expect(completePourEntries([
-      { time: "0:00", amount: "0", bloom: false, pattern: "center", note: "" },
-      { time: "0:00", amount: "-5", bloom: false, pattern: "center", note: "" },
+      { time: "0:00", amount: "0", bloom: false, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "0:00", amount: "-5", bloom: false, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
     ])).toEqual([]);
   });
   it("persists fractional entry as whole seconds (integer storage model)", () => {
     expect(completePourEntries([
-      { time: "76.7", amount: "60", bloom: false, pattern: "pulse", note: "" },
-      { time: "1:05.5", amount: "60", bloom: false, pattern: "pulse", note: "" },
+      { time: "76.7", amount: "60", bloom: false, pattern: "pulse", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "1:05.5", amount: "60", bloom: false, pattern: "pulse", note: "", temp: "", melodrip: false, switchState: "" },
     ])).toEqual([
-      { sequence: 1, amount_g: 60, timing_seconds: 76, bloom: false, pattern: "pulse", note: null },
-      { sequence: 2, amount_g: 60, timing_seconds: 65, bloom: false, pattern: "pulse", note: null },
+      { sequence: 1, amount_g: 60, timing_seconds: 76, bloom: false, pattern: "pulse", note: null, temp_c: null, melodrip: false, switch_state: null },
+      { sequence: 2, amount_g: 60, timing_seconds: 65, bloom: false, pattern: "pulse", note: null, temp_c: null, melodrip: false, switch_state: null },
+    ]);
+  });
+  it("carries in-range temperature, MeloDrip, and Switch; invalid values stay unknown", () => {
+    const out = completePourEntries([
+      { time: "0:00", amount: "40", bloom: false, pattern: "center", note: "", temp: "93", melodrip: true, switchState: "open" },
+      { time: "0:05", amount: "50", bloom: false, pattern: "center", note: "", temp: "99.9", melodrip: false, switchState: "weird" },
+    ]);
+    expect(out).toEqual([
+      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: false, pattern: "center", note: null, temp_c: 93, melodrip: true, switch_state: "open" },
+      { sequence: 2, amount_g: 50, timing_seconds: 5, bloom: false, pattern: "center", note: null, temp_c: 99.9, melodrip: false, switch_state: null },
     ]);
   });
 });
@@ -146,13 +183,22 @@ describe("poursUpdatedAt", () => {
   });
 });
 
-const pourA1 = { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null };
-const pourA2 = { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "slow" };
+const pourA1 = { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null, temp_c: null, melodrip: false, switch_state: null };
+const pourA2 = { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "slow", temp_c: null, melodrip: false, switch_state: null };
 
 describe("comparePours", () => {
   it("flags changed, unchanged, and missing pours", () => {
     const rows = comparePours([pourA1, pourA2], [{ ...pourA1 }, { ...pourA2, amount_g: 70 }]);
     expect(rows.map((r) => [r.sequence, r.changed])).toEqual([[1, false], [2, true]]);
+  });
+  it("flags temperature, MeloDrip, and Switch changes", () => {
+    const rows = comparePours(
+      [pourA1],
+      [{ ...pourA1, temp_c: 92, melodrip: true, switch_state: "open" }],
+    );
+    expect(rows[0].changed).toBe(true);
+    // identical enrichment reads unchanged
+    expect(comparePours([pourA1], [{ ...pourA1, temp_c: null }])[0].changed).toBe(false);
   });
   it("marks one-sided pours as changed", () => {
     const rows = comparePours([pourA1], [pourA1, pourA2]);
@@ -191,25 +237,40 @@ describe("comparePourFields", () => {
     expect(byLabel["Pour 1 time"].changed).toBe(false);
     expect(byLabel["Pour 1 pattern"].changed).toBe(false);
   });
+  it("compares temperature, MeloDrip, notes, and Switch with - for unrecorded", () => {
+    const enriched = { ...pourA1, temp_c: 92, melodrip: true, switch_state: "closed" as const, note: "slow spiral" };
+    const rows = comparePourFields([pourA1], [enriched], true);
+    const byLabel = Object.fromEntries(rows.map((r) => [r.label, r]));
+    expect(byLabel["Pour 1 temp"]).toMatchObject({ a: "-", b: "92°C", changed: true });
+    expect(byLabel["Pour 1 melodrip"]).toMatchObject({ a: "No", b: "Yes", changed: true });
+    expect(byLabel["Pour 1 switch"]).toMatchObject({ a: "-", b: "closed", changed: true });
+    expect(byLabel["Pour 1 note"]).toMatchObject({ a: "-", b: "slow spiral", changed: true });
+  });
+  it("hides switch rows entirely when neither brew uses the Hario Switch", () => {
+    const rows = comparePourFields([pourA1], [{ ...pourA1, melodrip: true }]);
+    expect(rows.some((r) => r.label.includes("switch"))).toBe(false);
+    // temperature rows still appear (enrichment compares regardless of Switch)
+    expect(rows.some((r) => r.label.endsWith("melodrip"))).toBe(true);
+  });
 });
 
 describe("pourCountAndTotal", () => {
   it("counts complete pours and sums their amounts", () => {
     expect(pourCountAndTotal([
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
-      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "open" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "", temp: "", melodrip: false, switchState: "" },
     ])).toEqual({ count: 2, totalG: 100 });
   });
   it("ignores half-filled rows", () => {
     expect(pourCountAndTotal([
-      { time: "0:00", amount: "", bloom: false, pattern: "center", note: "" },
-      { time: "soon", amount: "60", bloom: false, pattern: "center", note: "" },
+      { time: "0:00", amount: "", bloom: false, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "soon", amount: "60", bloom: false, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
     ])).toEqual({ count: 0, totalG: 0 });
   });
   it("rounds fractional sums sanely", () => {
     expect(pourCountAndTotal([
-      { time: "0:00", amount: "40.5", bloom: false, pattern: "center", note: "" },
-      { time: "0:35", amount: "60.25", bloom: false, pattern: "center", note: "" },
+      { time: "0:00", amount: "40.5", bloom: false, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "0:35", amount: "60.25", bloom: false, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
     ])).toEqual({ count: 2, totalG: 100.8 });
   });
 });

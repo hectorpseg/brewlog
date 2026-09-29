@@ -109,6 +109,16 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
     dripper: nullish(formData.get("dripper")),
     filter: nullish(formData.get("filter")),
     waterSource: nullish(formData.get("waterSource")),
+    selectedBeans: nullish(formData.get("selectedBeans")),
+    waterBrand: nullish(formData.get("waterBrand")),
+    waterPpm: nullish(formData.get("waterPpm")),
+    waterDescription: nullish(formData.get("waterDescription")),
+    waterNotes: nullish(formData.get("waterNotes")),
+    thermalShock: nullish(formData.get("thermalShock")),
+    bypass: nullish(formData.get("bypass")),
+    lilydrip: nullish(formData.get("lilydrip")),
+    melodrip: nullish(formData.get("melodrip")),
+    harioSwitch: nullish(formData.get("harioSwitch")),
     pourCount: nullish(formData.get("pourCount")),
     brewTimeMin: nullish(formData.get("brewTimeMin")),
     brewTimeSec: nullish(formData.get("brewTimeSec")),
@@ -136,6 +146,10 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
     brewed_at: toBrewedAtIso(d.brewedAt) ?? new Date().toISOString(),
     grind_clicks: d.grindClicks, grinder: d.grinder, dripper: d.dripper,
     filter: d.filter, water_source: d.waterSource,
+    selected_beans: d.selectedBeans, water_brand: d.waterBrand, water_ppm: d.waterPpm,
+    water_description: d.waterDescription, water_notes: d.waterNotes,
+    thermal_shock: d.thermalShock, bypass: d.bypass,
+    lilydrip: d.lilydrip, melodrip: d.melodrip, hario_switch: d.harioSwitch,
     pour_count: createPourEntries.length > 0 ? createPourEntries.length : d.pourCount,
     total_time_sec: toSeconds(
       d.brewTimeMin == null ? undefined : Number(d.brewTimeMin),
@@ -184,6 +198,9 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
         pourEntries.map((e) => ({
           brew_id: data.id, sequence: e.sequence, amount_g: e.amount_g,
           timing_seconds: e.timing_seconds, bloom: e.bloom, pattern: e.pattern, note: e.note,
+          temp_c: e.temp_c ?? null, melodrip: e.melodrip === true,
+          // switch state only makes sense on a Switch-enabled brew
+          switch_state: d.harioSwitch === true ? (e.switch_state ?? null) : null,
         })),
       );
       if (pourError) return { error: "Brew saved, but pours failed to save." };
@@ -297,13 +314,19 @@ export async function upsertTastings(brewId: string, entries: { stage: string; a
 // Structured pours ride the brew editor autosave: the payload is the full
 // desired state, so pours removed in the editor are deleted here. The brews
 // row is untouched - this never reads or writes that table.
-export async function upsertPours(brewId: string, entries: { sequence: number; amount_g: number; timing_seconds: number; bloom: boolean; pattern: string; note?: string | null }[]) {
+export async function upsertPours(brewId: string, entries: { sequence: number; amount_g: number; timing_seconds: number; bloom: boolean; pattern: string; note?: string | null; temp_c?: number | null; melodrip?: boolean; switch_state?: "open" | "closed" | null }[]) {
   const parsed = poursPayloadSchema.safeParse(entries);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid pour" };
   const db = await createClient();
+  // Switch position is a fact only on a Switch-enabled brew: read the brew's
+  // own flag (RLS-scoped) so a client cannot invent Switch states.
+  const { data: brew } = await db.from("brews").select("hario_switch").eq("id", brewId).single();
+  const switchOn = brew?.hario_switch === true;
   const rows = parsed.data.map((e) => ({
     brew_id: brewId, sequence: e.sequence, amount_g: e.amount_g,
     timing_seconds: e.timing_seconds, bloom: e.bloom, pattern: e.pattern, note: e.note,
+    temp_c: e.temp_c ?? null, melodrip: e.melodrip === true,
+    switch_state: switchOn ? (e.switch_state ?? null) : null,
     updated_at: new Date().toISOString(),
   }));
   if (rows.length > 0) {

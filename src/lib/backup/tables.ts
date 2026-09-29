@@ -35,6 +35,8 @@ export const BACKUP_TABLES: TableSpec[] = [
       "id", "user_id", "coffee_id", "session_id", "dose_g", "water_g", "temp_c",
       "grind_clicks", "grinder", "dripper", "filter", "water_source", "pour_count",
       "total_time_sec", "final_beverage_g", "notes", "is_favorite", "expected_text",
+      "selected_beans", "water_brand", "water_ppm", "water_description",
+      "water_notes", "thermal_shock", "bypass", "lilydrip", "melodrip",
       "brewed_at", "created_at", "updated_at",
     ],
   },
@@ -45,6 +47,15 @@ export const BACKUP_TABLES: TableSpec[] = [
       "id", "user_id", "brew_id", "acidity", "sweetness", "body", "clarity",
       "bitterness", "astringency", "intensity", "balance", "finish",
       "hot_notes", "warm_notes", "cold_notes", "freeform_notes", "created_at", "updated_at",
+    ],
+  },
+  {
+    key: "pours",
+    table: "pours",
+    columns: [
+      "id", "user_id", "brew_id", "sequence", "amount_g", "timing_seconds",
+      "bloom", "pattern", "note", "temp_c", "melodrip", "switch_state",
+      "created_at", "updated_at",
     ],
   },
   {

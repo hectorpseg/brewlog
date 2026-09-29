@@ -39,6 +39,17 @@ export function brewEditorDefaults(
     dripper: str(brew.dripper),
     filter: str(brew.filter),
     waterSource: str(brew.water_source),
+    // water & technique enrichment: old rows read "" (never backfilled)
+    selectedBeans: str(brew.selected_beans),
+    waterBrand: str(brew.water_brand),
+    waterPpm: str(brew.water_ppm),
+    waterDescription: str(brew.water_description),
+    waterNotes: str(brew.water_notes),
+    thermalShock: str(brew.thermal_shock),
+    bypass: str(brew.bypass),
+    lilydrip: str(brew.lilydrip),
+    melodrip: str(brew.melodrip),
+    harioSwitch: str(brew.hario_switch),
     pourCount: str(brew.pour_count),
     sessionId: str(brew.session_id),
     finalBeverageG: str(brew.final_beverage_g),
@@ -61,7 +72,7 @@ export function brewEditorDefaults(
   };
 }
 
-export function toBrewUpdateRow(patch: Record<string, string | undefined>): Record<string, string | number | null> {
+export function toBrewUpdateRow(patch: Record<string, string | undefined>): Record<string, string | number | boolean | null> {
   const map: Record<string, string> = {
     tempC: "temp_c",
     grindClicks: "grind_clicks",
@@ -69,6 +80,12 @@ export function toBrewUpdateRow(patch: Record<string, string | undefined>): Reco
     dripper: "dripper",
     filter: "filter",
     waterSource: "water_source",
+    waterBrand: "water_brand",
+    waterPpm: "water_ppm",
+    waterDescription: "water_description",
+    waterNotes: "water_notes",
+    thermalShock: "thermal_shock",
+    bypass: "bypass",
     pourCount: "pour_count",
     totalTimeSec: "total_time_sec",
     finalBeverageG: "final_beverage_g",
@@ -77,9 +94,21 @@ export function toBrewUpdateRow(patch: Record<string, string | undefined>): Reco
     doseG: "dose_g",
     waterG: "water_g",
   };
-  const row: Record<string, string | number | null> = {};
+  const row: Record<string, string | number | boolean | null> = {};
   for (const [k, col] of Object.entries(map)) {
     if (patch[k] !== undefined && patch[k] !== "") row[col] = patch[k];
+  }
+  // beans/technique flags ride as "true"/"false" strings: both states write
+  // (untoggling must stick), absence/"" leaves the column untouched
+  const boolMap: Record<string, string> = {
+    selectedBeans: "selected_beans",
+    lilydrip: "lilydrip",
+    melodrip: "melodrip",
+    harioSwitch: "hario_switch",
+  };
+  for (const [k, col] of Object.entries(boolMap)) {
+    if (patch[k] === "true") row[col] = true;
+    else if (patch[k] === "false") row[col] = false;
   }
   // session is clearable: explicit empty choice unassigns the brew
   if (patch.sessionId !== undefined) row.session_id = patch.sessionId === "" ? null : patch.sessionId;
@@ -100,6 +129,9 @@ export const BREW_RECIPE_KEYS = [
   "doseG", "waterG", "brewedAt", "tempC", "grindClicks", "grinder", "dripper",
   "filter", "waterSource", "pourCount", "sessionId", "finalBeverageG",
   "brewTimeMin", "brewTimeSec", "totalTimeSec", "notes", "expectedText",
+  "selectedBeans",
+  "waterBrand", "waterPpm", "waterDescription", "waterNotes",
+  "thermalShock", "bypass", "lilydrip", "melodrip", "harioSwitch",
 ] as const;
 
 export const BREW_NOTE_KEYS = [
