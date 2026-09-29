@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
-import { listCoffees, latestBrew, latestBrewForCoffee, listSessionOptions, getCompetitionSettings, listPours } from "@/lib/db/queries";
+import { listCoffees, latestBrew, latestBrewForCoffee, listSessionOptions, getCompetitionSettings, listPours, getBrew } from "@/lib/db/queries";
 import { DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
 import { BrewForm } from "@/components/brew-form";
 import { Card } from "@/components/ui/controls";
 import { formatRatio } from "@/lib/domain/ratio";
+import { formInitKey } from "@/lib/domain/recipe-start";
 
-export default async function NewBrewPage({ searchParams }: { searchParams: Promise<{ coffee?: string; copy?: string }> }) {
+export default async function NewBrewPage({ searchParams }: { searchParams: Promise<{ coffee?: string; copy?: string; brew?: string }> }) {
   const sp = await searchParams;
-  const here = `/brews/new${sp.coffee ? `?coffee=${encodeURIComponent(sp.coffee)}${sp.copy ? "&copy=1" : ""}` : ""}`;
+  const here = `/brews/new${sp.brew ? `?brew=${encodeURIComponent(sp.brew)}&copy=1` : sp.coffee ? `?coffee=${encodeURIComponent(sp.coffee)}${sp.copy ? "&copy=1" : ""}` : ""}`;
   const user = await requireUser(here);
   // fetch-once reference data: stable for the session, never refetched on keystroke
   const [coffees, sessions, settings] = await Promise.all([
@@ -16,14 +17,20 @@ export default async function NewBrewPage({ searchParams }: { searchParams: Prom
     listSessionOptions().catch(() => []),
     getCompetitionSettings().catch(() => null),
   ]);
-  const copyFrom = sp.copy === "1" && sp.coffee ? await latestBrewForCoffee(sp.coffee).catch(() => null) : null;
+  // "New from this" carries a specific brew ID; coffee-level "Brew again" uses
+  // the latest brew for that coffee. Both honor the existing copy rules.
+  const copyFrom = sp.brew
+    ? await getBrew(sp.brew).catch(() => null)
+    : sp.copy === "1" && sp.coffee
+      ? await latestBrewForCoffee(sp.coffee).catch(() => null)
+      : null;
   // structured pours are recipe: fetched only for the copy source, so Brew
   // Again / Continue inherit them. A fresh brew never invents pours.
   const copyPours = copyFrom ? await listPours(copyFrom.id).catch(() => []) : null;
   // +Brew continues the workflow: the most recent brew is offered as an
   // explicit copy source — starting fresh stays one tap away. A fresh form
   // never preselects a coffee: that choice belongs to the user.
-  const last = !sp.coffee ? await latestBrew().catch(() => null) : null;
+  const last = !sp.coffee && !sp.brew ? await latestBrew().catch(() => null) : null;
   const lastCoffees = last?.coffees as { name?: string } | { name?: string }[] | null | undefined;
   const lastCoffeeName = Array.isArray(lastCoffees) ? lastCoffees[0]?.name : lastCoffees?.name;
   return (
@@ -37,13 +44,14 @@ export default async function NewBrewPage({ searchParams }: { searchParams: Prom
           </p>
           <Link
             href={`/brews/new?coffee=${last.coffee_id}&copy=1`}
-            className="mt-2 inline-block min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white"
+            className="mt-2 inline-block min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white transition-transform duration-150 active:scale-[0.95]"
           >
             Continue from last brew
           </Link>
         </Card>
       ) : null}
       <BrewForm
+        key={formInitKey(copyFrom?.id as string | undefined, sp.coffee)}
         userId={user.id}
         coffees={coffees.map((c: {
           id: string; name: string; origin: string | null; process: string | null;
@@ -54,7 +62,7 @@ export default async function NewBrewPage({ searchParams }: { searchParams: Prom
         }))}
         sessions={sessions.map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))}
         minBeverageG={settings?.min_final_beverage_g != null ? Number(settings.min_final_beverage_g) : DEFAULT_MIN_BEVERAGE_G}
-        initialCoffeeId={sp.coffee ?? undefined}
+        initialCoffeeId={sp.coffee ?? (copyFrom?.coffee_id as string | undefined) ?? undefined}
         recipeFrom={copyFrom}
         recipePoursFrom={copyPours}
       />

@@ -13,6 +13,8 @@ type Opts<T> = {
   debounceMs?: number;
   // server timestamp the draft is weighed against; omitted = nothing to weigh (new record)
   serverUpdatedAt?: string | null;
+  // reject drafts older than this window; omitted = no age limit
+  draftMaxAgeMs?: number;
   onRestored?: (v: T) => void;
 };
 
@@ -23,6 +25,7 @@ export function useAutosave<T extends Record<string, unknown>>({
   store = defaultStore,
   debounceMs = 900,
   serverUpdatedAt,
+  draftMaxAgeMs,
   onRestored,
 }: Opts<T>) {
   // ponytail: idle means saved. "editing" is entered only by an actual change,
@@ -73,7 +76,7 @@ export function useAutosave<T extends Record<string, unknown>>({
     restored.current = true;
     loadDraftWithMeta<T>(key).then((draft) => {
       if (!draft) return;
-      if (shouldRestoreDraft(draft.savedAt, serverStampRef.current)) {
+      if (shouldRestoreDraft(draft.savedAt, serverStampRef.current, draftMaxAgeMs)) {
         onRestoredRef.current?.(draft.value);
       } else {
         // stale draft would clobber fresh server state — drop it

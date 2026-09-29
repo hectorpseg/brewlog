@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { recipeStartingValues } from "@/lib/domain/recipe-start";
+import { recipeStartingValues, formInitKey, inheritedFieldNames } from "@/lib/domain/recipe-start";
 import { defaultBrewedDate } from "@/lib/domain/brew-date";
 import { pourRowsFromJson } from "@/lib/domain/pours";
 
@@ -127,5 +127,63 @@ describe("recipeStartingValues", () => {
     expect(recipeStartingValues(previous, "coffee-1", []).pours).toBeUndefined();
     expect(recipeStartingValues(previous, "coffee-1", null).pours).toBeUndefined();
     expect(recipeStartingValues(null, "coffee-1").pours).toBeUndefined();
+  });
+
+  // New from this was blank because an already-mounted react-hook-form
+  // ignores later defaultValues: the form key drives the remount.
+  describe("formInitKey", () => {
+    it("blank + brew without a source is stable across re-renders", () => {
+      expect(formInitKey(null, undefined)).toBe("blank");
+      expect(formInitKey(null, undefined)).toBe(formInitKey(null));
+    });
+
+    it("a copy source remounts the form and separates sources", () => {
+      expect(formInitKey("brew-a")).toMatch(/^copy-brew-a$/);
+      expect(formInitKey("brew-a")).not.toBe(formInitKey("brew-b"));
+      // Brew A vs Brew B produce distinct keys so each initializes from its
+      // own source, and the blank key never collides with a copy key.
+      expect(formInitKey(null, "coffee-1")).toBe("blank-coffee-1");
+      expect(formInitKey("brew-a")).not.toBe(formInitKey(null, "coffee-1"));
+    });
+
+    it("same source keeps one mounted form (no reset on unrelated renders)", () => {
+      expect(formInitKey("same-brew")).toBe(formInitKey("same-brew"));
+      expect(formInitKey("same-brew", "coffee-1")).toBe(formInitKey("same-brew", "coffee-9"));
+    });
+  });
+
+  it("initializes Brew A vs Brew B independently end-to-end", () => {
+    // New Brew from Brew A → Brew A recipe values are used.
+    const fromA = recipeStartingValues({ ...previous, dose_g: 16, water_g: 240 }, "coffee-1");
+    // New Brew from Brew B → Brew B recipe values are used.
+    const fromB = recipeStartingValues({ ...previous, dose_g: 12, water_g: 180, grinder: "Comandante" }, "coffee-1");
+    expect(fromA.doseG).toBe(16);
+    expect(fromA.waterG).toBe(240);
+    expect(fromA.grinder).toBe("K-Ultra");
+    expect(fromB.doseG).toBe(12);
+    expect(fromB.waterG).toBe(180);
+    expect(fromB.grinder).toBe("Comandante");
+    // + Brew (no source) → blank recipe, only date/coffee defaults.
+    const blank = recipeStartingValues(null, "coffee-1");
+    expect(blank.doseG).toBeUndefined();
+    expect(blank.waterG).toBeUndefined();
+    expect(blank.doseG).not.toBe(fromA.doseG);
+  });
+});
+
+describe("inheritedFieldNames", () => {
+  it("marks only fields that were actually carried over", () => {
+    const inherited = inheritedFieldNames({ ...previous, water_g: null, grinder: "" }, null);
+    expect(inherited.has("coffeeId")).toBe(true);
+    expect(inherited.has("doseG")).toBe(true);
+    expect(inherited.has("waterG")).toBe(false);
+    expect(inherited.has("grinder")).toBe(false);
+    expect(inherited.has("brewedAt")).toBe(false);
+    expect(inherited.has("finalBeverageG")).toBe(false);
+  });
+
+  it("starts blank when there is no previous brew", () => {
+    const inherited = inheritedFieldNames(null, null);
+    expect(inherited.size).toBe(0);
   });
 });

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GitCompare, Plus, Share2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getBrew, listSessionOptions, listTastings, listPours, recordRecentView } from "@/lib/db/queries";
@@ -10,7 +11,6 @@ import { CopySummaryButton } from "@/components/copy-summary";
 import { DeleteButton } from "@/components/delete-button";
 import { FavoriteButton } from "@/components/favorite-button";
 import { ShareCardButtons, ShareCardPreview } from "@/components/share-card";
-import { SectionHeader } from "@/components/ui/controls";
 import { SectionNav } from "@/components/section-nav";
 import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
@@ -70,40 +70,50 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     <div className="flex flex-col gap-4">
       <div>
         <BackLink href="/brews" label="Brews" />
-        <h1 className="tnum font-display text-3xl leading-none">
-          {typeof brew.coffee_id === "string" && typeof coffeeName === "string" ? (
-            <Link href={`/coffees/${brew.coffee_id}`} className="font-medium text-ember underline">
-              {coffeeName}
-            </Link>
-          ) : (
-            coffeeName ?? "Brew"
-          )}
-        </h1>
-        <p className="mt-1 text-sm text-ink2">
-          Brewed {formatBrewDate(brew.brewed_at ?? brew.created_at)} · {brew.dose_g} g / {brew.water_g} g · ratio {formatRatio(Number(brew.dose_g), Number(brew.water_g))} · {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} clicks
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="font-display text-2xl leading-snug text-ink">
+            {typeof brew.coffee_id === "string" && typeof coffeeName === "string" ? (
+              <Link href={`/coffees/${brew.coffee_id}`} className="text-ember no-underline hover:underline focus-visible:underline underline-offset-4">
+                {coffeeName}
+              </Link>
+            ) : (
+              coffeeName ?? "Brew"
+            )}
+          </h1>
+          <FavoriteButton isFavorite={isFavorite} toggle={favorite} />
+        </div>
+        <p className="tnum mt-1 text-xs text-ink2">
+          {formatBrewDate(brew.brewed_at ?? brew.created_at)} · {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g · {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
+        </p>
+        <p className="tnum text-[11px] text-ink3">
+          {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} clicks
+          {brew.filter ? ` · ${brew.filter}` : ""}
           {formatDuration(brew.total_time_sec) ? ` · ${formatDuration(brew.total_time_sec)}` : ""}
           {brew.final_beverage_g ? ` · → ${brew.final_beverage_g} g` : ""}
         </p>
-        <p className="mt-2 text-sm text-ink2">
-          {BREW_LIFECYCLE_LABEL[status]}
-          {warnings.length > 0 ? ` · ${warnings.join(" · ")}` : ""}
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink2">
+          <span>{BREW_LIFECYCLE_LABEL[status]}</span>
           {score !== null ? (
-            <span className="ml-1 inline-flex min-h-7 items-center rounded-full bg-ink px-2.5 text-sm font-medium text-white">{formatBrewScore(score)}</span>
+            <span className="tnum shrink-0">· {formatBrewScore(score)}</span>
           ) : null}
-        </p>
-        <p className="mt-1 text-sm text-ink2">
-          Session ·{" "}
+          {warnings.length > 0 ? (
+            <span className="min-w-0 text-ink3 line-clamp-1">· {warnings.join(" · ")}</span>
+          ) : null}
+        </div>
+        <p className="mt-1 text-xs text-ink2">
           {brewSession ? (
-            <Link href={`/sessions/${brewSession.id}`} className="font-medium text-ember underline">
-              {brewSession.title}
-            </Link>
+            <>
+              Session ·{" "}
+              <Link href={`/sessions/${brewSession.id}`} className="font-medium text-ember underline underline-offset-4 hover:no-underline">
+                {brewSession.title}
+              </Link>
+            </>
           ) : (
-            "None"
+            "No session"
           )}
         </p>
         <div className="mt-2 flex items-center gap-2">
           <CopySummaryButton text={summary} />
-          <FavoriteButton brewId={id} isFavorite={isFavorite} toggle={favorite} />
         </div>
       </div>
       <div>
@@ -115,7 +125,6 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
           { id: "sec-result", label: "Result" },
           { id: "sec-tasting", label: "Tasting" },
         ]} />
-        <SectionHeader>Recipe</SectionHeader>
         <div className="mt-2">
           <BrewEditor
             userId={user.id}
@@ -127,25 +136,24 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
           />
         </div>
       </div>
-      <Link
-        href={`/brews/new?coffee=${brew.coffee_id}&copy=1`}
-        className="min-h-11 rounded-[10px] bg-ember px-4 py-2 text-center font-medium text-white"
-      >
-        New from this
-      </Link>
-      <Link
-        href={`/brews/compare?a=${brew.id}`}
-        className="min-h-11 rounded-[10px] border border-line bg-card px-4 py-2 text-center font-medium"
-      >
-        Compare this brew
-      </Link>
-      <div>
-        <SectionHeader>Share</SectionHeader>
-        <details className="mt-2 rounded-[10px] border border-line bg-card px-3 py-2">
-          <summary className="flex min-h-11 cursor-pointer items-center py-2 font-medium">
-            Share this brew
+      <div className="flex flex-col gap-1.5">
+        <Link
+          href={`/brews/new?brew=${id}&copy=1`}
+          className="flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-ember px-4 py-2 text-sm font-medium text-white transition-transform duration-150 active:scale-[0.95]"
+        >
+          <Plus size={16} aria-hidden /> New from this
+        </Link>
+        <Link
+          href={`/brews/compare?a=${brew.id}`}
+          className="flex min-h-11 items-center justify-center gap-2 rounded-[10px] border border-line bg-card px-4 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.98]"
+        >
+          <GitCompare size={16} aria-hidden /> Compare this brew
+        </Link>
+        <details className="rounded-[10px] border border-line bg-card">
+          <summary className="flex min-h-11 cursor-pointer items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.98]">
+            <Share2 size={16} aria-hidden /> Share this brew
           </summary>
-          <div className="flex flex-col gap-3 pb-2">
+          <div className="flex flex-col gap-3 border-t border-line px-3 py-3">
             <ShareCardPreview card={shareCard} />
             <ShareCardButtons card={shareCard} />
           </div>
