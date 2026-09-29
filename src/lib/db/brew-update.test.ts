@@ -121,7 +121,7 @@ describe("brewEditorDefaults", () => {
 
   it("carries water/technique facts into the editor", () => {
     const f = brewEditorDefaults(
-      { ...brew, selected_beans: true, water_brand: "Third Wave", water_ppm: 150, thermal_shock: "none", melodrip: true },
+      { ...brew, selected_beans: true, water_brand: "Third Wave", water_ppm: 150, thermal_shock: "none", melodrip: true, lilydrip: false },
       observation,
     );
     expect(f.selectedBeans).toBe("true");
