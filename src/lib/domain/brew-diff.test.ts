@@ -29,7 +29,7 @@ describe("toComparableBrew", () => {
     const c = toComparableBrew(base);
     expect(c.Coffee).toBe("Competencia");
     expect(c.Session).toBe("No session");
-    expect(c.Temperature).toBe("92°C");
+    expect(c["Starting temperature"]).toBe("92°C");
     expect(c.Grind).toBe("70 clicks");
     expect(c["Brew time"]).toBe("2:42");
     expect(c["Hot notes"]).toBe("Sweet.");
@@ -49,8 +49,30 @@ describe("toComparableBrew", () => {
 
   it("marks missing values as unknown, identically on both sides", () => {
     const c = toComparableBrew({ ...base, temp_c: null, observations: [] });
-    expect(c.Temperature).toBe("-");
+    expect(c["Starting temperature"]).toBe("-");
     expect(c["Hot notes"]).toBe("-");
+  });
+
+  it("carries water/technique fields; booleans read Yes/No with - for unrecorded", () => {
+    const c = toComparableBrew({
+      ...base,
+      water_brand: "Third Wave",
+      water_ppm: 150,
+      water_description: null,
+      thermal_shock: "none",
+      lilydrip: true,
+      melodrip: false,
+      selected_beans: null,
+    });
+    expect(c["Selected beans"]).toBe("-");
+    expect(c["Water brand"]).toBe("Third Wave");
+    expect(c.PPM).toBe("150 ppm");
+    expect(c["Water description"]).toBe("-");
+    expect(c["Water notes"]).toBe("-");
+    expect(c["Thermal shock"]).toBe("none");
+    expect(c.Bypass).toBe("-");
+    expect(c.LilyDrip).toBe("Yes");
+    expect(c.MeloDrip).toBe("No");
   });
 });
 
@@ -59,7 +81,7 @@ describe("compare answers what changed", () => {
     const a = toComparableBrew(base);
     const b = toComparableBrew({ ...base, temp_c: 94, grind_clicks: 73, filter: "Cafec Wave" });
     const d = diffBrews(a, b);
-    expect(d.changed.sort()).toEqual(["Filter", "Grind", "Temperature"]);
+    expect(d.changed.sort()).toEqual(["Filter", "Grind", "Starting temperature"]);
     expect(d.same).toContain("Coffee");
     expect(d.same).toContain("Dose");
     expect(d.same).toContain("Session");

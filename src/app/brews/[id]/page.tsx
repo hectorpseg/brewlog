@@ -86,7 +86,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
           {formatBrewDate(brew.brewed_at ?? brew.created_at)} · {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g · {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
         </p>
         <p className="tnum text-[11px] text-ink3">
-          {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} clicks
+          {brew.temp_c != null ? `start ${brew.temp_c}°C` : "?"} · {brew.grind_clicks ?? "?"} clicks
           {brew.filter ? ` · ${brew.filter}` : ""}
           {formatDuration(brew.total_time_sec) ? ` · ${formatDuration(brew.total_time_sec)}` : ""}
           {brew.final_beverage_g ? ` · → ${brew.final_beverage_g} g` : ""}

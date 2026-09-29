@@ -8,6 +8,12 @@ import { POUR_PATTERNS } from "@/lib/domain/pours";
 // Empty always means "unknown", per product rules.
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 const optNum = (schema: z.ZodTypeAny) => z.preprocess(emptyToUndefined, schema.nullish());
+// Checkbox booleans ride forms as "true"/"false" strings (same shape the
+// draft state stores); bool values pass through untouched.
+const optBool = z.preprocess(
+  (v) => (v === "true" ? true : v === "false" ? false : v),
+  z.boolean().nullish(),
+);
 
 // Historical logging never records future dates. Non-date free text (e.g. an
 // old received-date note) passes through; ISO days must not be in the future.
@@ -45,6 +51,19 @@ export const brewSchema = z.object({
   dripper: z.string().max(80).nullish(),
   filter: z.string().max(80).nullish(),
   waterSource: z.string().max(80).nullish(),
+  // Water & technique facts ride the brews row (additive fields, never new
+  // entities). Unknown stays unknown: text/number optional, booleans explicit.
+  selectedBeans: optBool,
+  waterBrand: z.string().max(80).nullish(),
+  waterPpm: optNum(z.coerce.number().min(0).max(1000)),
+  waterDescription: z.string().max(200).nullish(),
+  waterNotes: z.string().max(1000).nullish(),
+  thermalShock: z.string().max(120).nullish(),
+  bypass: z.string().max(120).nullish(),
+  lilydrip: optBool,
+  melodrip: optBool,
+  // Brew-level Hario Switch toggles Switch-aware pours
+  harioSwitch: optBool,
   pourCount: optNum(z.coerce.number().int().min(1).max(20)),
   totalTimeSec: optNum(z.coerce.number().int().min(0).max(3600)),
   finalBeverageG: optNum(z.coerce.number().positive().max(2000)),
@@ -157,6 +176,14 @@ export const pourEntrySchema = z.object({
   ),
   pattern: z.enum(POUR_PATTERNS),
   note: z.string().max(500).nullish(),
+  // per-pour enrichment: temperature shares the brew-level bounds; MeloDrip
+  // is a boolean; Switch state only means something on a Switch-enabled brew
+  temp_c: optNum(z.coerce.number().min(50).max(100)),
+  melodrip: z.preprocess(
+    (v) => (v === "true" ? true : v === "false" ? false : v),
+    z.boolean().nullish(),
+  ),
+  switch_state: z.enum(["open", "closed"]).nullish(),
 });
 export type PourEntryInput = z.infer<typeof pourEntrySchema>;
 

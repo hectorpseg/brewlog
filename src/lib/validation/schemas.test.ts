@@ -89,3 +89,50 @@ describe("newBrewFormSchema expectedText", () => {
     expect(newBrewFormSchema.safeParse({ ...base, expectedText: "x".repeat(2001) }).success).toBe(false);
   });
 });
+
+// ponytail: water/technique enrichment rows — unknown stays unknown, booleans ride "true"/"false".
+describe("brew water & technique fields", () => {
+  const base = { coffeeId, doseG: 15, waterG: 250 };
+  it("accepts absent water/technique facts (old rows)", () => {
+    const r = brewSchema.safeParse(base);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.selectedBeans).toBeUndefined();
+      expect(r.data.waterBrand).toBeUndefined();
+      expect(r.data.waterPpm).toBeUndefined();
+      expect(r.data.waterDescription).toBeUndefined();
+      expect(r.data.waterNotes).toBeUndefined();
+      expect(r.data.thermalShock).toBeUndefined();
+      expect(r.data.bypass).toBeUndefined();
+      expect(r.data.lilydrip).toBeUndefined();
+      expect(r.data.melodrip).toBeUndefined();
+    }
+  });
+  it("accepts water/technique facts, coercing booleans from strings", () => {
+    const r = newBrewFormSchema.safeParse({
+      ...base,
+      selectedBeans: "true",
+      waterBrand: "Third Wave",
+      waterPpm: "150",
+      waterDescription: "TPM",
+      waterNotes: "flat",
+      thermalShock: "none",
+      bypass: "0 g",
+      lilydrip: "true",
+      melodrip: "false",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.selectedBeans).toBe(true);
+      expect(r.data.waterPpm).toBe(150);
+      expect(r.data.lilydrip).toBe(true);
+      expect(r.data.melodrip).toBe(false);
+    }
+  });
+  it("rejects out-of-range values", () => {
+    expect(brewSchema.safeParse({ ...base, waterPpm: 1001 }).success).toBe(false);
+    expect(brewSchema.safeParse({ ...base, waterPpm: -1 }).success).toBe(false);
+    expect(brewSchema.safeParse({ ...base, waterBrand: "x".repeat(81) }).success).toBe(false);
+    expect(brewSchema.safeParse({ ...base, lilydrip: "maybe" }).success).toBe(false);
+  });
+});

@@ -43,6 +43,31 @@ describe("recipeStartingValues", () => {
     expect(v.sessionId).toBe("session-1");
   });
 
+  it("inherits water/technique recipe facts and never water notes", () => {
+    const v = recipeStartingValues({
+      ...previous,
+      selected_beans: true,
+      water_brand: "Third Wave",
+      water_ppm: 120,
+      water_description: "TPM profile",
+      water_notes: "flat after boil",
+      thermal_shock: "none",
+      bypass: "0 g",
+      lilydrip: true,
+      melodrip: false,
+    }, "coffee-1");
+    expect(v.selectedBeans).toBe(true);
+    expect(v.waterBrand).toBe("Third Wave");
+    expect(v.waterPpm).toBe(120);
+    expect(v.waterDescription).toBe("TPM profile");
+    expect(v.thermalShock).toBe("none");
+    expect(v.bypass).toBe("0 g");
+    expect(v.lilydrip).toBe(true);
+    expect(v.melodrip).toBeUndefined();
+    // water notes are annotations: same reset category as brew notes
+    expect(v.waterNotes).toBeUndefined();
+  });
+
   it("does NOT copy historical/result data", () => {
     const v = recipeStartingValues(previous, "coffee-1");
     expect(v.brewTimeMin).toBeUndefined();
@@ -96,6 +121,12 @@ describe("recipeStartingValues", () => {
     expect(v.dripper).toBeUndefined();
     expect(v.filter).toBeUndefined();
     expect(v.waterSource).toBeUndefined();
+    expect(v.selectedBeans).toBeUndefined();
+    expect(v.waterBrand).toBeUndefined();
+    expect(v.waterPpm).toBeUndefined();
+    expect(v.thermalShock).toBeUndefined();
+    expect(v.lilydrip).toBeUndefined();
+    expect(v.melodrip).toBeUndefined();
     expect(v.pourCount).toBeUndefined();
     expect(v.sessionId).toBeUndefined();
   });
@@ -114,8 +145,8 @@ describe("recipeStartingValues", () => {
     ];
     const v = recipeStartingValues(previous, "coffee-1", serverPours);
     expect(pourRowsFromJson(v.pours)).toEqual([
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
-      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow", temp: "", melodrip: false, switchState: "" },
     ]);
     // tasting still never inherited alongside
     expect(v.tastings).toBeUndefined();

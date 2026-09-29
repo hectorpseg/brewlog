@@ -47,7 +47,7 @@ describe("formatBrewSummary", () => {
     expect(text).toBe(
       [
         "Competencia · Sep 21",
-        "15 g dose · 250 g water (1:16.7) · 92°C · 70 clicks · K-Ultra · Origami · Abaca · Scala · 4 pours · 2:30 · 180 g out",
+        "15 g dose · 250 g water (1:16.7) · start 92°C · 70 clicks · K-Ultra · Origami · Abaca · Scala · 4 pours · 2:30 · 180 g out",
         "Session: Phase 1",
         "Tasting — Hot: body 4, finish 2; Warm: sweetness 8",
         "Hot notes: Sweet, bright.",
@@ -75,11 +75,11 @@ describe("formatBrewSummary", () => {
       brew,
       coffeeName: "Competencia",
       pours: [
-        { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "" },
-        { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null },
+        { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "", temp_c: 90 },
+        { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null, temp_c: null },
       ],
     });
-    expect(text).toContain("Pours: 1. 0:00 · 40 g · center · bloom; 2. 0:35 · 60 g · circular");
+    expect(text).toContain("Pours: 1. 0:00 · 40 g · center · bloom; 2. 0:35 · 60 g · circular · 90°C");
   });
 
   it("omits the pours line for historical brews without structured pours", () => {

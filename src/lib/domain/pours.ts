@@ -19,7 +19,9 @@ export function isPourPattern(v: unknown): v is PourPattern {
   return (POUR_PATTERNS as readonly string[]).includes(typeof v === "string" ? v : "");
 }
 
-// Complete, persistable fact. Sequence starts at 1 in entry order.
+// Complete, persistable fact. Sequence starts at 1 in entry order. Per-pour
+// temperature/MeloDrip/Switch are optional enrichment: a pour stays complete
+// without them (missing reads as unknown, never invented).
 export type PourEntry = {
   sequence: number;
   amount_g: number;
@@ -27,7 +29,12 @@ export type PourEntry = {
   bloom: boolean;
   pattern: PourPattern;
   note?: string | null;
+  temp_c?: number | null;
+  melodrip: boolean;
+  switch_state?: "open" | "closed" | null;
 };
+
+export type PourSwitchState = "open" | "closed";
 
 // Draft row as held by the editor: strings throughout, possibly incomplete.
 // Sequence is implicit (index + 1); incomplete rows live in the local draft
@@ -38,10 +45,29 @@ export type PourDraftRow = {
   bloom: boolean;
   pattern: string;
   note: string;
+  temp: string;
+  melodrip: boolean;
+  switchState: string;
 };
 
-export function emptyPourDraft(first: boolean): PourDraftRow {
-  return { time: "", amount: "", bloom: first, pattern: "center", note: "" };
+// Legacy drafts/rows lack the enrichment keys; they default safely.
+function safeSwitch(v: unknown): string {
+  return v === "open" || v === "closed" ? v : "";
+}
+
+export function emptyPourDraft(first: boolean, prev?: PourDraftRow): PourDraftRow {
+  return {
+    time: "",
+    amount: "",
+    bloom: first,
+    // pattern keeps its existing reset-to-center behavior for every new row
+    pattern: "center",
+    note: "",
+    // new pours inherit temperature, MeloDrip, and Switch from the previous pour
+    temp: prev?.temp ?? "",
+    melodrip: prev?.melodrip ?? false,
+    switchState: prev?.switchState ?? "",
+  };
 }
 
 // Display seconds as m:ss ("0:00", "0:35", "1:05"). Null when unrecorded.
@@ -79,7 +105,13 @@ function draftRow(v: unknown): PourDraftRow | null {
   if (typeof r.note !== "string") return null;
   if (typeof r.bloom !== "boolean") return null;
   if (typeof r.pattern !== "string") return null;
-  return { time: r.time, amount: r.amount, bloom: r.bloom, pattern: r.pattern, note: r.note };
+  // legacy drafts lack the enrichment keys: default them, never drop the row
+  return {
+    time: r.time, amount: r.amount, bloom: r.bloom, pattern: r.pattern, note: r.note,
+    temp: typeof r.temp === "string" ? r.temp : "",
+    melodrip: r.melodrip === true,
+    switchState: safeSwitch(r.switchState),
+  };
 }
 
 // Lenient: restores whatever the editor held, including half-filled rows.
@@ -104,9 +136,10 @@ export function pourRowsToJson(rows: PourDraftRow[]): string {
   return JSON.stringify(rows);
 }
 
-// Server rows (numbers) into editor draft rows (strings).
+// Server rows (numbers) into editor draft rows (strings). Legacy rows without
+// the enrichment columns read temp ""/melodrip false/switch "" — never drop.
 export function pourServerRowsToDraft(
-  rows: { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown }[] | null | undefined,
+  rows: { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown; temp_c?: unknown; melodrip?: unknown; switch_state?: unknown }[] | null | undefined,
 ): PourDraftRow[] {
   if (!rows) return [];
   const sorted = [...rows].sort((a, b) => Number(a.sequence ?? 0) - Number(b.sequence ?? 0));
@@ -116,12 +149,16 @@ export function pourServerRowsToDraft(
     const amount = typeof r.amount_g === "number" || typeof r.amount_g === "string" ? Number(r.amount_g) : NaN;
     const time = typeof r.timing_seconds === "number" || typeof r.timing_seconds === "string" ? Number(r.timing_seconds) : NaN;
     if (!Number.isFinite(amount) || !Number.isFinite(time)) continue;
+    const temp = typeof r.temp_c === "number" || typeof r.temp_c === "string" ? Number(r.temp_c) : NaN;
     out.push({
       time: formatPourTime(time) ?? "",
       amount: String(amount),
       bloom: r.bloom === true,
       pattern: isPourPattern(r.pattern) ? r.pattern : "custom",
       note: typeof r.note === "string" ? r.note : "",
+      temp: Number.isFinite(temp) ? String(temp) : "",
+      melodrip: r.melodrip === true,
+      switchState: safeSwitch(r.switch_state),
     });
   }
   return out;
@@ -146,6 +183,15 @@ export function completePourEntries(rows: PourDraftRow[]): PourEntry[] {
       bloom: r.bloom === true,
       pattern: r.pattern,
       note: note === "" ? null : note.slice(0, 500),
+      // temperature is optional: blank/invalid stays unknown, never invented;
+      // in-range values share the brew-level temperature bounds
+      temp_c: (() => {
+        if (r.temp.trim() === "") return null;
+        const t = Number(r.temp);
+        return Number.isFinite(t) && t >= 50 && t <= 100 ? t : null;
+      })(),
+      melodrip: r.melodrip === true,
+      switch_state: safeSwitch(r.switchState) === "" ? null : safeSwitch(r.switchState) as PourSwitchState,
     });
   }
   return out;
@@ -184,6 +230,9 @@ export type PourFact = {
   bloom?: unknown;
   pattern?: unknown;
   note?: unknown;
+  temp_c?: unknown;
+  melodrip?: unknown;
+  switch_state?: unknown;
 };
 
 function factText(v: unknown): string | null {
@@ -210,6 +259,7 @@ function toEntry(f: PourFact | null | undefined): PourEntry | null {
   if (!Number.isInteger(seq) || seq < 1) return null;
   if (!Number.isFinite(amount) || !Number.isFinite(time)) return null;
   if (!isPourPattern(f.pattern)) return null;
+  const temp = typeof f.temp_c === "number" || typeof f.temp_c === "string" ? Number(f.temp_c) : NaN;
   return {
     sequence: seq,
     amount_g: amount,
@@ -217,6 +267,10 @@ function toEntry(f: PourFact | null | undefined): PourEntry | null {
     bloom: f.bloom === true,
     pattern: f.pattern,
     note: factText(f.note),
+    // legacy pour rows lack the enrichment columns: unknown stays unknown
+    temp_c: Number.isFinite(temp) && temp >= 50 && temp <= 100 ? temp : null,
+    melodrip: f.melodrip === true,
+    switch_state: f.switch_state === "open" || f.switch_state === "closed" ? f.switch_state : null,
   };
 }
 
@@ -226,7 +280,10 @@ function samePour(a: PourEntry, b: PourEntry): boolean {
     a.timing_seconds === b.timing_seconds &&
     a.bloom === b.bloom &&
     a.pattern === b.pattern &&
-    (a.note ?? null) === (b.note ?? null)
+    (a.note ?? null) === (b.note ?? null) &&
+    (a.temp_c ?? null) === (b.temp_c ?? null) &&
+    a.melodrip === b.melodrip &&
+    (a.switch_state ?? null) === (b.switch_state ?? null)
   );
 }
 
@@ -257,24 +314,37 @@ export function comparePours(
 // Field rows for the shared compare table: one row per pour field, in
 // sequence order. Missing sides read "-", never invented; changed is
 // per-field so identical fields stay quiet even when the pour differs.
+// Per-pour enrichment follows the same conventions: temperature carries °C,
+// MeloDrip reads Yes/No like bloom, and the Switch position (Open/Closed)
+// appears only when at least one compared brew uses the Hario Switch;
+// unrecorded values stay "-" for all of them.
 export type PourFieldRow = { label: string; a: string; b: string; changed: boolean };
 
 export function comparePourFields(
   a: PourFact[] | null | undefined,
   b: PourFact[] | null | undefined,
+  switchOn = false,
 ): PourFieldRow[] {
   const rows: PourFieldRow[] = [];
   for (const { sequence, a: pa, b: pb } of comparePours(a, b)) {
     const time = (p: PourEntry | null) => (p ? (formatPourTime(p.timing_seconds) ?? "-") : "-");
     const amount = (p: PourEntry | null) => (p ? `${p.amount_g} g` : "-");
+    const temp = (p: PourEntry | null) => (p?.temp_c != null ? `${p.temp_c}°C` : "-");
     const pattern = (p: PourEntry | null) => (p ? p.pattern : "-");
     const bloom = (p: PourEntry | null) => (p ? (p.bloom ? "Yes" : "No") : "-");
+    const melodrip = (p: PourEntry | null) => (p ? (p.melodrip ? "Yes" : "No") : "-");
+    const switchState = (p: PourEntry | null) => (p?.switch_state ?? "-");
     const note = (p: PourEntry | null) => (p?.note?.trim() ? p.note.trim() : "-");
     const fields: [string, string, string][] = [
       [`Pour ${sequence} time`, time(pa), time(pb)],
       [`Pour ${sequence} amount`, amount(pa), amount(pb)],
+      [`Pour ${sequence} temp`, temp(pa), temp(pb)],
       [`Pour ${sequence} pattern`, pattern(pa), pattern(pb)],
       [`Pour ${sequence} bloom`, bloom(pa), bloom(pb)],
+      [`Pour ${sequence} melodrip`, melodrip(pa), melodrip(pb)],
+      ...(switchOn
+        ? [[`Pour ${sequence} switch`, switchState(pa), switchState(pb)] as [string, string, string]]
+        : []),
       [`Pour ${sequence} note`, note(pa), note(pb)],
     ];
     for (const [label, x, y] of fields) {

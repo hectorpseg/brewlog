@@ -12,7 +12,7 @@ import type { PourFact } from "@/lib/domain/pours";
 import { pourRowsFromJson, pourRowsToJson } from "@/lib/domain/pours";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
-import { Button, Card, FieldError, Input, Label, SectionHeader, Select, Textarea } from "@/components/ui/controls";
+import { Button, Card, FieldError, Input, Label, SectionHeader, Select, Textarea, Toggle } from "@/components/ui/controls";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
@@ -185,11 +185,17 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             {" · "}{formatReceived(selectedCoffee.received_date)}
           </p>
         ) : null}
+        <Toggle
+          label="Selected beans"
+          pressed={values.selectedBeans === true}
+          onToggle={() => form.setValue("selectedBeans", !(values.selectedBeans === true), { shouldDirty: true })}
+          className="mt-2 w-full"
+        />
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div><Label>Dose g *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.doseG} className={inh("doseG")} {...form.register("doseG")} /></div>
           <div><Label>Water g *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterG} className={inh("waterG")} {...form.register("waterG")} /></div>
           <div><Label>Grind clicks</Label><Input type="number" inputMode="numeric" error={!!form.formState.errors.grindClicks} className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
-          <div><Label>Temp C</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.tempC} className={inh("tempC")} {...form.register("tempC")} /></div>
+          <div><Label>Starting temp °C</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.tempC} className={inh("tempC")} {...form.register("tempC")} /></div>
           <div className="col-span-2">
             <Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} error={!!form.formState.errors.brewedAt} {...form.register("brewedAt")} />
           </div>
@@ -222,6 +228,26 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             <div><Label>Dripper</Label><Input error={!!form.formState.errors.dripper} className={inh("dripper")} {...form.register("dripper")} /></div>
             <div><Label>Filter</Label><Input error={!!form.formState.errors.filter} className={inh("filter")} {...form.register("filter")} /></div>
             <div><Label>Water</Label><Input error={!!form.formState.errors.waterSource} className={inh("waterSource")} {...form.register("waterSource")} /></div>
+            <div><Label>Water brand</Label><Input error={!!form.formState.errors.waterBrand} className={inh("waterBrand")} {...form.register("waterBrand")} /></div>
+            <div><Label>PPM</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterPpm} className={inh("waterPpm")} {...form.register("waterPpm")} /></div>
+            <div className="col-span-2">
+              <Label>Water description</Label><Input error={!!form.formState.errors.waterDescription} className={inh("waterDescription")} {...form.register("waterDescription")} />
+            </div>
+            <div className="col-span-2">
+              <Label>Water notes</Label><Textarea rows={2} error={!!form.formState.errors.waterNotes} className={inh("waterNotes")} {...form.register("waterNotes")} />
+            </div>
+            <div><Label>Thermal shock</Label><Input error={!!form.formState.errors.thermalShock} className={inh("thermalShock")} {...form.register("thermalShock")} /></div>
+            <div><Label>Bypass</Label><Input error={!!form.formState.errors.bypass} className={inh("bypass")} {...form.register("bypass")} /></div>
+            <Toggle
+              label="LilyDrip"
+              pressed={values.lilydrip === true}
+              onToggle={() => form.setValue("lilydrip", !(values.lilydrip === true), { shouldDirty: true })}
+            />
+            <Toggle
+              label="Hario Switch"
+              pressed={values.harioSwitch === true}
+              onToggle={() => form.setValue("harioSwitch", !(values.harioSwitch === true), { shouldDirty: true })}
+            />
           </div>
         </Card>
       </details>
@@ -231,6 +257,8 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           <PourEditor
             rows={pourRowsFromJson(values.pours)}
             legacyCount={copyLegacyPours}
+            switchOn={values.harioSwitch === true}
+            brewTemp={values.tempC != null && values.tempC !== "" ? String(values.tempC) : null}
             onChange={(rows) => form.setValue("pours", pourRowsToJson(rows), { shouldDirty: true })}
           />
         </Card>

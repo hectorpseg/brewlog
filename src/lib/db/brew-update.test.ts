@@ -15,6 +15,31 @@ describe("toBrewUpdateRow", () => {
     expect(toBrewUpdateRow({ sessionId: "" }).session_id).toBeNull();
   });
 
+  it("maps water/technique fields and skips empty values", () => {
+    expect(
+      toBrewUpdateRow({
+        waterBrand: "Third Wave", waterPpm: "150", waterDescription: "TPM",
+        waterNotes: "flat", thermalShock: "none", bypass: "0 g",
+        waterSource: "",
+      }),
+    ).toEqual({
+      water_brand: "Third Wave",
+      water_ppm: "150",
+      water_description: "TPM",
+      water_notes: "flat",
+      thermal_shock: "none",
+      bypass: "0 g",
+    });
+  });
+
+  it("writes beans/technique booleans only on explicit true/false", () => {
+    expect(toBrewUpdateRow({ selectedBeans: "true", lilydrip: "false" })).toEqual({
+      selected_beans: true,
+      lilydrip: false,
+    });
+    expect(toBrewUpdateRow({ melodrip: "", selectedBeans: undefined })).toEqual({});
+  });
+
   it("maps expected text to its column and skips it when blank", () => {
     expect(toBrewUpdateRow({ expectedText: "Expect sweet" })).toEqual({
       expected_text: "Expect sweet",
@@ -94,6 +119,19 @@ describe("brewEditorDefaults", () => {
     expect(brewEditorDefaults(brew, observation).expectedText).toBe("");
   });
 
+  it("carries water/technique facts into the editor", () => {
+    const f = brewEditorDefaults(
+      { ...brew, selected_beans: true, water_brand: "Third Wave", water_ppm: 150, thermal_shock: "none", melodrip: true, lilydrip: false },
+      observation,
+    );
+    expect(f.selectedBeans).toBe("true");
+    expect(f.waterBrand).toBe("Third Wave");
+    expect(f.waterPpm).toBe("150");
+    expect(f.thermalShock).toBe("none");
+    expect(f.lilydrip).toBe("false");
+    expect(f.melodrip).toBe("true");
+  });
+
   it("carries structured tastings into the editor draft and keeps legacy notes alongside", () => {
     const f = brewEditorDefaults(brew, observation, [
       { stage: "hot", attribute: "acidity", value: 8 },
@@ -119,8 +157,8 @@ describe("brewEditorDefaults", () => {
       { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null },
     ]);
     expect(JSON.parse(f.pours)).toEqual([
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
-      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow", temp: "", melodrip: false, switchState: "" },
     ]);
   });
 

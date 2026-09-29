@@ -12,6 +12,14 @@ function str(v: unknown): string {
   return String(v);
 }
 
+// Booleans: "Yes"/"No" when a flag exists, "-" only when unrecorded (the
+// not-null default false reads as unrecorded for legacy rows).
+function flag(v: unknown): string {
+  if (v === true) return "Yes";
+  if (v === false) return "No";
+  return "-";
+}
+
 function one<T>(v: T | T[] | null | undefined): T | null {
   if (Array.isArray(v)) return v[0] ?? null;
   return v ?? null;
@@ -28,15 +36,25 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
   return {
     Coffee: (coffee?.name as string) ?? "Unknown coffee",
     Session: (session?.title as string) ?? "No session",
+    "Selected beans": flag(brew.selected_beans),
     Dose: brew.dose_g != null ? `${brew.dose_g} g` : "-",
     Water: brew.water_g != null ? `${brew.water_g} g` : "-",
     Ratio: ratio == null ? "-" : `1:${ratio}`,
-    Temperature: brew.temp_c != null && brew.temp_c !== "" ? `${brew.temp_c}°C` : "-",
+    // brews.temp_c is the starting temperature; per-pour temps compare separately
+    "Starting temperature": brew.temp_c != null && brew.temp_c !== "" ? `${brew.temp_c}°C` : "-",
     Grind: brew.grind_clicks != null && brew.grind_clicks !== "" ? `${brew.grind_clicks} clicks` : "-",
     Grinder: str(brew.grinder),
     Dripper: str(brew.dripper),
     Filter: str(brew.filter),
     "Water source": str(brew.water_source),
+    "Water brand": str(brew.water_brand),
+    PPM: brew.water_ppm != null && brew.water_ppm !== "" ? `${brew.water_ppm} ppm` : "-",
+    "Water description": str(brew.water_description),
+    "Water notes": str(brew.water_notes),
+    "Thermal shock": str(brew.thermal_shock),
+    Bypass: str(brew.bypass),
+    LilyDrip: flag(brew.lilydrip),
+    MeloDrip: flag(brew.melodrip),
     Pours: brew.pour_count != null && brew.pour_count !== "" ? `${brew.pour_count}` : "-",
     "Brew time": time ?? "-",
     "Final beverage": brew.final_beverage_g != null && brew.final_beverage_g !== "" ? `${brew.final_beverage_g} g` : "-",
@@ -54,8 +72,10 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
 // covers brew setup, notes cover the free-text observation record.
 // Structured tasting compares separately per stage/attribute.
 export const COMPARE_RECIPE_FIELDS = [
-  "Coffee", "Session", "Dose", "Water", "Ratio", "Temperature", "Grind",
-  "Grinder", "Dripper", "Filter", "Water source", "Pours", "Brew time", "Final beverage",
+  "Coffee", "Session", "Selected beans", "Dose", "Water", "Ratio", "Starting temperature", "Grind",
+  "Grinder", "Dripper", "Filter", "Water source", "Water brand", "PPM", "Water description",
+  "Water notes", "Thermal shock", "Bypass", "LilyDrip", "MeloDrip",
+  "Pours", "Brew time", "Final beverage",
 ] as const;
 
 export const COMPARE_NOTE_FIELDS = [
