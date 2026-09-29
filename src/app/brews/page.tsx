@@ -107,7 +107,7 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
           <BrewFilterBar base="/brews" params={params} />
           <BrewList rows={rows as BrewListRow[]}>
             {filtered ? (
-              <NoListMatches query={p.q || "these filters"} base="/brews" params={params} />
+              <NoListMatches query={p.q || "these filters"} base="/brews" params={params} list="brews" />
             ) : (
               <EmptyState
                 title="No brews found"

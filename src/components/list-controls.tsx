@@ -10,7 +10,7 @@ import { toggleFavorite } from "@/app/actions";
 import { BrewCard, type BrewCardData } from "./brew-card";
 import { CoffeeCard, CoffeeListSkeleton, type CoffeeCardData } from "./coffee-card";
 import { cn } from "./ui/utils";
-import { deletePreset, mergeStoredPrefs, readListPrefs, readSavedPresets, savePreset, writeListPrefs, type ListName, type ListPrefs, type SavedPreset } from "@/lib/lists/prefs";
+import { mergeStoredPrefs, readListPrefs, writeListPrefs, type ListName, type ListPrefs } from "@/lib/lists/prefs";
 
 // List navigation runs inside a transition so isPending stays true for the
 // whole server round trip: the list shows its skeleton while search, filter,
@@ -188,72 +188,6 @@ export function ListSortPills({ base, params, options, list, label = "Sort by" }
   );
 }
 
-export function SavedPresets({ base, params, list, current }: {
-  base: string;
-  params: Params;
-  list: ListName;
-  current: ListPrefs;
-}) {
-  const router = useRouter();
-  const [presets, setPresets] = useState<SavedPreset[]>(() => readSavedPresets(storage(), list));
-  const [name, setName] = useState("");
-  const apply = (p: SavedPreset) => {
-    const s = storage();
-    writeListPrefs(s, list, { ...readListPrefs(s, list), ...p.prefs });
-    router.replace(listHref(base, { ...params, ...p.prefs }, true), { scroll: false });
-  };
-  return (
-    <details className="mt-3">
-      <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-ink2">
-        Saved filters{presets.length > 0 ? ` (${presets.length})` : ""}
-      </summary>
-      <div className="mt-1 flex flex-col gap-2">
-        {presets.map((p) => (
-          <div key={p.name} className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => apply(p)}
-              className="min-h-11 flex-1 rounded-[10px] border border-line bg-card px-3 text-left text-sm active:scale-[0.99]"
-            >
-              {p.name}
-            </button>
-            <button
-              type="button"
-              aria-label={`Delete saved filter ${p.name}`}
-              onClick={() => setPresets(deletePreset(storage(), list, p.name))}
-              className="flex min-h-11 min-w-11 items-center justify-center rounded-[10px] border border-line bg-card text-sm text-ink2 active:scale-[0.97]"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={name}
-            maxLength={40}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name this filter…"
-            aria-label="Preset name"
-            className="min-h-11 flex-1 rounded-[10px] border border-line bg-card px-3 text-sm"
-          />
-          <button
-            type="button"
-            disabled={name.trim() === ""}
-            onClick={() => {
-              setPresets(savePreset(storage(), list, name, current));
-              setName("");
-            }}
-            className="min-h-11 shrink-0 rounded-[10px] border border-line bg-card px-4 text-sm font-medium active:scale-[0.97] disabled:opacity-40"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </details>
-  );
-}
-
 export type BrewListRow = BrewCardData & { coffee_id?: unknown; is_favorite?: unknown };
 
 // Skeleton resembling the compact brew cards it replaces.
@@ -328,7 +262,7 @@ function BrewListItem({ b }: { b: BrewListRow }) {
               }
             });
           }}
-          action={<NewFromThis coffeeId={coffeeId} />}
+          action={<NewFromThis brewId={String(b.id)} coffeeId={coffeeId} />}
         />
       </div>
     </li>
@@ -336,13 +270,18 @@ function BrewListItem({ b }: { b: BrewListRow }) {
 }
 
 type NewFromThisProps = {
+  brewId: string;
   coffeeId: string | null;
 };
 // Pending guard needs no state: useLinkStatus flips only when this link's
 // navigation starts, so other rows stay tappable and a re-tap is a no-op
 // (the router already targets the same URL). No prefetch, so pending fires.
-export function NewFromThis({ coffeeId }: NewFromThisProps) {
-  const href = coffeeId ? `/brews/new?coffee=${encodeURIComponent(coffeeId)}&copy=1` : "/brews/new";
+export function NewFromThis({ brewId, coffeeId }: NewFromThisProps) {
+  const href = brewId
+    ? `/brews/new?brew=${encodeURIComponent(brewId)}&copy=1`
+    : coffeeId
+      ? `/brews/new?coffee=${encodeURIComponent(coffeeId)}&copy=1`
+      : "/brews/new";
   return (
     <Link
       href={href}
@@ -364,12 +303,19 @@ function NewFromThisLabel() {
     </span>
   );
 }
-export function NoListMatches({ query, base, params }: { query: string; base: string; params: Params }) {
+export function NoListMatches({ query, base, list }: { query: string; base: string; params?: Params; list?: ListName }) {
   const { navigate } = useListNav();
   return (
     <NoMatches
       query={query}
-      onClear={() => navigate(listHref(base, { ...params, q: "" }, true))}
+      onClear={() => {
+        // Full reset: empty URL means every parser default (q, sort, filters,
+        // first page). Without wiping the list's remembered prefs, the empty
+        // URL would resurrect them on the next visit (sessions has no persist
+        // pass to overwrite them; brews rewrites them via ApplyListPrefs).
+        if (list) writeListPrefs(storage(), list, {});
+        navigate(listHref(base, {}, true));
+      }}
     />
   );
 }
@@ -394,8 +340,9 @@ export function ListFilterLink({ href, children, ...rest }: {
     </Link>
   );
 }
-// Horizontally scrollable quick filters. Buttons, never gestures: each tap
-// is a visible 44px control that rewrites the URL (same server query path).
+// Horizontally scrollable quick filters under a section label, using the
+// canonical pill language (ListSortPills/BrewFilterBar). Tapping the active
+// pill toggles back to the unfiltered state — no explicit "All" pill.
 export function FilterChips({ base, params, param, options, list }: {
   base: string;
   params: Params;
@@ -406,30 +353,34 @@ export function FilterChips({ base, params, param, options, list }: {
   const router = useRouter();
   const active = String(params[param] ?? "all");
   return (
-    <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Quick filters">
-      {options.map((o) => {
-        const on = active === o.value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            aria-pressed={on}
-            onClick={() => {
-              if (on) return;
-              const s = storage();
-              writeListPrefs(s, list, { ...readListPrefs(s, list), [param]: o.value });
-              router.replace(listHref(base, { ...params, [param]: o.value }, true), { scroll: false });
-            }}
-            className={
-              on
-                ? "min-h-11 shrink-0 rounded-full border border-ink bg-ink px-4 text-sm font-medium text-white active:scale-[0.97]"
-                : "min-h-11 shrink-0 rounded-full border border-line bg-card px-4 text-sm text-ink2 active:scale-[0.97]"
-            }
-          >
-            {o.label}
-          </button>
-        );
-      })}
+    <div className="mt-2">
+      <ListSectionLabel>Filters</ListSectionLabel>
+      <div className="no-scrollbar mt-1.5 flex gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label="Filters">
+        {options.map((o) => {
+          const on = active === o.value;
+          const next = on ? "all" : o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={on}
+              onClick={() => {
+                const s = storage();
+                writeListPrefs(s, list, { ...readListPrefs(s, list), [param]: next });
+                router.replace(listHref(base, { ...params, [param]: next }, true), { scroll: false });
+              }}
+              className={cn(
+                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96]",
+                on
+                  ? "bg-ember text-white"
+                  : "border border-line bg-card text-ink2 hover:bg-paper"
+              )}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
