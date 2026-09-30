@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  bloomAllowed,
+  clearLaterBloom,
   comparePourFields,
   comparePours,
   completePourEntries,
   emptyPourDraft,
   formatPourTime,
   formatPourTotal,
+  normalizePourTime,
   parsePourTime,
   pourCountAndTotal,
   pourRowsFromJson,
@@ -109,6 +112,39 @@ describe("emptyPourDraft inheritance", () => {
   });
   it("falls back to safe defaults without a previous pour", () => {
     expect(emptyPourDraft(true)).toEqual({ time: "", amount: "", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" });
+  });
+});
+
+describe("bloom rules", () => {
+  const row = (bloom: boolean) => ({
+    time: "", amount: "", bloom, pattern: "center", note: "", temp: "", melodrip: false, switchState: "",
+  });
+  it("allows bloom only on the initial consecutive pours", () => {
+    // pour 3 may still join the run while pours 1-2 are bloom
+    expect(bloomAllowed([row(true), row(true), row(false)], 2)).toBe(true);
+    // a non-bloom pour 2 blocks any later bloom
+    expect(bloomAllowed([row(true), row(false), row(false)], 2)).toBe(false);
+    expect(bloomAllowed([row(true), row(true)], 2)).toBe(true);
+    expect(bloomAllowed([], 0)).toBe(true);
+  });
+  it("clears bloom from pours after a disabled earlier pour", () => {
+    // cascade only touches rows after fromIndex; the caller disables that row itself
+    expect(clearLaterBloom([row(true), row(true), row(true)], 1)).toEqual([row(true), row(true), row(false)]);
+    expect(clearLaterBloom([row(true), row(true), row(true)], 0)).toEqual([row(true), row(false), row(false)]);
+  });
+});
+
+describe("normalizePourTime", () => {
+  it("canonicalizes valid input to m:ss", () => {
+    expect(normalizePourTime("45")).toBe("0:45");
+    expect(normalizePourTime("1:5")).toBe("1:05");
+    expect(normalizePourTime("2:05")).toBe("2:05");
+    expect(normalizePourTime(" 0:35 ")).toBe("0:35");
+  });
+  it("keeps invalid input for aria-invalid to flag", () => {
+    expect(normalizePourTime("1:75")).toBe("1:75");
+    expect(normalizePourTime("")).toBe("");
+    expect(normalizePourTime("soon")).toBe("soon");
   });
 });
 

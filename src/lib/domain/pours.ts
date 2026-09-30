@@ -81,6 +81,18 @@ export function emptyPourDraft(first: boolean, prev?: PourDraftRow): PourDraftRo
   };
 }
 
+// Bloom rule: bloom is allowed only on the initial consecutive pours (one
+// or several, no arbitrary cap). Once a non-bloom pour exists, later pours
+// cannot be bloom; disabling bloom on an earlier pour clears it from every
+// later pour that would violate the rule.
+export function bloomAllowed(rows: PourDraftRow[], index: number): boolean {
+  return index === 0 || rows.slice(0, index).every((r) => r.bloom === true);
+}
+
+export function clearLaterBloom(rows: PourDraftRow[], fromIndex: number): PourDraftRow[] {
+  return rows.map((r, i) => (i > fromIndex ? { ...r, bloom: false } : r));
+}
+
 // Display seconds as m:ss ("0:00", "0:35", "1:05"). Null when unrecorded.
 export function formatPourTime(total?: number | null): string | null {
   return formatDuration(total);
@@ -107,6 +119,17 @@ export function parsePourTime(v: unknown): number | null {
     return Number.isFinite(total) && total >= 0 && total <= 3600 ? total : null;
   }
   return null;
+}
+
+// Canonical m:ss for the editor: valid input is normalized to "m:ss"
+// ("45" → "0:45", "1:5" → "1:05", " 0:35 " → "0:35"); invalid input is
+// kept trimmed so aria-invalid can flag it.
+export function normalizePourTime(v: string): string {
+  const t = v.trim();
+  if (t === "") return "";
+  const secs = parsePourTime(t);
+  if (secs == null) return t;
+  return formatPourTime(secs) ?? t;
 }
 
 function draftRow(v: unknown): PourDraftRow | null {

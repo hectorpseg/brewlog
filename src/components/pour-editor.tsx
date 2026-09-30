@@ -1,9 +1,8 @@
 "use client";
 import { Trash2 } from "lucide-react";
-import { Input, Label, Select, Textarea, Toggle } from "@/components/ui/controls";
-import { cn } from "@/components/ui/utils";
+import { Input, Label, Select, Switch, Textarea, Toggle } from "@/components/ui/controls";
 import {
-  POUR_PATTERNS, POUR_PATTERN_KEY, emptyPourDraft, formatPourTime, formatPourTotal, parsePourTime,
+  POUR_PATTERNS, POUR_PATTERN_KEY, bloomAllowed, clearLaterBloom, emptyPourDraft, formatPourTime, formatPourTotal, normalizePourTime, parsePourTime,
   pourCountAndTotal, type PourDraftRow,
 } from "@/lib/domain/pours";
 import { useT } from "@/lib/i18n/client";
@@ -37,6 +36,16 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
 }) {
   function updateAt(index: number, patch: Partial<PourDraftRow>) {
     onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  }
+  // Toggling bloom off clears it from later pours too, so rows always stay
+  // consistent with the bloom rule; toggling on is only possible when the
+  // previous pour is also bloom (rule enforced via `disabled` on the switch).
+  function toggleBloom(index: number) {
+    if (!rows[index].bloom) {
+      updateAt(index, { bloom: true });
+    } else {
+      onChange(clearLaterBloom(rows.map((r, i) => (i === index ? { ...r, bloom: false } : r)), index));
+    }
   }
   function removeAt(index: number) {
     onChange(rows.filter((_, i) => i !== index));
@@ -108,6 +117,10 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
                     inputMode="text"
                     value={r.time}
                     onChange={(e) => updateAt(i, { time: e.target.value })}
+                    onBlur={(e) => {
+                      const next = normalizePourTime(e.target.value);
+                      if (next !== e.target.value) updateAt(i, { time: next });
+                    }}
                     aria-invalid={r.time.trim() !== "" && parsed == null}
                   />
                 </div>
@@ -137,17 +150,12 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
                     {POUR_PATTERNS.map((p) => <option key={p} value={p}>{t(POUR_PATTERN_KEY[p])}</option>)}
                   </Select>
                 </div>
-                <button
-                  type="button"
-                  aria-pressed={r.bloom}
-                  onClick={() => updateAt(i, { bloom: !r.bloom })}
-                  className={cn(
-                    "min-h-11 rounded-[10px] border px-4 py-2 font-medium transition-transform active:scale-[0.98]",
-                    r.bloom ? "border-ember bg-ember text-white" : "border-line bg-card text-ink2",
-                  )}
-                >
-                  {r.bloom ? t("pour.bloomOn") : t("pour.bloom")}
-                </button>
+                <Switch
+                  label={t("pour.bloom")}
+                  pressed={r.bloom}
+                  onToggle={() => toggleBloom(i)}
+                  disabled={!r.bloom && !bloomAllowed(rows, i)}
+                />
               </div>
               <div className="mt-2 grid grid-cols-2 items-end gap-2">
                 <div>
