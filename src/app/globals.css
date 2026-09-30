@@ -88,6 +88,25 @@ input[type="date"] {
   min-width: 0;
 }
 
+/* WebKit builds date controls in a shadow DOM whose internals ignore the
+   input's own min-width: 0 (twbs/bootstrap#34433), so iPhones still overflow.
+   Normalizing the shadow parts lets the w-full input actually fill its track;
+   min floor keeps the three date segments readable. */
+input[type="date"]::-webkit-datetime-edit {
+  display: block;
+  padding: 0;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  min-width: 85px;
+  margin: 0;
+  text-align: left;
+}
+
+/* The field's wrapper div (a grid item) must be shrinkable too. */
+*:has(> input[type="date"]) {
+  min-width: 0;
+}
+
 /* skeleton shimmer without elaborate animation */
 @keyframes brewlog-pulse {
   0%, 100% { opacity: 1; }
