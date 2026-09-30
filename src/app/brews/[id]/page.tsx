@@ -16,11 +16,12 @@ import { formatRatio } from "@/lib/domain/ratio";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { brewFinalScore, formatBrewScore } from "@/lib/domain/brew-score";
+import { eyPercent, pouredTotalG, actualWaterG, retainedG } from "@/lib/domain/brew-water";
 import { formatBrewSummary } from "@/lib/domain/brew-summary";
 import { toShareCardData } from "@/lib/domain/share-card";
 import { brewLifecycle, brewWarningKeys, BREW_LIFECYCLE_KEY } from "@/lib/domain/brew-status";
+import { describeDeletion } from "@/lib/domain/deletion";
 import { getT, getLocale } from "@/lib/i18n/server";
-import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 export default async function BrewDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,32 +42,34 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
   const brewSession = Array.isArray(brew.sessions) ? brew.sessions[0] : brew.sessions;
   const status = brewLifecycle(brew, obs);
   const warnings = brewWarningKeys(brew).map((k) => t(k));
-  // Deletion copy is composed here from pluralized fragments: the count-bearing
-  // sentences cannot be one static key without an interpolation mechanism.
-  const plural = (n: number, one: TranslationKey, many: TranslationKey) =>
-    n === 1 ? t(one) : `${n} ${t(many)}`;
-  const del = {
-    title: t("brew.delete.title"),
-    confirm: t("brew.delete.confirm"),
-    body:
-      `${plural(obs ? 1 : 0, "brew.delete.notesOne", "brew.delete.notesMany")}, ` +
-      `${plural(tastings.length, "brew.delete.tastingsOne", "brew.delete.tastingsMany")}` +
-      `${t("brew.delete.joinLast")} ` +
-      `${plural(pours.length, "brew.delete.poursOne", "brew.delete.poursMany")} ` +
-      t("brew.delete.tail"),
-  };
+  // Deletion copy comes from the canonical domain composer: zero-count
+  // fragments never render, and the wording stays in the dictionaries.
+  const del = describeDeletion("brew", {
+    observations: obs ? 1 : 0,
+    tastings: tastings.length,
+    pours: pours.length,
+  }, t);
   const remove = deleteBrew.bind(null, id);
   const isFavorite = brew.is_favorite === true;
   const favorite = toggleFavorite.bind(null, id, !isFavorite);
   // Same derived score as the list and Best Rated sort: one function, used
   // with the persisted tasting rows (never observation text).
   const score = brewFinalScore(tastings);
+  // Extraction metrics reuse the one domain module; missing inputs hide values.
+  const poursFacts = pours as { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown }[];
+  const ey = eyPercent(brew as Record<string, unknown>);
+  const retained = retainedG(brew as Record<string, unknown>, poursFacts);
+  // ratio reflects actual brew water; planned water stays explicit when pours differ
+  const poured = pouredTotalG(poursFacts);
+  const actualWater = actualWaterG(brew.water_g, poured);
+  const waterDiffers = poured != null && Number(brew.water_g) !== poured;
   // Privacy-safe share snapshot (S8): recipe/result fields only, never notes,
   // observations, tastings detail, sessions, or IDs.
   const shareCard = toShareCardData({
     brew: brew as Record<string, unknown>,
     coffeeName: typeof coffeeName === "string" ? coffeeName : null,
     score,
+    pours: poursFacts,
   });
   const summary = formatBrewSummary({
     brew: brew as Record<string, unknown>,
@@ -95,13 +98,18 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
           <FavoriteButton isFavorite={isFavorite} toggle={favorite} />
         </div>
         <p className="tnum mt-1 text-xs text-ink2">
-          {formatBrewDate(brew.brewed_at ?? brew.created_at, locale)} · {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g · {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
+          {formatBrewDate(brew.brewed_at ?? brew.created_at, locale)} · {brew.dose_g ?? "?"} g → {actualWater ?? "?"} g
+          {waterDiffers ? ` · ${Number(brew.water_g)}${t("brew.pouredLine.suffix")}` : ""}
+          {" · "}{formatRatio(Number(brew.dose_g), actualWater ?? NaN)}
         </p>
         <p className="tnum text-[11px] text-ink3">
           {brew.temp_c != null ? `${t("brew.start")} ${brew.temp_c}°C` : "?"} · {brew.grind_clicks ?? "?"} {t("brew.clicks")}
           {brew.filter ? ` · ${brew.filter}` : ""}
           {formatDuration(brew.total_time_sec) ? ` · ${formatDuration(brew.total_time_sec)}` : ""}
           {brew.final_beverage_g ? ` · → ${brew.final_beverage_g} g` : ""}
+          {brew.tds_percent != null ? ` · ${t("brew.field.tds")} ${brew.tds_percent}` : ""}
+          {ey != null ? ` · ${t("brew.field.ey")} ${ey}` : ""}
+          {retained != null ? ` · ${t("brew.field.retention")} ${retained}` : ""}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink2">
           <span>{t(BREW_LIFECYCLE_KEY[status])}</span>

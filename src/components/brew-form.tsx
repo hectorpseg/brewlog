@@ -9,7 +9,8 @@ import { splitSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate, formatReceived } from "@/lib/domain/brew-date";
 import { inheritedFieldNames, recipeStartingValues } from "@/lib/domain/recipe-start";
 import type { PourFact } from "@/lib/domain/pours";
-import { pourRowsFromJson, pourRowsToJson } from "@/lib/domain/pours";
+import { pourRowsFromJson, pourRowsToJson, completePourEntries } from "@/lib/domain/pours";
+import { eyPercent, pouredTotalG, plannedDeltaG, retainedG } from "@/lib/domain/brew-water";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
 import { Button, Card, FieldError, Input, Label, SectionHeader, Select, Switch, Textarea } from "@/components/ui/controls";
@@ -21,6 +22,7 @@ import { tastingRowsFromJson, tastingRowsToJson } from "@/lib/domain/tastings";
 import { SectionNav, TastingDisclaimer } from "@/components/section-nav";
 import { formatRatio } from "@/lib/domain/ratio";
 import { useLocale, useT } from "@/lib/i18n/client";
+import { errorText } from "@/lib/i18n/errors";
 import { cn } from "@/components/ui/utils";
 
 type CoffeeOption = {
@@ -36,7 +38,6 @@ type Props = {
   userId: string;
   coffees: CoffeeOption[];
   sessions: { id: string; title: string }[];
-  minBeverageG: number | null;
   initialCoffeeId?: string;
   recipeFrom?: Record<string, unknown> | null;
   recipePoursFrom?: PourFact[] | null;
@@ -50,7 +51,7 @@ function defaults(recipeFrom?: Record<string, unknown> | null, coffeeId?: string
   );
 }
 
-export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffeeId, recipeFrom, recipePoursFrom }: Props) {
+export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFrom, recipePoursFrom }: Props) {
   const router = useRouter();
   const t = useT();
   const locale = useLocale();
@@ -107,6 +108,10 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
   const dirty = form.formState.dirtyFields;
   const inh = (name: keyof NewBrewFormInput) =>
     inherited.has(name) && !dirty[name] ? "bg-paper" : "";
+  // Validation messages are stable codes (schemas.ts msg()); the dictionaries
+  // hold the only user-facing wording. Zod's own default messages (ranges,
+  // uuid/type checks) are not application-owned and degrade to the generic.
+  const err = (name: keyof NewBrewFormInput) => errorText(form.formState.errors[name]?.message, t);
   // ponytail: context comes from the already-loaded list — selecting a coffee
   // never fires a request.
   const selectedCoffee = coffees.find((c) => c.id === values.coffeeId);
@@ -119,10 +124,18 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
     const n = Number((recipeFrom as { pour_count?: unknown }).pour_count);
     return Number.isFinite(n) && n > 0 ? n : null;
   })();
-  // guidance only: entering a value is optional, and below-target still saves
-  const bevRaw = values.finalBeverageG;
-  const bev = bevRaw === "" || bevRaw == null ? NaN : Number(bevRaw);
-  const belowTarget = minBeverageG != null && Number.isFinite(bev) && bev < minBeverageG;
+
+  // Live extraction facts for the derived readouts. All math lives in the
+  // brew-water domain module; missing inputs simply hide the readout.
+  const pourFacts = completePourEntries(pourRowsFromJson(values.pours));
+  const waterFacts = {
+    water_g: values.waterG, final_beverage_g: values.finalBeverageG,
+    tds_percent: values.tdsPercent, dose_g: values.doseG, bypass_g: values.bypassG,
+  };
+  const ey = eyPercent(waterFacts);
+  const retained = retainedG(waterFacts, pourFacts);
+  const pouredTotal = pouredTotalG(pourFacts);
+  const plannedDelta = plannedDeltaG(values.waterG, pourFacts);
 
   async function onSubmit(data: NewBrewFormInput) {
     setSubmitError(null);
@@ -139,8 +152,12 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
     }
   }
 
-  const ratioLabel = formatRatio(dose, water);
+  // header numbers and ratio reflect actual brew water; planned stays explicit
+  // when structured pours differ from the planned recipe water
+  const actualWater = pouredTotal != null && Number.isFinite(pouredTotal) ? pouredTotal : water;
+  const ratioLabel = formatRatio(dose, actualWater);
   const showRatio = ratioLabel !== "-";
+  const ratioDiffers = pouredTotal != null && Number.isFinite(water) && water !== pouredTotal;
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -152,7 +169,8 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             </div>
           ) : null}
           <div className={cn("tnum text-xs text-ink2", showRatio && "mt-1")}>
-            {Number.isFinite(dose) ? dose : "?"} g → {Number.isFinite(water) ? water : "?"} g
+            {Number.isFinite(dose) ? dose : "?"} g → {Number.isFinite(actualWater) ? actualWater : "?"} g
+            {ratioDiffers ? ` · ${water}${t("brew.pouredLine.suffix")}` : ""}
           </div>
           {overRemaining ? (
             <p className="mt-1 flex min-h-8 items-center gap-1 text-sm text-ember">
@@ -180,7 +198,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           <option value="">{t("brew.pickCoffee")}</option>
           {coffees.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
-        <FieldError>{form.formState.errors.coffeeId?.message}</FieldError>
+        <FieldError>{err("coffeeId")}</FieldError>
         {selectedCoffee ? (
           <p className="tnum mt-1 text-sm text-ink2">
             {[selectedCoffee.origin, selectedCoffee.process].filter(Boolean).join(" · ") || t("coffee.metaUnknown")}
@@ -195,12 +213,13 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
           className="mt-2 w-full justify-end"
         />
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <div><Label>{t("brew.field.dose")} *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.doseG} className={inh("doseG")} {...form.register("doseG")} /></div>
-          <div><Label>{t("brew.field.water")} *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterG} className={inh("waterG")} {...form.register("waterG")} /></div>
-          <div><Label>{t("brew.field.grindClicks")}</Label><Input type="number" inputMode="numeric" error={!!form.formState.errors.grindClicks} className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
-          <div><Label>{t("brew.field.startTemp")}</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.tempC} className={inh("tempC")} {...form.register("tempC")} /></div>
+          <div><Label>{t("brew.field.dose")} *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.doseG} className={inh("doseG")} {...form.register("doseG")} /><FieldError>{err("doseG")}</FieldError></div>
+          <div><Label>{t("brew.field.water")} *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterG} className={inh("waterG")} {...form.register("waterG")} /><FieldError>{err("waterG")}</FieldError></div>
+          <div><Label>{t("brew.field.grindClicks")}</Label><Input type="number" inputMode="numeric" error={!!form.formState.errors.grindClicks} className={inh("grindClicks")} {...form.register("grindClicks")} /><FieldError>{err("grindClicks")}</FieldError></div>
+          <div><Label>{t("brew.field.startTemp")}</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.tempC} className={inh("tempC")} {...form.register("tempC")} /><FieldError>{err("tempC")}</FieldError></div>
           <div className="col-span-2">
             <Label>{t("brew.field.brewDate")}</Label><Input type="date" max={defaultBrewedDate()} error={!!form.formState.errors.brewedAt} {...form.register("brewedAt")} />
+            <FieldError>{err("brewedAt")}</FieldError>
           </div>
           <div className="col-span-2">
             <Label>{t("brew.field.brewTime")}</Label>
@@ -231,16 +250,18 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             <div><Label>{t("brew.field.dripper")}</Label><Input error={!!form.formState.errors.dripper} className={inh("dripper")} {...form.register("dripper")} /></div>
             <div><Label>{t("brew.field.filter")}</Label><Input error={!!form.formState.errors.filter} className={inh("filter")} {...form.register("filter")} /></div>
             <div><Label>{t("brew.field.waterSource")}</Label><Input error={!!form.formState.errors.waterSource} className={inh("waterSource")} {...form.register("waterSource")} /></div>
-            <div><Label>{t("brew.field.waterBrand")}</Label><Input error={!!form.formState.errors.waterBrand} className={inh("waterBrand")} {...form.register("waterBrand")} /></div>
-            <div><Label>{t("brew.field.ppm")}</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterPpm} className={inh("waterPpm")} {...form.register("waterPpm")} /></div>
-            <div className="col-span-2">
-              <Label>{t("brew.field.waterDescription")}</Label><Input error={!!form.formState.errors.waterDescription} className={inh("waterDescription")} {...form.register("waterDescription")} />
-            </div>
+            <div><Label>{t("brew.field.ppm")}</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterPpm} className={inh("waterPpm")} {...form.register("waterPpm")} /><FieldError>{err("waterPpm")}</FieldError></div>
             <div className="col-span-2">
               <Label>{t("brew.field.waterNotes")}</Label><Textarea rows={2} error={!!form.formState.errors.waterNotes} className={inh("waterNotes")} {...form.register("waterNotes")} />
             </div>
             <div><Label>{t("brew.field.thermalShock")}</Label><Input error={!!form.formState.errors.thermalShock} className={inh("thermalShock")} {...form.register("thermalShock")} /></div>
-            <div><Label>{t("brew.field.bypass")}</Label><Input error={!!form.formState.errors.bypass} className={inh("bypass")} {...form.register("bypass")} /></div>
+            <div>
+              <Label>{t("brew.field.bypassG")}</Label>
+              <Input type="number" step="any" inputMode="decimal" min="0" error={!!form.formState.errors.bypassG} {...form.register("bypassG")} />
+              <p className="mt-1 text-[11px] text-ink3">{t("brew.field.bypassGHint")}</p>
+            </div>
+            {/* legacy bypass text keeps riding copy sources untouched */}
+            <input type="hidden" {...form.register("bypass")} />
             <Switch
               label={t("brew.field.lilydrip")}
               pressed={values.lilydrip === true}
@@ -264,24 +285,42 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             brewTemp={values.tempC != null && values.tempC !== "" ? String(values.tempC) : null}
             onChange={(rows) => form.setValue("pours", pourRowsToJson(rows), { shouldDirty: true })}
           />
+          {pouredTotal != null && Number.isFinite(Number(values.waterG)) ? (
+            <p className="tnum mt-2 text-xs text-ink2" aria-live="polite">
+              {t("brew.pouredLine.prefix")}{pouredTotal}{t("brew.pouredLine.middle")}{values.waterG}{t("brew.pouredLine.suffix")}
+              {plannedDelta != null && plannedDelta !== 0 ? ` · ${plannedDelta > 0 ? "+" : ""}${plannedDelta}${t("brew.pouredDelta.suffix")}` : ""}
+            </p>
+          ) : null}
         </Card>
       </details>
       <Card id="sec-expected" className="scroll-mt-14">
         <Label htmlFor="expectedText">{t("brew.field.expected")}</Label>
         <Textarea id="expectedText" rows={2} className="mt-1" placeholder={t("brew.field.expectedPlaceholder")} error={!!form.formState.errors.expectedText} {...form.register("expectedText")} />
       </Card>
-      <details id="sec-result" className="scroll-mt-14">
+      <details open id="sec-result" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.result")}</summary>
         <Card>
-          <div>
-            <Label>
-              {t("brew.field.finalBeverage")}{minBeverageG != null ? ` (${t("brew.target")} ≥ ${minBeverageG} g)` : ""}
-            </Label>
-            <Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.finalBeverageG} {...form.register("finalBeverageG")} />
-            {belowTarget ? (
-              <p className="mt-1 text-sm text-ember">{t("brew.belowTarget.prefix")}{minBeverageG}{t("brew.belowTarget.suffix")}</p>
-            ) : null}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>{t("brew.field.finalBeverage")}</Label>
+              <Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.finalBeverageG} {...form.register("finalBeverageG")} />
+            </div>
+            <div>
+              <Label>{t("brew.field.tds")}</Label>
+              <Input type="number" step="any" inputMode="decimal" min="0" max="30" error={!!form.formState.errors.tdsPercent} {...form.register("tdsPercent")} />
+              <p className="mt-1 text-[11px] text-ink3">{t("brew.field.tdsHint")}</p>
+            </div>
           </div>
+          {ey != null || retained != null ? (
+            <div className="tnum mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink2" aria-live="polite">
+              {ey != null ? (
+                <span>{t("brew.field.ey")}: {ey}</span>
+              ) : null}
+              {retained != null ? (
+                <span>{t("brew.field.retention")}: {retained}</span>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-3"><Label>{t("brew.field.brewNotes")}</Label><Textarea rows={2} error={!!form.formState.errors.notes} {...form.register("notes")} /></div>
         </Card>
       </details>

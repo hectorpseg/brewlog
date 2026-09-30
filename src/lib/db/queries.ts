@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { escapeLike } from "@/lib/lists/params";
+import { pouredTotalG } from "@/lib/domain/brew-water";
 import {
   brewRecentItem,
   coffeeRecentItem,
@@ -30,7 +31,7 @@ export async function listBrews(coffeeId?: string) {
   // One query with joins — never one request per card.
   let q = db
     .from("brews")
-    .select("*, observations(*), sessions(title), coffees(name)")
+    .select("*, observations(*), sessions(title), coffees(name), pours(amount_g)")
     .order("brewed_at", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(50);
@@ -113,7 +114,7 @@ export async function latestBrew() {
   const db = await createClient();
   const { data } = await db
     .from("brews")
-    .select("id, coffee_id, dose_g, water_g, created_at, coffees(name)")
+    .select("id, coffee_id, dose_g, water_g, created_at, coffees(name), pours(amount_g)")
     .order("brewed_at", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(1)
@@ -132,16 +133,6 @@ export async function listSessionBrews(sessionId: string) {
   const db = await createClient();
   const { data, error } = await db.from("brews").select("*, observations(*), coffees(name)").eq("session_id", sessionId).order("brewed_at", { ascending: false }).order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return data;
-}
-
-// Competition target for the current user, or null when never configured.
-// Callers fall back to DEFAULT_MIN_BEVERAGE_G — the default lives in code,
-// not in the database, because absence of a row must also work (fresh users).
-export async function getCompetitionSettings() {
-  const db = await createClient();
-  const { data, error } = await db.from("competition_settings").select("*").limit(1).single();
-  if (error) return null;
   return data;
 }
 
@@ -226,7 +217,7 @@ export type BrewsPageOpts = {
 // so unscored brews never outrank scored ones; brewed_at/created_at break
 // ties deterministically. Observations ride a second batched query (one
 // round trip for the page, no per-card requests) so lifecycle status renders
-// exactly as before.
+// exactly as before; pours ride a third so cards can show the actual ratio.
 export async function listBrewsPage(opts: BrewsPageOpts): Promise<ListPage<Record<string, unknown>>> {
   const db = await createClient();
   let query = db.from("brews_list").select("*");
@@ -264,16 +255,30 @@ export async function listBrewsPage(opts: BrewsPageOpts): Promise<ListPage<Recor
   const page = pageRange((data ?? []) as Record<string, unknown>[], opts.limit);
   const ids = page.rows.map((r) => r.id as string);
   const obsByBrew = new Map<string, Record<string, unknown>>();
+  const pouredByBrew = new Map<string, number>();
   if (ids.length > 0) {
     const { data: obs } = await db.from("observations").select("*").in("brew_id", ids);
     for (const o of (obs ?? []) as Record<string, unknown>[]) {
       obsByBrew.set(o.brew_id as string, o);
+    }
+    // actual poured water per brew: grouped here, summed by the domain module
+    const { data: pourRows } = await db.from("pours").select("brew_id, amount_g").in("brew_id", ids);
+    const byBrew = new Map<string, { amount_g?: unknown }[]>();
+    for (const p of (pourRows ?? []) as { brew_id: string; amount_g?: unknown }[]) {
+      const list = byBrew.get(p.brew_id) ?? [];
+      list.push(p);
+      byBrew.set(p.brew_id, list);
+    }
+    for (const [brewId, rows] of byBrew) {
+      const total = pouredTotalG(rows);
+      if (total != null) pouredByBrew.set(brewId, total);
     }
   }
   const rows = page.rows.map((r) => {
     const rest = withoutBlob(r);
     return {
       ...rest,
+      poured_total_g: pouredByBrew.get(r.id as string) ?? null,
       session: typeof r.session_title === "string" && r.session_title !== ""
         ? { title: r.session_title as string }
         : null,
@@ -401,7 +406,7 @@ export async function listRecentViews(limit = MAX_RECENT): Promise<RecentItem[]>
   };
   const [brews, coffees, sessions] = await Promise.all([
     ids.brew.length > 0
-      ? db.from("brews").select("id, dose_g, water_g, brewed_at, created_at, coffees(name)").in("id", ids.brew)
+      ? db.from("brews").select("id, dose_g, water_g, brewed_at, created_at, coffees(name), pours(amount_g)").in("id", ids.brew)
       : Promise.resolve({ data: [] as Record<string, unknown>[] | null, error: null }),
     ids.coffee.length > 0
       ? db.from("coffees").select("id, name, remaining_weight_g").in("id", ids.coffee)
@@ -423,7 +428,7 @@ export async function listRecentViews(limit = MAX_RECENT): Promise<RecentItem[]>
     if (seen.has(key)) continue;
     seen.add(key);
     const item = r.entity_type === "brew" && brewById.has(r.entity_id)
-      ? brewRecentItem(brewById.get(r.entity_id) as { id: unknown; dose_g: unknown; water_g: unknown; brewed_at: unknown; created_at: unknown; coffee_name: unknown }, r.viewed_at)
+      ? brewRecentItem(brewById.get(r.entity_id) as { id: unknown; dose_g: unknown; water_g: unknown; brewed_at: unknown; created_at: unknown; coffee_name: unknown; pours?: { amount_g?: unknown }[] | null }, r.viewed_at)
       : r.entity_type === "coffee" && coffeeById.has(r.entity_id)
         ? coffeeRecentItem(coffeeById.get(r.entity_id) as { id: unknown; name: unknown; remaining_weight_g: unknown }, r.viewed_at)
         : r.entity_type === "session" && sessionById.has(r.entity_id)

@@ -1,6 +1,7 @@
 "use client";
 import { ChevronRight, Heart } from "lucide-react";
 import { formatRatio } from "@/lib/domain/ratio";
+import { actualWaterG } from "@/lib/domain/brew-water";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatBrewScore } from "@/lib/domain/brew-score";
 import { brewLifecycle, brewWarningKeys, BREW_LIFECYCLE_KEY } from "@/lib/domain/brew-status";
@@ -11,6 +12,7 @@ export type BrewCardData = {
   id: string;
   dose_g: number | null;
   water_g: number | null;
+  poured_total_g?: number | null;
   temp_c: number | null;
   grind_clicks: number | null;
   total_time_sec?: number | null;
@@ -46,6 +48,9 @@ export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, 
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
   const score = typeof brew.brew_score === "number" || typeof brew.brew_score === "string" ? Number(brew.brew_score) : NaN;
   const scored = Number.isFinite(score);
+  // ratio and the water number reflect actual brew water (poured total when
+  // structured pours exist); planned water lives on the detail page
+  const actualWater = actualWaterG(brew.water_g, brew.poured_total_g);
 
   return (
     <div
@@ -65,9 +70,9 @@ export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, 
           <div className="tnum mt-0.5 text-xs text-ink2 line-clamp-1">
             {formatBrewDate(brew.brewed_at ?? brew.created_at, locale)}
             {" · "}
-            {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g
+            {brew.dose_g ?? "?"} g → {actualWater ?? "?"} g
             {" · "}
-            {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
+            {formatRatio(Number(brew.dose_g), actualWater ?? NaN)}
           </div>
           <div className="tnum text-[11px] text-ink3 line-clamp-1">
             {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} {t("brew.clicks")}

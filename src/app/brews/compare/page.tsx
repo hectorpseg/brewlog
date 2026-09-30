@@ -52,10 +52,15 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       );
     }
   }
+  // pours feed both the scalar diff (actual ratio) and the pour table
+  const [poursA, poursB] = await Promise.all([
+    listPours(rawA.id).catch(() => []),
+    listPours(rawB.id).catch(() => []),
+  ]);
   // ponytail: relations resolved to names before diffing — the diff only ever
   // sees scalar strings, so UUIDs and [object Object] cannot reach the UI.
-  const a = toComparableBrew(rawA);
-  const b = toComparableBrew(rawB);
+  const a = toComparableBrew(rawA, poursA);
+  const b = toComparableBrew(rawB, poursB);
   const changedKeys = new Set(diffBrews(a, b).changed);
   const rowsFor = (fields: readonly string[]): CompareFieldRow[] =>
     fields
@@ -67,20 +72,28 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   const notes = rowsFor(COMPARE_NOTE_FIELDS);
   // structured tasting compares separately: Stage → Attribute → A / B.
   // Legacy fixed attributes are gone from the scalar diff above on purpose.
-  const [tastingsA, tastingsB, poursA, poursB] = await Promise.all([
+  const [tastingsA, tastingsB] = await Promise.all([
     listTastings(rawA.id).catch(() => []),
     listTastings(rawB.id).catch(() => []),
-    listPours(rawA.id).catch(() => []),
-    listPours(rawB.id).catch(() => []),
   ]);
   const tasting = compareTastings(tastingsA, tastingsB);
-  const pourRows: CompareFieldRow[] = comparePourFields(
-    poursA,
-    poursB,
-    // Switch positions only make sense (and only display) when one of the
-    // compared brews actually uses the Hario Switch.
-    rawA.hario_switch === true || rawB.hario_switch === true,
-  );
+  // Water accounting leads the pours section: actual poured water (from the
+  // pouredTotalG domain calc via the scalar map) and numeric bypass sit
+  // directly above the per-pour rows. Planned water stays in the Recipe list.
+  const waterRows: CompareFieldRow[] = [
+    { label: "Poured water", a: a.Poured, b: b.Poured, changed: a.Poured !== b.Poured },
+    { label: "Bypass (g)", a: a["Bypass (g)"], b: b["Bypass (g)"], changed: a["Bypass (g)"] !== b["Bypass (g)"] },
+  ].filter((r) => r.a !== "-" || r.b !== "-");
+  const pourRows: CompareFieldRow[] = [
+    ...waterRows,
+    ...comparePourFields(
+      poursA,
+      poursB,
+      // Switch positions only make sense (and only display) when one of the
+      // compared brews actually uses the Hario Switch.
+      rawA.hario_switch === true || rawB.hario_switch === true,
+    ),
+  ];
   const changedCount = [...changedKeys].filter((k) => a[k] !== "-" || b[k] !== "-").length;
   return (
     <div className="flex flex-col gap-4">
@@ -98,7 +111,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       </div>
       {pourRows.length > 0 ? (
         <div>
-          <SectionHeader>Pours</SectionHeader>
+          <SectionHeader>Pours &amp; water</SectionHeader>
           <Card className="mt-2">
             <CompareFieldTable rows={pourRows} />
           </Card>

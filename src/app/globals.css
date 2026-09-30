@@ -79,7 +79,14 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Date inputs keep the native picker affordance (no custom icon). */
+/* Date inputs keep the native picker affordance (no custom icon). Native
+   date controls carry a large intrinsic min-width; inside grid layouts the
+   item's automatic minimum would otherwise expand the tracks and overlap
+   neighboring fields on phone widths. min-width: 0 lets the (w-full) input
+   shrink to its track; desktop keeps the same two-column grid. */
+input[type="date"] {
+  min-width: 0;
+}
 
 /* skeleton shimmer without elaborate animation */
 @keyframes brewlog-pulse {

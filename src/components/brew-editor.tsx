@@ -5,7 +5,8 @@ import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
 import { BREW_NOTE_KEYS, brewEditorDefaults, planBrewSync } from "@/lib/db/brew-update";
 import { completeTastingEntries, tastingRowsFromJson, tastingRowsToJson, tastingsUpdatedAt } from "@/lib/domain/tastings";
-import { pourRowsFromJson, pourRowsToJson, poursUpdatedAt } from "@/lib/domain/pours";
+import { pourRowsFromJson, pourRowsToJson, poursUpdatedAt, completePourEntries } from "@/lib/domain/pours";
+import { eyPercent, pouredTotalG, plannedDeltaG, retainedG } from "@/lib/domain/brew-water";
 import { Card, Input, Label, Select, Switch, Textarea } from "@/components/ui/controls";
 import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
@@ -106,6 +107,18 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
 
   function set(k: string, v: string) { setForm((f) => ({ ...f, [k]: v })); }
 
+  // Live extraction facts for the derived readouts (same domain module as the
+  // create form); missing inputs simply hide the readout.
+  const pourFacts = completePourEntries(pourRowsFromJson(form.pours));
+  const waterFacts = {
+    water_g: form.waterG, final_beverage_g: form.finalBeverageG,
+    tds_percent: form.tdsPercent, dose_g: form.doseG, bypass_g: form.bypassG,
+  };
+  const ey = eyPercent(waterFacts);
+  const retained = retainedG(waterFacts, pourFacts);
+  const pouredTotal = pouredTotalG(pourFacts);
+  const plannedDelta = plannedDeltaG(form.waterG, pourFacts);
+
   // minutes/seconds are display facets of stored total seconds
   function setTime(which: "min" | "sec", v: string) {
     setForm((f) => {
@@ -166,16 +179,16 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
             <div><Label>{t("brew.field.dripper")}</Label><Input value={form.dripper ?? ""} onChange={(e) => set("dripper", e.target.value)} /></div>
             <div><Label>{t("brew.field.filter")}</Label><Input value={form.filter ?? ""} onChange={(e) => set("filter", e.target.value)} /></div>
             <div><Label>{t("brew.field.waterSource")}</Label><Input value={form.waterSource ?? ""} onChange={(e) => set("waterSource", e.target.value)} /></div>
-            <div><Label>{t("brew.field.waterBrand")}</Label><Input value={form.waterBrand ?? ""} onChange={(e) => set("waterBrand", e.target.value)} /></div>
             <div><Label>{t("brew.field.ppm")}</Label><Input value={form.waterPpm ?? ""} inputMode="decimal" onChange={(e) => set("waterPpm", e.target.value)} /></div>
-            <div className="col-span-2">
-              <Label>{t("brew.field.waterDescription")}</Label><Input value={form.waterDescription ?? ""} onChange={(e) => set("waterDescription", e.target.value)} />
-            </div>
             <div className="col-span-2">
               <Label>{t("brew.field.waterNotes")}</Label><Textarea rows={2} value={form.waterNotes ?? ""} onChange={(e) => set("waterNotes", e.target.value)} />
             </div>
             <div><Label>{t("brew.field.thermalShock")}</Label><Input value={form.thermalShock ?? ""} onChange={(e) => set("thermalShock", e.target.value)} /></div>
-            <div><Label>{t("brew.field.bypass")}</Label><Input value={form.bypass ?? ""} onChange={(e) => set("bypass", e.target.value)} /></div>
+            <div>
+              <Label>{t("brew.field.bypassG")}</Label>
+              <Input value={form.bypassG ?? ""} inputMode="decimal" onChange={(e) => set("bypassG", e.target.value)} />
+              <p className="mt-1 text-[11px] text-ink3">{t("brew.field.bypassGHint")}</p>
+            </div>
             <Switch
               label={t("brew.field.lilydrip")}
               pressed={form.lilydrip === "true"}
@@ -199,16 +212,39 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
             brewTemp={form.tempC ?? ""}
             onChange={(rows) => set("pours", pourRowsToJson(rows))}
           />
+          {pouredTotal != null && Number.isFinite(Number(form.waterG)) ? (
+            <p className="tnum mt-2 text-xs text-ink2" aria-live="polite">
+              {t("brew.pouredLine.prefix")}{pouredTotal}{t("brew.pouredLine.middle")}{form.waterG}{t("brew.pouredLine.suffix")}
+              {plannedDelta != null && plannedDelta !== 0 ? ` · ${plannedDelta > 0 ? "+" : ""}${plannedDelta}${t("brew.pouredDelta.suffix")}` : ""}
+            </p>
+          ) : null}
         </Card>
       </details>
       <Card id="sec-expected" className="scroll-mt-14">
         <Label htmlFor="brew-expected">{t("brew.field.expected")}</Label>
         <Textarea id="brew-expected" rows={2} className="mt-1" placeholder={t("brew.field.expectedPlaceholder")} value={form.expectedText ?? ""} onChange={(e) => set("expectedText", e.target.value)} />
       </Card>
-      <details id="sec-result" className="scroll-mt-14">
+      <details open id="sec-result" className="scroll-mt-14">
         <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.result")}</summary>
         <Card>
-          <div><Label>{t("brew.field.finalBeverage")}</Label><Input value={form.finalBeverageG ?? ""} inputMode="decimal" onChange={(e) => set("finalBeverageG", e.target.value)} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>{t("brew.field.finalBeverage")}</Label><Input value={form.finalBeverageG ?? ""} inputMode="decimal" onChange={(e) => set("finalBeverageG", e.target.value)} /></div>
+            <div>
+              <Label>{t("brew.field.tds")}</Label>
+              <Input value={form.tdsPercent ?? ""} inputMode="decimal" onChange={(e) => set("tdsPercent", e.target.value)} />
+              <p className="mt-1 text-[11px] text-ink3">{t("brew.field.tdsHint")}</p>
+            </div>
+          </div>
+          {ey != null || retained != null ? (
+            <div className="tnum mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink2" aria-live="polite">
+              {ey != null ? (
+                <span>{t("brew.field.ey")}: {ey}</span>
+              ) : null}
+              {retained != null ? (
+                <span>{t("brew.field.retention")}: {retained}</span>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-3"><Label>{t("brew.field.brewNotes")}</Label><Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} /></div>
         </Card>
       </details>

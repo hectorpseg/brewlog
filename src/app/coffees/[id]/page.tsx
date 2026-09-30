@@ -11,10 +11,11 @@ import { CopySummaryButton } from "@/components/copy-summary";
 import { BrewHistoryRow } from "@/components/brew-history-row";
 import { EmptyState } from "@/components/states";
 import { formatCuppingSummary } from "@/lib/domain/cupping-summary";
+import { pouredTotalG } from "@/lib/domain/brew-water";
 import { coffeeDetailLine, coffeeMetaLine } from "@/lib/domain/coffee-meta";
+import { describeDeletion } from "@/lib/domain/deletion";
 import { formatBrewDate, formatReceived } from "@/lib/domain/brew-date";
 import { getT, getLocale } from "@/lib/i18n/server";
-import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 export default async function CoffeeDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,19 +35,9 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
     const o = b.observations;
     return Array.isArray(o) ? o.length > 0 : o != null;
   }).length;
-  // Deletion copy is composed here from pluralized fragments (no interpolation
-  // in the translation layer); the cupping dialog has no counts.
-  const plural = (n: number, one: TranslationKey, many: TranslationKey) =>
-    n === 1 ? `${n} ${t(one)}` : `${n} ${t(many)}`;
-  const del = {
-    title: t("delete.coffee.title"),
-    confirm: t("coffee.delete"),
-    body:
-      `${plural(brews.length, "delete.coffee.brewsOne", "delete.coffee.brewsMany")} ` +
-      `${t("delete.coffee.and")} ` +
-      `${plural(noted, "delete.coffee.notesOne", "delete.coffee.notesMany")} ` +
-      t("delete.coffee.tail"),
-  };
+  // Deletion copy comes from the canonical domain composer: zero-count
+  // fragments never render, and the wording stays in the dictionaries.
+  const del = describeDeletion("coffee", { brews: brews.length, observations: noted }, t);
   const remove = deleteCoffee.bind(null, id);
   const cuppingDel = {
     title: t("delete.cupping.title"),
@@ -97,8 +88,9 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
                   grind_clicks: number | null; total_time_sec: number | null;
                   brewed_at: string | null; created_at: string; session_id: string | null;
                   session: { title: string } | null; observations: unknown;
+                  pours?: { amount_g?: unknown }[] | null;
                 }) => (
-                  <li key={b.id}><BrewHistoryRow brew={b} /></li>
+                  <li key={b.id}><BrewHistoryRow brew={{ ...b, poured_total_g: pouredTotalG(b.pours ?? null) }} /></li>
                 ))}
               </ul>
               <div className="mt-3">

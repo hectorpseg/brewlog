@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getSession, listBrewCandidates, listSessionBrews, recordRecentView } from "@/lib/db/queries";
 import { excludeSessionBrews, formatCandidateLabel, type CandidateRow } from "@/lib/domain/sessions";
+import { describeDeletion } from "@/lib/domain/deletion";
 import { deleteSession, moveBrewToSession, removeBrewFromSession, updateSession } from "@/app/actions";
 import { Button, Card, Label, SectionHeader, Select } from "@/components/ui/controls";
 import { DeleteButton } from "@/components/delete-button";
@@ -10,7 +11,6 @@ import { BackLink } from "@/components/back-link";
 import { BrewCard } from "@/components/brew-card";
 import { EmptyState } from "@/components/states";
 import { getT } from "@/lib/i18n/server";
-import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 type BrewRow = {
   id: string;
@@ -38,15 +38,9 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
   ]);
   const update = updateSession.bind(null, id);
   const candidates = excludeSessionBrews(allBrews as CandidateRow[], id);
-  // Deletion copy composed from pluralized fragments (no interpolation layer);
-  // "No session" brews survive unassigned.
-  const plural = (n: number, one: TranslationKey, many: TranslationKey) =>
-    n === 1 ? `${n} ${t(one)}` : `${n} ${t(many)}`;
-  const del = {
-    title: t("delete.session.title"),
-    confirm: t("session.delete"),
-    body: `${plural(brews.length, "session.brewsOne", "session.brewsMany")} ${t("delete.session.tail")}`,
-  };
+  // Deletion copy comes from the canonical domain composer: with no brews the
+  // body is just the generic warning; "No session" brews survive unassigned.
+  const del = describeDeletion("session", { brews: brews.length }, t);
   const remove = deleteSession.bind(null, id);
   return (
     <div className="flex flex-col gap-4">

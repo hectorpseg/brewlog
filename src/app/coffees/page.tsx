@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseCoffeeParams } from "@/lib/lists/params";
 import type { CoffeeCardData } from "@/components/coffee-card";
 import { getT } from "@/lib/i18n/server";
+import { errorText } from "@/lib/i18n/errors";
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -33,7 +34,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
       </div>
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
-          {sp.error}
+          {errorText(sp.error, t)}
         </p>
       ) : null}
       {devSeed ? (

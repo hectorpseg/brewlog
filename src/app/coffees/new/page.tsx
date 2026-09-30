@@ -4,6 +4,7 @@ import { defaultBrewedDate } from "@/lib/domain/brew-date";
 import { BackLink } from "@/components/back-link";
 import { Button, Card, Input, Label, Textarea } from "@/components/ui/controls";
 import { getT } from "@/lib/i18n/server";
+import { errorText } from "@/lib/i18n/errors";
 
 export default async function NewCoffeePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await requireUser("/coffees/new");
@@ -16,7 +17,7 @@ export default async function NewCoffeePage({ searchParams }: { searchParams: Pr
       <h1 className="mb-3 font-display text-2xl">{t("coffee.new.title")}</h1>
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
-          {sp.error}
+          {errorText(sp.error, t)}
         </p>
       ) : null}
       <Card>
@@ -40,7 +41,7 @@ export default async function NewCoffeePage({ searchParams }: { searchParams: Pr
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label htmlFor="initialWeightG">{t("coffee.field.initialWeight")}</Label><Input id="initialWeightG" name="initialWeightG" type="number" step="any" inputMode="decimal" /></div>
-            <div><Label htmlFor="receivedDate">{t("coffee.field.received")}</Label><Input id="receivedDate" name="receivedDate" type="date" max={defaultBrewedDate()} /></div>
+            <div className="col-span-2 sm:col-span-1"><Label htmlFor="receivedDate">{t("coffee.field.received")}</Label><Input id="receivedDate" name="receivedDate" type="date" max={defaultBrewedDate()} /></div>
           </div>
           <div><Label htmlFor="notes">{t("coffee.field.notes")}</Label><Textarea id="notes" name="notes" rows={3} /></div>
           <Button>{t("coffee.save")}</Button>

@@ -10,11 +10,6 @@ export type TableSpec = {
 
 export const BACKUP_TABLES: TableSpec[] = [
   {
-    key: "competitionSettings",
-    table: "competition_settings",
-    columns: ["id", "user_id", "name", "min_final_beverage_g", "created_at", "updated_at"],
-  },
-  {
     key: "sessions",
     table: "sessions",
     columns: ["id", "user_id", "title", "notes", "created_at", "updated_at"],
@@ -34,7 +29,8 @@ export const BACKUP_TABLES: TableSpec[] = [
     columns: [
       "id", "user_id", "coffee_id", "session_id", "dose_g", "water_g", "temp_c",
       "grind_clicks", "grinder", "dripper", "filter", "water_source", "pour_count",
-      "total_time_sec", "final_beverage_g", "notes", "is_favorite", "expected_text",
+      "total_time_sec", "final_beverage_g", "tds_percent", "bypass_g", "notes",
+      "is_favorite", "expected_text",
       "selected_beans", "water_brand", "water_ppm", "water_description",
       "water_notes", "thermal_shock", "bypass", "lilydrip", "melodrip",
       "brewed_at", "created_at", "updated_at",

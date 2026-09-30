@@ -2,6 +2,7 @@ import { z } from "zod";
 import { isFutureDateString } from "@/lib/domain/brew-date";
 import { TASTING_MAX, TASTING_MIN, TASTING_STAGES, normalizeAttribute } from "@/lib/domain/tastings";
 import { POUR_PATTERNS } from "@/lib/domain/pours";
+import { msg } from "@/lib/i18n/errors";
 
 // ponytail: form fields arrive as "" when cleared. Without this, coerce turns
 // "" into 0/NaN and every *optional* numeric behaves as required-or-crashing.
@@ -20,7 +21,7 @@ const optBool = z.preprocess(
 
 // Unknown stays unknown: everything optional except identifiers.
 export const coffeeSchema = z.object({
-  name: z.string().min(1, "Name is required").max(120),
+  name: z.string().min(1, msg("name.required")).max(120),
   origin: z.string().max(120).nullish(),
   process: z.string().max(120).nullish(),
   variety: z.string().max(120).nullish(),
@@ -30,7 +31,7 @@ export const coffeeSchema = z.object({
   farm: z.string().max(120).nullish(),
   altitude: z.string().max(120).nullish(),
   roastDate: z.string().max(20).nullish(),
-  receivedDate: z.preprocess(emptyToUndefined, z.string().max(20).refine((s) => !isFutureDateString(s), "Received date cannot be in the future").nullish()),
+  receivedDate: z.preprocess(emptyToUndefined, z.string().max(20).refine((s) => !isFutureDateString(s), msg("date.future")).nullish()),
   initialWeightG: optNum(z.coerce.number().positive().max(5000)),
   remainingWeightG: optNum(z.coerce.number().min(0).max(5000)),
   notes: z.string().max(2000).nullish(),
@@ -44,7 +45,7 @@ export const brewSchema = z.object({
   doseG: z.coerce.number().positive().max(200),
   waterG: z.coerce.number().positive().max(2000),
   // preparation date, distinct from created_at: "2026-09-21" from <input type="date">
-  brewedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid brew date").refine((s) => !isFutureDateString(s), "Brew date cannot be in the future").nullish()),
+  brewedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date").refine((s) => !isFutureDateString(s), msg("date.future")).nullish()),
   tempC: optNum(z.coerce.number().min(50).max(100)),
   grindClicks: optNum(z.coerce.number().int().min(0).max(300)),
   grinder: z.string().max(80).nullish(),
@@ -67,6 +68,10 @@ export const brewSchema = z.object({
   pourCount: optNum(z.coerce.number().int().min(1).max(20)),
   totalTimeSec: optNum(z.coerce.number().int().min(0).max(3600)),
   finalBeverageG: optNum(z.coerce.number().positive().max(2000)),
+  // extraction metrics: TDS on the final served beverage; bypass is extra
+  // water that never contacted the coffee bed (measured beverage includes it)
+  tdsPercent: optNum(z.coerce.number().min(0).max(30)),
+  bypassG: optNum(z.coerce.number().min(0).max(2000)),
   notes: z.string().max(2000).nullish(),
   // S6: free-text expectation for this brew; nullable, blank for old rows,
   // never copied by "Copy as next brew".
@@ -121,22 +126,12 @@ export const sessionSchema = z.object({
 });
 export type SessionInput = z.infer<typeof sessionSchema>;
 
-// Competition target. One row per user; absent row = code default (150 g).
-// Configurable per competition, never a universal coffee rule.
-export const DEFAULT_MIN_BEVERAGE_G = 150;
-
-export const competitionSettingsSchema = z.object({
-  name: z.string().min(1).max(120).nullish(),
-  minFinalBeverageG: optNum(z.coerce.number().positive().max(2000)),
-});
-export type CompetitionSettingsInput = z.infer<typeof competitionSettingsSchema>;
-
 // Minimal cupping: dated tasting of a coffee. Grinder + clicks are plain
 // fields (never entities), mirroring Brew; legacy free-text `grind` stays
 // readable for old rows. Sensory rides on hot/warm/cold + notes.
 export const cuppingSchema = z.object({
   coffeeId: z.string().uuid(),
-  cuppedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date").refine((s) => !isFutureDateString(s), "Cupping date cannot be in the future").nullish()),
+  cuppedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date").refine((s) => !isFutureDateString(s), msg("cupping.date.future")).nullish()),
   doseG: optNum(z.coerce.number().positive().max(200)),
   waterG: optNum(z.coerce.number().positive().max(2000)),
   grind: z.string().max(80).nullish(),

@@ -49,7 +49,7 @@ export function CuppingForm({ action, cupping, coffees, initialCoffeeId, submitL
           <input type="hidden" name="coffeeId" value={coffeeId} />
         )}
         <div className="grid grid-cols-2 gap-3">
-          <div><Label htmlFor={`${idPrefix}-date`}>{t("cupping.field.date")}</Label><Input id={`${idPrefix}-date`} name="cuppedAt" type="date" max={today} defaultValue={cupping ? toDateInputValue(cupping.cupped_at) : today} /></div>
+          <div className="col-span-2 sm:col-span-1"><Label htmlFor={`${idPrefix}-date`}>{t("cupping.field.date")}</Label><Input id={`${idPrefix}-date`} name="cuppedAt" type="date" max={today} defaultValue={cupping ? toDateInputValue(cupping.cupped_at) : today} /></div>
           <div><Label htmlFor={`${idPrefix}-dose`}>{t("cupping.field.dose")}</Label><Input id={`${idPrefix}-dose`} name="doseG" type="number" step="any" inputMode="decimal" placeholder={t("cupping.placeholder.dose")} defaultValue={cupping?.dose_g ?? ""} /></div>
           <div><Label htmlFor={`${idPrefix}-water`}>{t("cupping.field.water")}</Label><Input id={`${idPrefix}-water`} name="waterG" type="number" step="any" inputMode="decimal" placeholder={t("cupping.placeholder.water")} defaultValue={cupping?.water_g ?? ""} /></div>
           <div><Label htmlFor={`${idPrefix}-grinder`}>{t("cupping.field.grinder")}</Label><Input id={`${idPrefix}-grinder`} name="grinder" placeholder="K-Ultra" defaultValue={cupping?.grinder ?? ""} /></div>

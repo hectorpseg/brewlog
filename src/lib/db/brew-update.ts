@@ -53,6 +53,9 @@ export function brewEditorDefaults(
     pourCount: str(brew.pour_count),
     sessionId: str(brew.session_id),
     finalBeverageG: str(brew.final_beverage_g),
+    // extraction metrics: old rows read "" (never backfilled)
+    tdsPercent: str(brew.tds_percent),
+    bypassG: str(brew.bypass_g),
     // S6: nullable free text; old rows read "" (never backfilled).
     expectedText: str(brew.expected_text),
     brewTimeMin: initialTime.minutes != null ? String(initialTime.minutes) : "",
@@ -89,6 +92,8 @@ export function toBrewUpdateRow(patch: Record<string, string | undefined>): Reco
     pourCount: "pour_count",
     totalTimeSec: "total_time_sec",
     finalBeverageG: "final_beverage_g",
+    tdsPercent: "tds_percent",
+    bypassG: "bypass_g",
     notes: "notes",
     expectedText: "expected_text",
     doseG: "dose_g",
@@ -128,6 +133,7 @@ export function toBrewUpdateRow(patch: Record<string, string | undefined>): Reco
 export const BREW_RECIPE_KEYS = [
   "doseG", "waterG", "brewedAt", "tempC", "grindClicks", "grinder", "dripper",
   "filter", "waterSource", "pourCount", "sessionId", "finalBeverageG",
+  "tdsPercent", "bypassG",
   "brewTimeMin", "brewTimeSec", "totalTimeSec", "notes", "expectedText",
   "selectedBeans",
   "waterBrand", "waterPpm", "waterDescription", "waterNotes",

@@ -85,7 +85,6 @@ describe("coffee metadata export compatibility", () => {
   });
   it("legacy rows without metadata export as NULL and stay import-compatible", () => {
     const rows = {
-      competitionSettings: [],
       sessions: [],
       coffees: [
         { id: "c1", user_id: "u1", name: "Old lot", origin: null, process: "Washed", roast_date: null, received_date: null, initial_weight_g: 200, remaining_weight_g: 185, notes: null, created_at: "2026-09-10T00:00:00.000Z", updated_at: "2026-09-10T00:00:00.000Z" },
@@ -102,7 +101,6 @@ describe("coffee metadata export compatibility", () => {
   });
   it("populated metadata persists through the SQL backup", () => {
     const rows = {
-      competitionSettings: [],
       sessions: [],
       coffees: [
         { id: "c1", user_id: "u1", name: "New lot", origin: "Colombia", process: "Washed", ...META, roast_date: null, received_date: null, initial_weight_g: 200, remaining_weight_g: 185, notes: null, created_at: "2026-09-10T00:00:00.000Z", updated_at: "2026-09-10T00:00:00.000Z" },

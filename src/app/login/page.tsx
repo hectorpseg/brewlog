@@ -5,6 +5,7 @@ import { safeNext } from "@/lib/auth";
 import { getCachedUser } from "@/lib/supabase/require-user";
 import { Button, Card, Input, Label } from "@/components/ui/controls";
 import { getT } from "@/lib/i18n/server";
+import { errorText } from "@/lib/i18n/errors";
 
 export default async function LoginPage({ searchParams }: {
   searchParams: Promise<{ error?: string; next?: string; updated?: string }>;
@@ -27,7 +28,7 @@ export default async function LoginPage({ searchParams }: {
       ) : null}
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
-          {sp.error}
+          {errorText(sp.error, t)}
         </p>
       ) : null}
       <Card>

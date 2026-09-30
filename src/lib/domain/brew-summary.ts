@@ -1,6 +1,7 @@
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { brewRatio } from "@/lib/domain/ratio";
+import { eyPercent, pouredTotalG, retainedG } from "@/lib/domain/brew-water";
 import { TASTING_STAGES, isTastingStage, normalizeAttribute } from "@/lib/domain/tastings";
 import { isPourPattern } from "@/lib/domain/pours";
 
@@ -55,10 +56,19 @@ export function formatBrewSummary(input: SummaryInput): string {
 
   const dose = num(brew.dose_g);
   const water = num(brew.water_g);
+  // ratio reflects actual brew water: the poured total when structured pours
+  // exist, planned water otherwise. Planned stays explicit when the two differ.
+  const poured = pouredTotalG(pours);
+  const actual = poured ?? water;
   const recipe: string[] = [];
-  if (dose != null && water != null) {
-    const ratio = brewRatio(dose, water);
-    recipe.push(`${dose} g dose · ${water} g water${ratio == null ? "" : ` (1:${ratio})`}`);
+  if (dose != null && actual != null) {
+    const ratio = brewRatio(dose, actual);
+    const r = ratio == null ? "" : ` (1:${ratio})`;
+    if (poured != null && water != null && Math.abs(poured - water) >= 0.05) {
+      recipe.push(`${dose} g dose · ${poured} g poured (${water} g planned)${r}`);
+    } else {
+      recipe.push(`${dose} g dose · ${actual} g water${r}`);
+    }
   } else {
     if (dose != null) recipe.push(`${dose} g dose`);
     if (water != null) recipe.push(`${water} g water`);
@@ -81,6 +91,19 @@ export function formatBrewSummary(input: SummaryInput): string {
   if (time) recipe.push(time);
   const beverage = num(brew.final_beverage_g);
   if (beverage != null) recipe.push(`${beverage} g out`);
+  // extraction metrics, derived via the shared water module; missing inputs
+  // omit the fragment entirely
+  const facts = {
+    water_g: brew.water_g, final_beverage_g: brew.final_beverage_g,
+    tds_percent: brew.tds_percent, dose_g: brew.dose_g, bypass_g: brew.bypass_g,
+  };
+  const ey = eyPercent(facts);
+  const bypass = num(brew.bypass_g);
+  const retained = retainedG(facts, pours);
+  if (brew.tds_percent != null) recipe.push(`${brew.tds_percent}% TDS`);
+  if (ey != null) recipe.push(`EY ${ey}%`);
+  if (bypass != null) recipe.push(`${bypass} g bypass`);
+  if (retained != null) recipe.push(`${retained} g retained`);
   if (recipe.length > 0) lines.push(recipe.join(" · "));
 
   const session = sessionTitle?.trim() ? sessionTitle.trim() : null;

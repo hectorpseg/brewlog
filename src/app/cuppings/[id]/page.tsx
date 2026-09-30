@@ -9,6 +9,7 @@ import { CuppingForm, type CuppingRow } from "@/components/cupping-editor";
 import { DeleteButton } from "@/components/delete-button";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatCuppingSummary } from "@/lib/domain/cupping-summary";
+import { describeDeletion } from "@/lib/domain/deletion";
 import { getT, getLocale } from "@/lib/i18n/server";
 
 export default async function CuppingDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -29,6 +30,7 @@ export default async function CuppingDetail({ params }: { params: Promise<{ id: 
   const edit = updateCupping.bind(null, id, coffeeId);
   const remove = deleteCupping.bind(null, id, coffeeId);
   const summary = formatCuppingSummary({ cupping: raw, coffeeName });
+  const del = describeDeletion("cupping", {}, t);
 
   return (
     <div className="flex flex-col gap-4">
@@ -53,9 +55,9 @@ export default async function CuppingDetail({ params }: { params: Promise<{ id: 
       </div>
       <DeleteButton
         label={t("cupping.delete")}
-        title={t("delete.cupping.title")}
-        body={t("delete.cupping.body")}
-        confirmLabel={t("cupping.delete")}
+        title={del.title}
+        body={del.body}
+        confirmLabel={del.confirm}
         action={remove}
       />
     </div>

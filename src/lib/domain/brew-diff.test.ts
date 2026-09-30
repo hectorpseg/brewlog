@@ -65,12 +65,19 @@ describe("toComparableBrew", () => {
       selected_beans: null,
     });
     expect(c["Selected beans"]).toBe("-");
+    expect(c["Planned water"]).toBe("225 g");
     expect(c["Water brand"]).toBe("Third Wave");
     expect(c.PPM).toBe("150 ppm");
     expect(c["Water description"]).toBe("-");
     expect(c["Water notes"]).toBe("-");
     expect(c["Thermal shock"]).toBe("none");
     expect(c.Bypass).toBe("-");
+    // numeric bypass: explicit 0 stays 0, missing stays unrecorded
+    expect(toComparableBrew({ ...base, bypass_g: 0 })["Bypass (g)"]).toBe("0 g");
+    expect(c["Bypass (g)"]).toBe("-");
+    // poured total comes from structured pours, not planned water
+    expect(c.Poured).toBe("-");
+    expect(toComparableBrew(base, [{ amount_g: 300 }]).Poured).toBe("300 g");
     expect(c.LilyDrip).toBe("Yes");
     expect(c.MeloDrip).toBe("No");
   });

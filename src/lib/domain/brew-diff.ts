@@ -1,4 +1,5 @@
 import { brewRatio, formatRatio } from "@/lib/domain/ratio";
+import { pouredTotalG } from "@/lib/domain/brew-water";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatDuration } from "@/lib/domain/brew-time";
 
@@ -25,10 +26,13 @@ function one<T>(v: T | T[] | null | undefined): T | null {
   return v ?? null;
 }
 
-export function toComparableBrew(brew: BrewRow): Record<string, string> {
+export function toComparableBrew(brew: BrewRow, pours?: { amount_g?: unknown }[] | null): Record<string, string> {
   const dose = Number(brew.dose_g);
   const water = Number(brew.water_g);
-  const ratio = brewRatio(dose, water);
+  // ratio reflects actual brew water: poured total when pours exist
+  const poured = pouredTotalG(pours);
+  const actual = poured ?? (Number.isFinite(water) ? water : null);
+  const ratio = brewRatio(dose, actual ?? NaN);
   const obs = one(brew.observations as Record<string, unknown>[] | Record<string, unknown> | null | undefined) ?? {};
   const coffee = one(brew.coffees as Record<string, unknown>[] | Record<string, unknown> | null | undefined);
   const session = one(brew.sessions as Record<string, unknown>[] | Record<string, unknown> | null | undefined);
@@ -38,7 +42,11 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
     Session: (session?.title as string) ?? "No session",
     "Selected beans": flag(brew.selected_beans),
     Dose: brew.dose_g != null ? `${brew.dose_g} g` : "-",
-    Water: brew.water_g != null ? `${brew.water_g} g` : "-",
+    // planned recipe water stays distinct from the actual Poured row, which
+    // lives in the water/pours section with the numeric bypass
+    "Planned water": brew.water_g != null ? `${brew.water_g} g` : "-",
+    Poured: poured != null ? `${poured} g` : "-",
+    "Bypass (g)": brew.bypass_g != null && brew.bypass_g !== "" ? `${brew.bypass_g} g` : "-",
     Ratio: ratio == null ? "-" : `1:${ratio}`,
     // brews.temp_c is the starting temperature; per-pour temps compare separately
     "Starting temperature": brew.temp_c != null && brew.temp_c !== "" ? `${brew.temp_c}°C` : "-",
@@ -72,7 +80,7 @@ export function toComparableBrew(brew: BrewRow): Record<string, string> {
 // covers brew setup, notes cover the free-text observation record.
 // Structured tasting compares separately per stage/attribute.
 export const COMPARE_RECIPE_FIELDS = [
-  "Coffee", "Session", "Selected beans", "Dose", "Water", "Ratio", "Starting temperature", "Grind",
+  "Coffee", "Session", "Selected beans", "Dose", "Planned water", "Ratio", "Starting temperature", "Grind",
   "Grinder", "Dripper", "Filter", "Water source", "Water brand", "PPM", "Water description",
   "Water notes", "Thermal shock", "Bypass", "LilyDrip", "MeloDrip",
   "Pours", "Brew time", "Final beverage",

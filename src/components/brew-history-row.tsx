@@ -1,6 +1,7 @@
 "use client";
 import { Star } from "lucide-react";
 import { formatRatio } from "@/lib/domain/ratio";
+import { actualWaterG } from "@/lib/domain/brew-water";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatBrewScore } from "@/lib/domain/brew-score";
@@ -17,6 +18,7 @@ export function BrewHistoryRow({ brew, coffeeName, brewScore }: {
     id: string;
     dose_g: number | null;
     water_g: number | null;
+    poured_total_g?: number | null;
     temp_c: number | null;
     grind_clicks: number | null;
     total_time_sec?: number | null;
@@ -36,17 +38,21 @@ export function BrewHistoryRow({ brew, coffeeName, brewScore }: {
   const warnings = brewWarningKeys(brew).map((k) => t(k));
   const score = typeof brewScore === "number" || typeof brewScore === "string" ? Number(brewScore) : NaN;
   const scored = Number.isFinite(score);
+  // ratio and the water number reflect actual brew water (poured total when
+  // structured pours exist); planned water lives on the detail page
+  const actualWater = actualWaterG(brew.water_g, brew.poured_total_g);
+  const ratio = formatRatio(Number(brew.dose_g), actualWater ?? NaN);
   return (
     <EntityCard
       href={`/brews/${brew.id}`}
-      label={`${t("brew.titleFallback")} ${formatRatio(Number(brew.dose_g), Number(brew.water_g))}`}
+      label={`${t("brew.titleFallback")} ${ratio}`}
     >
       <div className="tnum flex items-baseline justify-between gap-2 text-sm">
-        <span className="font-display text-base">{formatRatio(Number(brew.dose_g), Number(brew.water_g))}</span>
+        <span className="font-display text-base">{ratio}</span>
         <span className="shrink-0 text-xs text-ink3">{formatBrewDate(brew.brewed_at ?? brew.created_at, locale)}</span>
       </div>
       <div className="tnum mt-0.5 text-sm text-ink2">
-        {brew.dose_g ?? "?"} g / {brew.water_g ?? "?"} g · {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} {t("brew.clicks")}
+        {brew.dose_g ?? "?"} g / {actualWater ?? "?"} g · {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} {t("brew.clicks")}
         {formatDuration(brew.total_time_sec) ? ` · ${formatDuration(brew.total_time_sec)}` : ""}
         {brew.filter ? ` · ${brew.filter}` : ""}
         {coffeeName ? ` · ${coffeeName}` : ""}
