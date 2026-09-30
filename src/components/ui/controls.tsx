@@ -47,9 +47,11 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
 );
 Select.displayName = "Select";
 
+// Shared note/observation textarea: tall enough for ~4-5 lines on phones,
+// user-resizable vertically, growth unrestricted (min-height, never fixed).
 export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement> & { error?: boolean | string }>(
   ({ className, error, ...p }, ref) => (
-    <textarea ref={ref} aria-invalid={error ? "true" : undefined} className={cn(fieldCls, "resize-y", className, error && errorCls)} {...p} />
+    <textarea ref={ref} aria-invalid={error ? "true" : undefined} className={cn(fieldCls, "resize-y", "min-h-32", className, error && errorCls)} {...p} />
   ),
 );
 Textarea.displayName = "Textarea";
@@ -99,13 +101,18 @@ export function Toggle({ label, pressed, onToggle, className }: { label: string;
 // to grid-row height or adds its own vertical rhythm; the full row is the
 // touch target. Callers wanting a full-width row (Selected beans) pass
 // w-full justify-end. Ember track when on; aria-pressed preserved.
-export function Switch({ label, pressed, onToggle, className }: { label: string; pressed: boolean; onToggle: () => void; className?: string }) {
+export function Switch({ label, pressed, onToggle, disabled, className }: { label: string; pressed: boolean; onToggle: () => void; disabled?: boolean; className?: string }) {
   return (
     <button
       type="button"
       aria-pressed={pressed}
       onClick={onToggle}
-      className={cn("flex min-h-9 items-center self-start gap-2.5 py-1 text-sm font-medium text-ink2", className)}
+      disabled={disabled}
+      className={cn(
+        "flex min-h-9 items-center self-start gap-2.5 py-1 text-sm font-medium text-ink2",
+        disabled && "opacity-50",
+        className,
+      )}
     >
       {label}
       <span
