@@ -23,11 +23,13 @@ export function defaultBrewedDate(d = new Date()): string {
 }
 
 // Stored instant → "Sep 21". Time-of-day is never shown: this is a day field.
-export function formatBrewDate(iso?: string | null): string {
+// Optional locale lets an i18n'd screen format the day in the chosen language;
+// callers that omit it keep the browser default (unchanged behavior).
+export function formatBrewDate(iso?: string | null, locale?: string): string {
   if (!iso) return "-";
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return "-";
-  return new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(t).toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 // Stored instant → "Sep 22, 2026". Same convention as formatBrewDate, with
@@ -40,10 +42,11 @@ export function formatBrewDateWithYear(iso?: string | null): string {
 }
 
 // Received dates may be ISO ("2026-09-08") or free text. Pretty-print ISO,
-// pass anything else through untouched — unknown stays unknown.
-export function formatReceived(v?: string | null): string {
+// pass anything else through untouched — unknown stays unknown. Optional
+// locale lets an i18n'd screen format the day in the chosen language.
+export function formatReceived(v?: string | null, locale?: string): string {
   if (v == null || v === "") return "unknown";
-  if (DATE_RE.test(v)) return formatBrewDate(`${v}T12:00:00.000Z`);
+  if (DATE_RE.test(v)) return formatBrewDate(`${v}T12:00:00.000Z`, locale);
   return v;
 }
 

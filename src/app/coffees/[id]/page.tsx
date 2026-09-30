@@ -10,13 +10,16 @@ import { DeleteButton } from "@/components/delete-button";
 import { CopySummaryButton } from "@/components/copy-summary";
 import { BrewHistoryRow } from "@/components/brew-history-row";
 import { EmptyState } from "@/components/states";
-import { describeDeletion } from "@/lib/domain/deletion";
 import { formatCuppingSummary } from "@/lib/domain/cupping-summary";
 import { coffeeDetailLine, coffeeMetaLine } from "@/lib/domain/coffee-meta";
 import { formatBrewDate, formatReceived } from "@/lib/domain/brew-date";
+import { getT, getLocale } from "@/lib/i18n/server";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 export default async function CoffeeDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await getT();
+  const locale = await getLocale();
   await requireUser(`/coffees/${id}`);
   const coffee = await getCoffee(id).catch(() => null);
   if (!coffee) notFound();
@@ -31,15 +34,32 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
     const o = b.observations;
     return Array.isArray(o) ? o.length > 0 : o != null;
   }).length;
-  const del = describeDeletion("coffee", { brews: brews.length, observations: noted });
+  // Deletion copy is composed here from pluralized fragments (no interpolation
+  // in the translation layer); the cupping dialog has no counts.
+  const plural = (n: number, one: TranslationKey, many: TranslationKey) =>
+    n === 1 ? `${n} ${t(one)}` : `${n} ${t(many)}`;
+  const del = {
+    title: t("delete.coffee.title"),
+    confirm: t("coffee.delete"),
+    body:
+      `${plural(brews.length, "delete.coffee.brewsOne", "delete.coffee.brewsMany")} ` +
+      `${t("delete.coffee.and")} ` +
+      `${plural(noted, "delete.coffee.notesOne", "delete.coffee.notesMany")} ` +
+      t("delete.coffee.tail"),
+  };
   const remove = deleteCoffee.bind(null, id);
+  const cuppingDel = {
+    title: t("delete.cupping.title"),
+    confirm: t("coffee.cuppings.delete"),
+    body: t("delete.cupping.body"),
+  };
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <BackLink href="/coffees" label="Coffees" />
+        <BackLink href="/coffees" label={t("nav.coffees")} />
         <h1 className="font-display text-2xl leading-snug text-ink">{coffee.name}</h1>
         <p className="tnum mt-1 text-xs text-ink2">
-          {coffeeMetaLine(coffee)}
+          {coffeeMetaLine(coffee, t)}
         </p>
         {coffeeDetailLine(coffee) ? (
           <p className="mt-0.5 text-[11px] text-ink3">
@@ -47,7 +67,7 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
           </p>
         ) : null}
         <p className="tnum mt-0.5 text-[11px] text-ink3">
-          ~{coffee.remaining_weight_g ?? "?"} g remaining · Received {formatReceived(coffee.received_date)}
+          ~{coffee.remaining_weight_g ?? "?"} g {t("coffee.remainingMany")} · {t("coffee.receivedPrefix")} {formatReceived(coffee.received_date, locale)}
         </p>
         <CoffeeEditor
           coffee={coffee}
@@ -58,15 +78,15 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
       <div>
         <details>
           <summary className="min-h-11 cursor-pointer py-2 text-lg">
-            <span className="border-b border-line pb-1 font-display">Brews ({brews.length})</span>
+            <span className="border-b border-line pb-1 font-display">{t("nav.brews")} ({brews.length})</span>
           </summary>
           {brews.length === 0 ? (
             <div className="mt-2">
               <EmptyState
-                title="No brews of this coffee"
-                body="Start from the competition defaults and adjust from there."
+                title={t("coffee.brews.emptyTitle")}
+                body={t("coffee.brews.emptyBody")}
                 actionHref={`/brews/new?coffee=${id}`}
-                actionLabel="+ Brew"
+                actionLabel={t("brews.empty.action")}
               />
             </div>
           ) : (
@@ -82,7 +102,7 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
                 ))}
               </ul>
               <div className="mt-3">
-                <CollectionAction href={`/brews/new?coffee=${id}&copy=1`}>+ Brew</CollectionAction>
+                <CollectionAction href={`/brews/new?coffee=${id}&copy=1`}>{t("brews.empty.action")}</CollectionAction>
               </div>
             </>
           )}
@@ -91,18 +111,18 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
       <div>
         <details>
           <summary className="min-h-11 cursor-pointer py-2 text-lg">
-            <span className="border-b border-line pb-1 font-display">Cuppings ({cuppings.length})</span>
+            <span className="border-b border-line pb-1 font-display">{t("nav.cuppings")} ({cuppings.length})</span>
           </summary>
           <p className="mt-1 text-sm text-ink2">
-            Taste {coffee.name} before spending brew doses - a baseline for what follows.
+            {t("coffee.taste.before")}{coffee.name}{t("coffee.taste.after")}
           </p>
           {cuppings.length === 0 ? (
             <div className="mt-2">
               <EmptyState
-                title="No cuppings yet"
-                body={`Taste ${coffee.name} before spending brew doses.`}
+                title={t("coffee.cuppings.emptyTitle")}
+                body={`${t("coffee.taste.before")}${coffee.name}${t("coffee.taste.afterShort")}`}
                 actionHref={`/cuppings/new?coffee=${id}`}
-                actionLabel="+ Cupping"
+                actionLabel={t("coffee.cuppings.add")}
               />
             </div>
           ) : (
@@ -111,7 +131,6 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
               {(cuppings as CuppingRow[]).map((c) => {
                 const edit = updateCupping.bind(null, c.id, id);
                 const removeCupping = deleteCupping.bind(null, c.id, id);
-                const cdel = describeDeletion("cupping", {});
                 return (
                   <li key={c.id}>
                     <EntityDisclosure
@@ -120,19 +139,19 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
                           <span className="font-medium">
                             {c.dose_g ?? "?"} g / {c.water_g ?? "?"} g
                           </span>
-                          <span className="shrink-0 text-xs text-ink3">{formatBrewDate(c.cupped_at)}</span>
+                          <span className="shrink-0 text-xs text-ink3">{formatBrewDate(c.cupped_at, locale)}</span>
                         </>
                       }
                     >
-                      <CuppingForm action={edit} cupping={{ ...c, coffee_id: id }} submitLabel="Save cupping" idPrefix={`cup-${c.id}`} />
+                      <CuppingForm action={edit} cupping={{ ...c, coffee_id: id }} submitLabel={t("coffee.cuppings.save")} idPrefix={`cup-${c.id}`} />
                       <CopySummaryButton
                         text={formatCuppingSummary({ cupping: c as Record<string, unknown>, coffeeName: coffee.name })}
                       />
                       <DeleteButton
-                        label="Delete cupping"
-                        title={cdel.title}
-                        body={cdel.body}
-                        confirmLabel={cdel.confirm}
+                        label={t("coffee.cuppings.delete")}
+                        title={cuppingDel.title}
+                        body={cuppingDel.body}
+                        confirmLabel={cuppingDel.confirm}
                         action={removeCupping}
                       />
                     </EntityDisclosure>
@@ -141,14 +160,14 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
               })}
               </ul>
               <div className="mt-3">
-                <CollectionAction href={`/cuppings/new?coffee=${id}`}>+ Cupping</CollectionAction>
+                <CollectionAction href={`/cuppings/new?coffee=${id}`}>{t("coffee.cuppings.add")}</CollectionAction>
               </div>
             </>
           )}
         </details>
       </div>
       <DeleteButton
-        label="Delete coffee"
+        label={t("coffee.delete")}
         title={del.title}
         body={del.body}
         confirmLabel={del.confirm}

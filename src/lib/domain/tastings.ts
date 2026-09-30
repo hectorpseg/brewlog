@@ -4,6 +4,8 @@
 // (and the DB CHECK) to evolve it. Legacy text levels ("low".."high") are
 // deliberately NOT mapped here: that mapping would invent numbers.
 
+import { DICTIONARIES, type TranslationKey } from "@/lib/i18n/dictionaries";
+
 export const TASTING_STAGES = ["hot", "warm", "cold"] as const;
 export type TastingStage = (typeof TASTING_STAGES)[number];
 
@@ -14,6 +16,13 @@ export const TASTING_STAGE_LABEL: Record<TastingStage, string> = {
   hot: "Hot",
   warm: "Warm",
   cold: "Cold",
+};
+
+// Translation keys for migrated screens; English LABEL stays for unmigrated ones.
+export const TASTING_STAGE_KEY: Record<TastingStage, TranslationKey> = {
+  hot: "tasting.stage.hot",
+  warm: "tasting.stage.warm",
+  cold: "tasting.stage.cold",
 };
 
 // Suggestions only (rendered as a native select): the model accepts any short
@@ -58,15 +67,18 @@ export type AttributeOption = { value: string; label: string };
 // added rows, and server-loaded rows alike. Placeholder first, then the fixed
 // vocabulary, then the row's own custom value (preserved, never dropped),
 // then the custom-entry option. Added rows start empty, so they always offer
-// the full list.
-export function attributeOptions(current: string): AttributeOption[] {
-  const out: AttributeOption[] = [{ value: "", label: "Pick…" }];
-  for (const a of SUGGESTED_ATTRIBUTES) out.push({ value: a, label: a });
+// the full list. Optional translate localizes display labels; the default
+// renders the English dictionary, which matches the stored vocabulary exactly.
+const englishLabel = (k: TranslationKey): string => DICTIONARIES.en[k];
+
+export function attributeOptions(current: string, translate: (k: TranslationKey) => string = englishLabel): AttributeOption[] {
+  const out: AttributeOption[] = [{ value: "", label: translate("tasting.pick") }];
+  for (const a of SUGGESTED_ATTRIBUTES) out.push({ value: a, label: translate(`tasting.attr.${a}`) });
   const trimmed = typeof current === "string" ? current.trim() : "";
   if (trimmed !== "" && !isSuggestedAttribute(trimmed)) {
-    out.push({ value: trimmed, label: `${trimmed} (custom)` });
+    out.push({ value: trimmed, label: `${trimmed} ${translate("tasting.customSuffix")}` });
   }
-  out.push({ value: CUSTOM_ATTRIBUTE_VALUE, label: "Custom…" });
+  out.push({ value: CUSTOM_ATTRIBUTE_VALUE, label: translate("tasting.custom") });
   return out;
 }
 

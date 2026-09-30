@@ -1,10 +1,12 @@
 "use server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { coffeeSchema, newBrewFormSchema, observationSchema, sessionSchema, competitionSettingsSchema, cuppingSchema, tastingsPayloadSchema, poursPayloadSchema, DEFAULT_MIN_BEVERAGE_G } from "@/lib/validation/schemas";
 import { toBrewedAtIso } from "@/lib/domain/brew-date";
 import { safeNext } from "@/lib/auth";
+import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from "@/lib/i18n/config";
 
 // ponytail: thin zod-then-insert actions; RLS enforces ownership, user_id never from client
 
@@ -23,6 +25,18 @@ export async function logout() {
   const db = await createClient();
   await db.auth.signOut();
   redirect("/login");
+}
+
+// Language preference: persists the explicit choice in a cookie (no DB/auth
+// changes) and revalidates the root layout so <html lang> and labels update.
+export async function setLocale(locale: string): Promise<void> {
+  const store = await cookies();
+  store.set(LOCALE_COOKIE, isLocale(locale) ? locale : DEFAULT_LOCALE, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/", "layout");
 }
 
 function nullish(v: FormDataEntryValue | null) {

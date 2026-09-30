@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { ArrowUp } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 
 // Appears only after real scrolling, floats above the bottom nav, never
 // auto-added: parents render it solely on genuinely long pages.
 export function BackToTop() {
+  const t = useT();
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > 600);
@@ -16,7 +18,7 @@ export function BackToTop() {
   return (
     <button
       type="button"
-      aria-label="Back to top"
+      aria-label={t("nav.backToTop")}
       onClick={() => {
         const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });

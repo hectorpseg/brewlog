@@ -1,6 +1,7 @@
 "use client";
 import { Search, X } from "lucide-react";
 import { Button, Input, Label } from "./ui/controls";
+import { useT } from "@/lib/i18n/client";
 import { cn } from "./ui/utils";
 
 // Shared list search: labeled, 44px, immediate, with an explicit clear.
@@ -15,6 +16,7 @@ export function SearchField({ id, label, placeholder, value, onChange, labelClas
   labelClassName?: string;
   className?: string;
 }) {
+  const t = useT();
   return (
     <div className="mt-3">
       <Label htmlFor={id} className={labelClassName}>{label}</Label>
@@ -32,7 +34,7 @@ export function SearchField({ id, label, placeholder, value, onChange, labelClas
         {value !== "" ? (
           <button
             type="button"
-            aria-label={`Clear ${label.toLowerCase()}`}
+            aria-label={t("search.clear")}
             onClick={() => onChange("")}
             className="absolute right-1 top-1/2 flex min-h-9 min-w-9 -translate-y-1/2 items-center justify-center rounded-[10px] text-ink2 active:scale-[0.97]"
           >
@@ -46,13 +48,14 @@ export function SearchField({ id, label, placeholder, value, onChange, labelClas
 
 // Records exist but nothing matches: explain + clear, never the first-use CTA.
 export function NoMatches({ query, onClear }: { query: string; onClear: () => void }) {
+  const t = useT();
   return (
     <div className="rounded-[10px] border border-line bg-card px-3 py-4 text-center">
-      <p className="text-sm font-medium">No matches for “{query}”.</p>
-      <p className="mt-0.5 text-sm text-ink2">Try a different word, or clear the search.</p>
+      <p className="text-sm font-medium">{t("list.noMatches.before")}{query}{t("list.noMatches.after")}</p>
+      <p className="mt-0.5 text-sm text-ink2">{t("list.noMatches.hint")}</p>
       <div className="mt-3">
         <Button variant="ghost" onClick={onClear}>
-          Clear search
+          {t("list.clearSearch")}
         </Button>
       </div>
     </div>

@@ -18,11 +18,14 @@ import { formatBrewDate } from "@/lib/domain/brew-date";
 import { brewFinalScore, formatBrewScore } from "@/lib/domain/brew-score";
 import { formatBrewSummary } from "@/lib/domain/brew-summary";
 import { toShareCardData } from "@/lib/domain/share-card";
-import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
-import { describeDeletion } from "@/lib/domain/deletion";
+import { brewLifecycle, brewWarningKeys, BREW_LIFECYCLE_KEY } from "@/lib/domain/brew-status";
+import { getT, getLocale } from "@/lib/i18n/server";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 export default async function BrewDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await getT();
+  const locale = await getLocale();
   const user = await requireUser(`/brews/${id}`);
   const brew = await getBrew(id).catch(() => null);
   if (!brew) notFound();
@@ -37,12 +40,21 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
   const brewSession = Array.isArray(brew.sessions) ? brew.sessions[0] : brew.sessions;
   const status = brewLifecycle(brew, obs);
-  const warnings = brewWarnings(brew);
-  const del = describeDeletion("brew", {
-    observations: obs ? 1 : 0,
-    tastings: tastings.length,
-    pours: pours.length,
-  });
+  const warnings = brewWarningKeys(brew).map((k) => t(k));
+  // Deletion copy is composed here from pluralized fragments: the count-bearing
+  // sentences cannot be one static key without an interpolation mechanism.
+  const plural = (n: number, one: TranslationKey, many: TranslationKey) =>
+    n === 1 ? t(one) : `${n} ${t(many)}`;
+  const del = {
+    title: t("brew.delete.title"),
+    confirm: t("brew.delete.confirm"),
+    body:
+      `${plural(obs ? 1 : 0, "brew.delete.notesOne", "brew.delete.notesMany")}, ` +
+      `${plural(tastings.length, "brew.delete.tastingsOne", "brew.delete.tastingsMany")}` +
+      `${t("brew.delete.joinLast")} ` +
+      `${plural(pours.length, "brew.delete.poursOne", "brew.delete.poursMany")} ` +
+      t("brew.delete.tail"),
+  };
   const remove = deleteBrew.bind(null, id);
   const isFavorite = brew.is_favorite === true;
   const favorite = toggleFavorite.bind(null, id, !isFavorite);
@@ -69,7 +81,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <BackLink href="/brews" label="Brews" />
+        <BackLink href="/brews" label={t("nav.brews")} />
         <div className="flex items-start justify-between gap-2">
           <h1 className="font-display text-2xl leading-snug text-ink">
             {typeof brew.coffee_id === "string" && typeof coffeeName === "string" ? (
@@ -77,22 +89,22 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
                 {coffeeName}
               </Link>
             ) : (
-              coffeeName ?? "Brew"
+              coffeeName ?? t("brew.titleFallback")
             )}
           </h1>
           <FavoriteButton isFavorite={isFavorite} toggle={favorite} />
         </div>
         <p className="tnum mt-1 text-xs text-ink2">
-          {formatBrewDate(brew.brewed_at ?? brew.created_at)} · {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g · {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
+          {formatBrewDate(brew.brewed_at ?? brew.created_at, locale)} · {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g · {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
         </p>
         <p className="tnum text-[11px] text-ink3">
-          {brew.temp_c != null ? `start ${brew.temp_c}°C` : "?"} · {brew.grind_clicks ?? "?"} clicks
+          {brew.temp_c != null ? `${t("brew.start")} ${brew.temp_c}°C` : "?"} · {brew.grind_clicks ?? "?"} {t("brew.clicks")}
           {brew.filter ? ` · ${brew.filter}` : ""}
           {formatDuration(brew.total_time_sec) ? ` · ${formatDuration(brew.total_time_sec)}` : ""}
           {brew.final_beverage_g ? ` · → ${brew.final_beverage_g} g` : ""}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink2">
-          <span>{BREW_LIFECYCLE_LABEL[status]}</span>
+          <span>{t(BREW_LIFECYCLE_KEY[status])}</span>
           {score !== null ? (
             <span className="tnum shrink-0">· {formatBrewScore(score)}</span>
           ) : null}
@@ -103,13 +115,13 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
         <p className="mt-1 text-xs text-ink2">
           {brewSession ? (
             <>
-              Session ·{" "}
+              {t("brew.session")} ·{" "}
               <Link href={`/sessions/${brewSession.id}`} className="font-medium text-ember underline underline-offset-4 hover:no-underline">
                 {brewSession.title}
               </Link>
             </>
           ) : (
-            "No session"
+            t("brew.warning.noSession")
           )}
         </p>
         <div className="mt-2 flex items-center gap-2">
@@ -118,12 +130,12 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
       </div>
       <div>
         <SectionNav items={[
-          { id: "sec-recipe", label: "Recipe" },
-          { id: "sec-equipment", label: "Equipment" },
-          { id: "sec-pours", label: "Pours" },
-          { id: "sec-expected", label: "Expected" },
-          { id: "sec-result", label: "Result" },
-          { id: "sec-tasting", label: "Tasting" },
+          { id: "sec-recipe", label: t("brew.section.recipe") },
+          { id: "sec-equipment", label: t("brew.section.equipment") },
+          { id: "sec-pours", label: t("brew.section.pours") },
+          { id: "sec-expected", label: t("brew.section.expected") },
+          { id: "sec-result", label: t("brew.section.result") },
+          { id: "sec-tasting", label: t("brew.section.tasting") },
         ]} />
         <div className="mt-2">
           <BrewEditor
@@ -141,17 +153,17 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
           href={`/brews/new?brew=${id}&copy=1`}
           className="flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-ember px-4 py-2 text-sm font-medium text-white transition-transform duration-150 active:scale-[0.95]"
         >
-          <Plus size={16} aria-hidden /> New from this
+          <Plus size={16} aria-hidden /> {t("brew.action.newFromThis")}
         </Link>
         <Link
           href={`/brews/compare?a=${brew.id}`}
           className="flex min-h-11 items-center justify-center gap-2 rounded-[10px] border border-line bg-card px-4 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.98]"
         >
-          <GitCompare size={16} aria-hidden /> Compare this brew
+          <GitCompare size={16} aria-hidden /> {t("brew.compare")}
         </Link>
         <details className="rounded-[10px] border border-line bg-card">
           <summary className="flex min-h-11 cursor-pointer items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.98]">
-            <Share2 size={16} aria-hidden /> Share this brew
+            <Share2 size={16} aria-hidden /> {t("brew.share")}
           </summary>
           <div className="flex flex-col gap-3 border-t border-line px-3 py-3">
             <ShareCardPreview card={shareCard} />
@@ -160,7 +172,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
         </details>
       </div>
       <DeleteButton
-        label="Delete brew"
+        label={t("brew.delete.label")}
         title={del.title}
         body={del.body}
         confirmLabel={del.confirm}

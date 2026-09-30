@@ -5,21 +5,27 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input, Label } from "@/components/ui/controls";
+import { useT } from "@/lib/i18n/client";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 type Status = "checking" | "ready" | "invalid" | "signed-in";
 
 const MIN_PASSWORD_LENGTH = 8;
 
-function validate(password: string, confirm: string): string | null {
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
-  }
-  if (password !== confirm) return "Passwords do not match.";
+function validate(
+  password: string,
+  confirm: string,
+  minLength: (n: number) => string,
+  mismatch: string,
+): string | null {
+  if (password.length < MIN_PASSWORD_LENGTH) return minLength(MIN_PASSWORD_LENGTH);
+  if (password !== confirm) return mismatch;
   return null;
 }
 
 // ponytail: one small form, no hook-form/zod — two fields need neither.
 export function UpdatePasswordForm() {
+  const t = useT();
   const router = useRouter();
   const [status, setStatus] = useState<Status>("checking");
   const [password, setPassword] = useState("");
@@ -70,7 +76,12 @@ export function UpdatePasswordForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (pending || done) return;
-    const problem = validate(password, confirm);
+    const problem = validate(
+      password,
+      confirm,
+      (n) => `${t("auth.update.minLength.prefix")}${n}${t("auth.update.minLength.suffix")}`,
+      t("auth.update.mismatch"),
+    );
     if (problem) {
       setError(problem);
       return;
@@ -81,7 +92,7 @@ export function UpdatePasswordForm() {
     const { error } = await db.auth.updateUser({ password });
     if (error) {
       setPending(false);
-      setError("Could not update the password. The link may have expired - request a new one below.");
+      setError(t("auth.update.failed"));
       return;
     }
     setDone(true);
@@ -92,7 +103,7 @@ export function UpdatePasswordForm() {
   if (status === "checking") {
     return (
       <Card>
-        <p role="status" className="text-sm text-ink2">Checking your reset link...</p>
+        <p role="status" className="text-sm text-ink2">{t("auth.update.checking")}</p>
       </Card>
     );
   }
@@ -101,10 +112,10 @@ export function UpdatePasswordForm() {
     return (
       <Card>
         <p className="text-sm">
-          You are already signed in. This page is only for choosing a new password from an email reset link.
+          {t("auth.update.signedIn")}
         </p>
         <Link href="/brews" className="mt-3 inline-block min-h-11 py-2 text-sm underline">
-          Back to your brews
+          {t("auth.update.backToBrews")}
         </Link>
       </Card>
     );
@@ -114,10 +125,10 @@ export function UpdatePasswordForm() {
     return (
       <Card>
         <p role="alert" className="text-sm">
-          This reset link is invalid or has expired. Reset links are single-use and time-limited.
+          {t("auth.update.invalid")}
         </p>
         <Link href="/forgot-password" className="mt-3 inline-block min-h-11 py-2 text-sm underline">
-          Request another reset link
+          {t("auth.update.requestAnother")}
         </Link>
       </Card>
     );
@@ -127,7 +138,7 @@ export function UpdatePasswordForm() {
     return (
       <Card>
         <p role="status" className="text-sm">
-          Password updated. Taking you back to sign in with your new password...
+          {t("auth.update.done")}
         </p>
       </Card>
     );
@@ -138,7 +149,7 @@ export function UpdatePasswordForm() {
     <Card>
       <form onSubmit={onSubmit} className="flex flex-col gap-3">
         <div>
-          <Label htmlFor="new-password">New password</Label>
+          <Label htmlFor="new-password">{t("auth.update.newPassword")}</Label>
           <div className="relative">
             <Input
               id="new-password"
@@ -152,7 +163,7 @@ export function UpdatePasswordForm() {
             />
             <button
               type="button"
-              aria-label={show ? "Hide password" : "Show password"}
+              aria-label={show ? t("auth.update.hide") : t("auth.update.show")}
               aria-pressed={show}
               onClick={() => setShow((s) => !s)}
               className="absolute inset-y-0 right-0 flex min-h-11 min-w-11 items-center justify-center text-ink2"
@@ -162,7 +173,7 @@ export function UpdatePasswordForm() {
           </div>
         </div>
         <div>
-          <Label htmlFor="confirm-password">Confirm new password</Label>
+          <Label htmlFor="confirm-password">{t("auth.update.confirm")}</Label>
           <Input
             id="confirm-password"
             type={fieldType}
@@ -178,7 +189,7 @@ export function UpdatePasswordForm() {
           </p>
         ) : null}
         <Button type="submit" disabled={pending}>
-          {pending ? "Updating..." : "Update password"}
+          {pending ? t("auth.update.updating") : t("auth.update.submit")}
         </Button>
       </form>
     </Card>

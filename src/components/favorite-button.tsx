@@ -1,6 +1,7 @@
 "use client";
 import { useOptimistic, useTransition } from "react";
 import { Heart } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 import { cn } from "@/components/ui/utils";
 
 // Heart toggle for brew rows and detail headers. Optimistic: the heart
@@ -10,13 +11,14 @@ export function FavoriteButton({ isFavorite, toggle }: {
   isFavorite: boolean;
   toggle: () => Promise<void>;
 }) {
+  const t = useT();
   const [, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useOptimistic(isFavorite);
   return (
     <button
       type="button"
       aria-pressed={optimistic}
-      aria-label={optimistic ? "Remove favorite" : "Favorite this brew"}
+      aria-label={optimistic ? t("brew.favorite.remove") : t("brew.favorite.add")}
       onClick={() => startTransition(async () => {
         setOptimistic(!optimistic);
         await toggle();

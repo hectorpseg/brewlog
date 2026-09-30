@@ -1,4 +1,6 @@
+"use client";
 import { Input, Label } from "./ui/controls";
+import { useT } from "@/lib/i18n/client";
 
 // Brew time as brewers remember it: minutes + seconds. Seconds clamp to 0–59;
 // the caller owns conversion to stored total seconds.
@@ -8,6 +10,7 @@ export function MinutesSecondsInput({ minutes, seconds, onMinutes, onSeconds }: 
   onMinutes: (v: string) => void;
   onSeconds: (v: string) => void;
 }) {
+  const t = useT();
   function clampSeconds(raw: string): string {
     if (raw === "") return "";
     const n = Math.floor(Number(raw));
@@ -17,7 +20,7 @@ export function MinutesSecondsInput({ minutes, seconds, onMinutes, onSeconds }: 
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
-        <Label htmlFor="brew-min">Minutes</Label>
+        <Label htmlFor="brew-min">{t("brew.time.minutes")}</Label>
         <Input
           id="brew-min"
           type="number"
@@ -28,7 +31,7 @@ export function MinutesSecondsInput({ minutes, seconds, onMinutes, onSeconds }: 
         />
       </div>
       <div>
-        <Label htmlFor="brew-sec">Seconds</Label>
+        <Label htmlFor="brew-sec">{t("brew.time.seconds")}</Label>
         <Input
           id="brew-sec"
           type="number"

@@ -6,6 +6,7 @@ import { CuppingList, type CuppingCardData } from "@/components/cupping-card";
 import { EmptyState } from "@/components/states";
 import { Card } from "@/components/ui/controls";
 import { PAGE_SIZE, listHref, parseCuppingParams } from "@/lib/lists/params";
+import { getT } from "@/lib/i18n/server";
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -13,6 +14,7 @@ const SECTION_LABEL = "mb-0 text-[11px] font-medium tracking-wide text-ink3 uppe
 
 export default async function CuppingsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
+  const t = await getT();
   const p = parseCuppingParams(sp);
   // Full list state survives the login bounce (?next= carries the query).
   await requireUser(listHref("/cuppings", { q: p.q, sort: p.sort, count: p.count }));
@@ -26,25 +28,25 @@ export default async function CuppingsPage({ searchParams }: { searchParams: Pro
   ).map((c) => ({
     cupping: c as CuppingCardData["cupping"],
     coffeeId: typeof c.coffee_id === "string" ? c.coffee_id : "",
-    coffeeName: typeof c.coffee_name === "string" && c.coffee_name !== "" ? c.coffee_name : "Coffee",
+    coffeeName: typeof c.coffee_name === "string" && c.coffee_name !== "" ? c.coffee_name : t("cupping.fallbackName"),
   }));
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="font-display text-2xl">Cuppings</h1>
+        <h1 className="font-display text-2xl">{t("nav.cuppings")}</h1>
         <Link href="/cuppings/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">
-          + Cupping
+          {t("cupping.add")}
         </Link>
       </div>
       <ApplyListPrefs list="cuppings" base="/cuppings" params={params} explicit={explicit} />
       {cuppings === null ? (
-        <Card><p className="text-sm">Supabase is not reachable. Check your connection, then reload.</p></Card>
+        <Card><p className="text-sm">{t("list.unreachable")}</p></Card>
       ) : (
         <ListNavProvider>
           <ListSearchBox
             id="cupping-search"
-            label="Search cuppings"
-            placeholder="Coffee, grinder, date, notes…"
+            label={t("cupping.search.label")}
+            placeholder={t("cupping.search.placeholder")}
             base="/cuppings"
             params={params}
             labelClassName={SECTION_LABEL}
@@ -55,8 +57,8 @@ export default async function CuppingsPage({ searchParams }: { searchParams: Pro
             params={params}
             list="cuppings"
             options={[
-              { value: "newest", label: "Newest" },
-              { value: "oldest", label: "Oldest" },
+              { value: "newest", label: t("list.sort.newest") },
+              { value: "oldest", label: t("list.sort.oldest") },
             ]}
           />
           <CuppingList rows={rows}>
@@ -64,10 +66,10 @@ export default async function CuppingsPage({ searchParams }: { searchParams: Pro
               <NoListMatches query={p.q} base="/cuppings" params={params} />
             ) : (
               <EmptyState
-                title="No cuppings yet."
-                body="Taste a coffee before spending brew doses."
+                title={t("cupping.empty.title")}
+                body={t("cupping.empty.body")}
                 actionHref="/cuppings/new"
-                actionLabel="+ Cupping"
+                actionLabel={t("cupping.add")}
               />
             )}
           </CuppingList>
@@ -79,7 +81,7 @@ export default async function CuppingsPage({ searchParams }: { searchParams: Pro
                 scroll={false}
                 className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium transition-transform duration-150 active:scale-[0.97]"
               >
-                Show more
+                {t("list.showMore")}
               </Link>
             </div>
           ) : null}

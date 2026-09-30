@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/states";
 import { Card } from "@/components/ui/controls";
 import { PAGE_SIZE, listHref, parseBrewsParams } from "@/lib/lists/params";
 import { BREWS_LIST_PREF_KEYS, type ListPrefs } from "@/lib/lists/prefs";
+import { getT } from "@/lib/i18n/server";
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -14,6 +15,7 @@ const SECTION_LABEL = "mb-0 text-[11px] font-medium tracking-wide text-ink3 uppe
 
 export default async function BrewsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
+  const t = await getT();
   const p = parseBrewsParams(sp);
   const params = {
     q: p.q,
@@ -63,32 +65,31 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
   ]);
   const rows = page?.rows ?? [];
 
-  const activeFilterLabels: string[] = [];
-  if (hasNoSession) activeFilterLabels.push("No session");
-  if (hasFavorites) activeFilterLabels.push("Favorites");
-  if (hasTasted) activeFilterLabels.push("Tasted");
-  if (hasUntasted) activeFilterLabels.push("Untasted");
-  if (hasScoreFilter) activeFilterLabels.push("Has score");
-  if (hasNoScoreFilter) activeFilterLabels.push("No score");
-
-  const filterCount = activeFilterLabels.length;
+  // Count only: the individual filter names are rendered by BrewFilterBar.
+  const filterCount =
+    (hasNoSession ? 1 : 0) +
+    (hasFavorites ? 1 : 0) +
+    (hasTasted ? 1 : 0) +
+    (hasUntasted ? 1 : 0) +
+    (hasScoreFilter ? 1 : 0) +
+    (hasNoScoreFilter ? 1 : 0);
   const filtered = p.q !== "" || filterCount > 0 || p.coffee !== "";
 
   return (
     <div>
       <div className="mb-3">
-        <h1 className="font-display text-2xl">Brews</h1>
+        <h1 className="font-display text-2xl">{t("nav.brews")}</h1>
       </div>
       <ApplyListPrefs list="brews" base="/brews" params={params} explicit={explicit} persist={BREWS_LIST_PREF_KEYS} />
       <RecentlyViewed items={recent} />
       {page === null ? (
-        <Card><p className="text-sm">Supabase is not reachable. Check your connection, then reload.</p></Card>
+        <Card><p className="text-sm">{t("list.unreachable")}</p></Card>
       ) : (
         <ListNavProvider>
           <ListSearchBox
             id="brew-search"
-            label="Search brews"
-            placeholder="Coffee, session, date, notes…"
+            label={t("brews.search.label")}
+            placeholder={t("brews.search.placeholder")}
             base="/brews"
             params={params}
             labelClassName={SECTION_LABEL}
@@ -99,21 +100,21 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
             params={params}
             list="brews"
             options={[
-              { value: "newest", label: "Newest" },
-              { value: "oldest", label: "Oldest" },
-              { value: "top", label: "Best rated" },
+              { value: "newest", label: t("list.sort.newest") },
+              { value: "oldest", label: t("list.sort.oldest") },
+              { value: "top", label: t("list.sort.bestRated") },
             ]}
           />
           <BrewFilterBar base="/brews" params={params} />
           <BrewList rows={rows as BrewListRow[]}>
             {filtered ? (
-              <NoListMatches query={p.q || "these filters"} base="/brews" params={params} list="brews" />
+              <NoListMatches query={p.q || t("list.theseFilters")} base="/brews" params={params} list="brews" />
             ) : (
               <EmptyState
-                title="No brews found"
-                body="Nothing matches your current search or filters."
+                title={t("brews.empty.title")}
+                body={t("brews.empty.body")}
                 actionHref="/brews/new"
-                actionLabel="+ Brew"
+                actionLabel={t("brews.empty.action")}
               />
             )}
           </BrewList>
@@ -124,14 +125,14 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
               scroll={false}
               className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium transition-transform duration-150 active:scale-[0.97]"
             >
-              Show more
+              {t("list.showMore")}
             </Link>
           ) : null}
         </ListNavProvider>
       )}
       {rows.length >= 2 ? (
         <Link href={`/brews/compare?a=${String(rows[0].id)}&b=${String(rows[1].id)}`} className="mt-4 inline-block min-h-11 px-2 py-2 text-sm font-medium text-ember underline">
-          Compare brews
+          {t("nav.compare")}
         </Link>
       ) : null}
     </div>

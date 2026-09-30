@@ -3,9 +3,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input, Label } from "@/components/ui/controls";
+import { useT } from "@/lib/i18n/client";
 
 // ponytail: one small form, no hook-form/zod — a single email field needs neither.
 export function ForgotPasswordForm() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -22,7 +24,7 @@ export function ForgotPasswordForm() {
     });
     setPending(false);
     if (error) {
-      setError("Something went wrong. Please try again.");
+      setError(t("auth.reset.genericError"));
       return;
     }
     // Generic message either way: never reveal whether the email exists.
@@ -33,11 +35,10 @@ export function ForgotPasswordForm() {
     return (
       <Card>
         <p role="status" className="text-sm">
-          If an account exists for <strong>{email.trim()}</strong>, a reset link is on its way.
-          Check your inbox (and spam folder), then follow the link to choose a new password.
+          {t("auth.reset.sent")}<strong>{email.trim()}</strong>{t("auth.reset.sentTail")}
         </p>
         <Link href="/login" className="mt-3 inline-block min-h-11 py-2 text-sm underline">
-          Back to sign in
+          {t("auth.reset.backToSignIn")}
         </Link>
       </Card>
     );
@@ -47,7 +48,7 @@ export function ForgotPasswordForm() {
     <Card>
       <form onSubmit={onSubmit} className="flex flex-col gap-3">
         <div>
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t("auth.field.email")}</Label>
           <Input
             id="email"
             type="email"
@@ -64,10 +65,10 @@ export function ForgotPasswordForm() {
           </p>
         ) : null}
         <Button type="submit" disabled={pending || email.trim() === ""}>
-          {pending ? "Sending..." : "Send reset link"}
+          {pending ? t("auth.reset.sending") : t("auth.reset.send")}
         </Button>
         <Link href="/login" className="inline-block min-h-11 py-2 text-sm text-ink2 underline">
-          Back to sign in
+          {t("auth.reset.backToSignIn")}
         </Link>
       </form>
     </Card>
