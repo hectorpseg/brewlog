@@ -3,6 +3,7 @@ import { diffBrews } from "@/lib/domain/compare";
 import { COMPARE_NOTE_FIELDS, COMPARE_RECIPE_FIELDS, resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
 import { compareTastings } from "@/lib/domain/tastings";
 import { comparePourFields } from "@/lib/domain/pours";
+import { getT } from "@/lib/i18n/server";
 import { TastingCompare } from "@/components/tasting-compare";
 import { CompareFieldTable, type CompareFieldRow } from "@/components/compare-fields";
 import { Card, SectionHeader } from "@/components/ui/controls";
@@ -13,6 +14,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   // shared via the cached lookup). Deep links (?a=&b=) survive: the layout
   // redirects anonymous users to /login?next=/brews/compare.
   const sp = await searchParams;
+  const t = await getT();
   // Common path (dropdown change, deep link): fetch exactly the two compared
   // brews. The 50-row selector dataset lives in the layout and is not
   // reloaded here. Identical ?a=&b= collapses to A-only so B re-derives.
@@ -123,7 +125,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
           <p className="mt-2 text-sm text-ink2">No tasting entries yet - rate Hot, Warm, Cold on each brew.</p>
         ) : (
           <Card className="mt-2">
-            <TastingCompare aLabel="Brew A" bLabel="Brew B" stages={tasting} />
+            <TastingCompare aLabel={t("compare.brewA")} bLabel={t("compare.brewB")} stages={tasting} />
           </Card>
         )}
       </div>

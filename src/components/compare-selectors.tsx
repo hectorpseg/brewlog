@@ -1,5 +1,6 @@
 "use client";
 import type { BrewOption } from "@/lib/domain/brew-diff";
+import { useT } from "@/lib/i18n/client";
 import { BrewCombobox } from "./brew-combobox";
 
 // Two independent brew pickers over the already-loaded options. Every change
@@ -12,10 +13,11 @@ export function CompareSelectors({ brews, aId, bId, onSelect }: {
   bId: string;
   onSelect: (nextA: string, nextB: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="grid grid-cols-2 gap-3">
-      <BrewCombobox id="compare-a" label="Brew A" brews={brews} value={aId} onSelect={(id) => onSelect(id, bId)} />
-      <BrewCombobox id="compare-b" label="Brew B" brews={brews} value={bId} onSelect={(id) => onSelect(aId, id)} />
+      <BrewCombobox id="compare-a" label={t("compare.brewA")} brews={brews} value={aId} onSelect={(id) => onSelect(id, bId)} />
+      <BrewCombobox id="compare-b" label={t("compare.brewB")} brews={brews} value={bId} onSelect={(id) => onSelect(aId, id)} />
     </div>
   );
 }

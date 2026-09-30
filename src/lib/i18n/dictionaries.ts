@@ -216,6 +216,10 @@ const en = {
   "tasting.attr.juiciness": "juiciness",
   "tasting.disclaimer": "1-10 is how much you enjoyed it, not an official SCA score. Rate as it cools - an attribute can differ per stage. Higher simply means more of that attribute to your taste.",
 
+  // Compare UI side labels (A and B stay literal).
+  "compare.brewA": "Brew A",
+  "compare.brewB": "Brew B",
+
   // Save-state badge.
   "save.editing": "Editing",
   "save.saving": "Saving…",
@@ -623,6 +627,10 @@ const es: Record<TranslationKey, string> = {
   "tasting.attr.finish": "final",
   "tasting.attr.juiciness": "jugosidad",
   "tasting.disclaimer": "Del 1 al 10 puntúa cuánto te gustó, no es una puntuación oficial SCA. Puntúa mientras se enfría: un atributo puede cambiar por etapa. Un número más alto solo significa más de ese atributo para tu gusto.",
+
+  // Compare UI side labels (A and B stay literal).
+  "compare.brewA": "Extracción A",
+  "compare.brewB": "Extracción B",
 
   "save.editing": "Editando",
   "save.saving": "Guardando…",
