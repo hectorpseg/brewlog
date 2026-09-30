@@ -1,3 +1,18 @@
 allowBuilds:
   esbuild: true
   unrs-resolver: false
+
+# pnpm's default minimumReleaseAge policy rejects lockfile entries published
+# within a cutoff window. The security-patched next 16.3.8 (GHSA-vcvr-r3jv-pc5j)
+# was published on 2026-09-30, so we explicitly allow these specific packages.
+minimumReleaseAgeExclude:
+  - '@next/env@16.3.8'
+  - '@next/swc-darwin-arm64@16.3.8'
+  - '@next/swc-darwin-x64@16.3.8'
+  - '@next/swc-linux-arm64-gnu@16.3.8'
+  - '@next/swc-linux-arm64-musl@16.3.8'
+  - '@next/swc-linux-x64-gnu@16.3.8'
+  - '@next/swc-linux-x64-musl@16.3.8'
+  - '@next/swc-win32-arm64-msvc@16.3.8'
+  - '@next/swc-win32-x64-msvc@16.3.8'
+  - next@16.3.8
