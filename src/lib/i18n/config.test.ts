@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptsSpanish, isLocale, resolveLocale } from "@/lib/i18n/config";
+import { isLocale, resolveLocale } from "@/lib/i18n/config";
 
 describe("resolveLocale", () => {
   it("prefers an explicit cookie over the browser header", () => {

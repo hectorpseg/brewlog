@@ -7,7 +7,7 @@ import { EntityCard } from "@/components/entity-card";
 import { Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseSessionParams } from "@/lib/lists/params";
-import { getT, getLocale } from "@/lib/i18n/server";
+import { getT } from "@/lib/i18n/server";
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -16,7 +16,6 @@ const SECTION_LABEL = "mb-0 text-[11px] font-medium tracking-wide text-ink3 uppe
 export default async function SessionsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const t = await getT();
-  const locale = await getLocale();
   const p = parseSessionParams(sp);
   // Full list state survives the login bounce (?next= carries the query).
   await requireUser(listHref("/sessions", { q: p.q, sort: p.sort, has: p.has, count: p.count }));

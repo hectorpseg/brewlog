@@ -6,8 +6,6 @@ import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input, Label } from "@/components/ui/controls";
 import { useT } from "@/lib/i18n/client";
-import type { TranslationKey } from "@/lib/i18n/dictionaries";
-
 type Status = "checking" | "ready" | "invalid" | "signed-in";
 
 const MIN_PASSWORD_LENGTH = 8;
