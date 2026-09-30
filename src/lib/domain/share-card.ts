@@ -1,4 +1,5 @@
 import { brewRatio } from "@/lib/domain/ratio";
+import { eyPercent, pouredTotalG } from "@/lib/domain/brew-water";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewScore } from "@/lib/domain/brew-score";
 
@@ -19,6 +20,8 @@ type ShareCardInput = {
   brew: Record<string, unknown>;
   coffeeName?: string | null;
   score?: number | null;
+  // structured pours, when loaded: the ratio reflects actual poured water
+  pours?: { amount_g?: unknown }[] | null;
 };
 
 function text(v: unknown, max = 48): string | null {
@@ -36,16 +39,23 @@ function num(v: unknown): number | null {
 // Card-ready snapshot. Score is passed in (callers derive it with
 // brewFinalScore); null omits it, never faked.
 export function toShareCardData(input: ShareCardInput): ShareCardData {
-  const { brew, coffeeName, score = null } = input;
+  const { brew, coffeeName, score = null, pours } = input;
   const name = text(coffeeName, 80) ?? "Brew";
   const dose = num(brew.dose_g);
   const water = num(brew.water_g);
-  const ratio = dose != null && water != null ? brewRatio(dose, water) : null;
+  // ratio reflects actual brew water: poured total when pours exist
+  const poured = pouredTotalG(pours);
+  const actual = poured ?? water;
+  const ratio = dose != null && actual != null ? brewRatio(dose, actual) : null;
 
   const recipeLines: string[] = [];
   const recipe: string[] = [];
   if (dose != null) recipe.push(`${dose} g coffee`);
-  if (water != null) recipe.push(`${water} g water`);
+  if (poured != null && water != null && Math.abs(poured - water) >= 0.05) {
+    recipe.push(`${poured} g poured (${water} g planned)`);
+  } else if (actual != null) {
+    recipe.push(`${actual} g water`);
+  }
   if (recipe.length > 0) {
     recipeLines.push(ratio != null ? `${recipe.join(" · ")} (1:${ratio})` : recipe.join(" · "));
   }
@@ -66,6 +76,16 @@ export function toShareCardData(input: ShareCardInput): ShareCardData {
   if (time) recipeLines.push(`Total ${time}`);
   const beverage = num(brew.final_beverage_g);
   if (beverage != null) recipeLines.push(`${beverage} g out`);
+  // extraction metrics via the shared water module; absent values are omitted
+  const facts = {
+    water_g: brew.water_g, final_beverage_g: brew.final_beverage_g,
+    tds_percent: brew.tds_percent, dose_g: brew.dose_g, bypass_g: brew.bypass_g,
+  };
+  const ey = eyPercent(facts);
+  const bypass = num(brew.bypass_g);
+  if (brew.tds_percent != null) recipeLines.push(`TDS ${brew.tds_percent}%`);
+  if (ey != null) recipeLines.push(`EY ${ey}%`);
+  if (bypass != null) recipeLines.push(`${bypass} g bypass`);
 
   return {
     coffeeName: name,

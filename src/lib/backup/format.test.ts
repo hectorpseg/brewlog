@@ -16,9 +16,6 @@ const brewId = "33333333-3333-3333-3333-333333333333";
 
 function fixture(): TableRows {
   return {
-    competitionSettings: [
-      { id: "s0", user_id: userId, name: "Current competition", min_final_beverage_g: 150, created_at: "2026-09-01T00:00:00.000Z", updated_at: "2026-09-01T00:00:00.000Z" },
-    ],
     sessions: [],
     coffees: [
       { id: coffeeId, user_id: userId, name: "O'Brien Reserve", origin: null, process: "Washed", roast_date: null, received_date: "2026-09-10", initial_weight_g: 200, remaining_weight_g: 185.5, notes: null, created_at: "2026-09-10T00:00:00.000Z", updated_at: "2026-09-10T00:00:00.000Z" },
@@ -54,7 +51,7 @@ describe("export envelope", () => {
   it("represents every user-owned entity", () => {
     const keys = Object.keys(buildEnvelope(fixture(), userId, "x").data).sort();
     expect(keys).toEqual(
-      ["brews", "coffees", "competitionSettings", "cuppings", "observations", "pours", "sessions", "tastings"].sort(),
+      ["brews", "coffees", "cuppings", "observations", "pours", "sessions", "tastings"].sort(),
     );
     expect(BACKUP_TABLES.map((t) => t.key).sort()).toEqual(keys);
   });
@@ -83,7 +80,6 @@ describe("sql backup", () => {
     expect(sql.startsWith("-- BrewLog")).toBe(true);
     expect(sql).toContain("BEGIN;");
     expect(sql.trimEnd().endsWith("COMMIT;")).toBe(true);
-    expect(sql.indexOf('"competition_settings"')).toBeLessThan(sql.indexOf('"coffees"'));
     expect(sql.indexOf('"coffees"')).toBeLessThan(sql.indexOf('"brews"'));
     expect(sql.indexOf('"brews"')).toBeLessThan(sql.indexOf('"observations"'));
     expect(sql).toContain("O''Brien Reserve");

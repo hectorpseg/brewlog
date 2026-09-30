@@ -9,10 +9,11 @@ import { splitSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate, formatReceived } from "@/lib/domain/brew-date";
 import { inheritedFieldNames, recipeStartingValues } from "@/lib/domain/recipe-start";
 import type { PourFact } from "@/lib/domain/pours";
-import { pourRowsFromJson, pourRowsToJson } from "@/lib/domain/pours";
+import { pourRowsFromJson, pourRowsToJson, completePourEntries } from "@/lib/domain/pours";
+import { eyPercent, pouredTotalG, plannedDeltaG, retainedG } from "@/lib/domain/brew-water";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
-import { Button, Card, FieldError, Input, Label, SectionHeader, Select, Textarea, Toggle } from "@/components/ui/controls";
+import { Button, Card, FieldError, Input, Label, SectionHeader, Select, Switch, Textarea } from "@/components/ui/controls";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
@@ -20,6 +21,8 @@ import { tastingRowsFromJson, tastingRowsToJson } from "@/lib/domain/tastings";
 
 import { SectionNav, TastingDisclaimer } from "@/components/section-nav";
 import { formatRatio } from "@/lib/domain/ratio";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { errorText } from "@/lib/i18n/errors";
 import { cn } from "@/components/ui/utils";
 
 type CoffeeOption = {
@@ -35,7 +38,6 @@ type Props = {
   userId: string;
   coffees: CoffeeOption[];
   sessions: { id: string; title: string }[];
-  minBeverageG: number | null;
   initialCoffeeId?: string;
   recipeFrom?: Record<string, unknown> | null;
   recipePoursFrom?: PourFact[] | null;
@@ -49,8 +51,10 @@ function defaults(recipeFrom?: Record<string, unknown> | null, coffeeId?: string
   );
 }
 
-export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffeeId, recipeFrom, recipePoursFrom }: Props) {
+export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFrom, recipePoursFrom }: Props) {
   const router = useRouter();
+  const t = useT();
+  const locale = useLocale();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<NewBrewFormInput>({
     // ponytail: zodResolver only here (complex form); simple forms use server actions
@@ -104,6 +108,10 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
   const dirty = form.formState.dirtyFields;
   const inh = (name: keyof NewBrewFormInput) =>
     inherited.has(name) && !dirty[name] ? "bg-paper" : "";
+  // Validation messages are stable codes (schemas.ts msg()); the dictionaries
+  // hold the only user-facing wording. Zod's own default messages (ranges,
+  // uuid/type checks) are not application-owned and degrade to the generic.
+  const err = (name: keyof NewBrewFormInput) => errorText(form.formState.errors[name]?.message, t);
   // ponytail: context comes from the already-loaded list — selecting a coffee
   // never fires a request.
   const selectedCoffee = coffees.find((c) => c.id === values.coffeeId);
@@ -116,10 +124,18 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
     const n = Number((recipeFrom as { pour_count?: unknown }).pour_count);
     return Number.isFinite(n) && n > 0 ? n : null;
   })();
-  // guidance only: entering a value is optional, and below-target still saves
-  const bevRaw = values.finalBeverageG;
-  const bev = bevRaw === "" || bevRaw == null ? NaN : Number(bevRaw);
-  const belowTarget = minBeverageG != null && Number.isFinite(bev) && bev < minBeverageG;
+
+  // Live extraction facts for the derived readouts. All math lives in the
+  // brew-water domain module; missing inputs simply hide the readout.
+  const pourFacts = completePourEntries(pourRowsFromJson(values.pours));
+  const waterFacts = {
+    water_g: values.waterG, final_beverage_g: values.finalBeverageG,
+    tds_percent: values.tdsPercent, dose_g: values.doseG, bypass_g: values.bypassG,
+  };
+  const ey = eyPercent(waterFacts);
+  const retained = retainedG(waterFacts, pourFacts);
+  const pouredTotal = pouredTotalG(pourFacts);
+  const plannedDelta = plannedDeltaG(values.waterG, pourFacts);
 
   async function onSubmit(data: NewBrewFormInput) {
     setSubmitError(null);
@@ -136,8 +152,12 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
     }
   }
 
-  const ratioLabel = formatRatio(dose, water);
+  // header numbers and ratio reflect actual brew water; planned stays explicit
+  // when structured pours differ from the planned recipe water
+  const actualWater = pouredTotal != null && Number.isFinite(pouredTotal) ? pouredTotal : water;
+  const ratioLabel = formatRatio(dose, actualWater);
   const showRatio = ratioLabel !== "-";
+  const ratioDiffers = pouredTotal != null && Number.isFinite(water) && water !== pouredTotal;
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -149,58 +169,60 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             </div>
           ) : null}
           <div className={cn("tnum text-xs text-ink2", showRatio && "mt-1")}>
-            {Number.isFinite(dose) ? dose : "?"} g → {Number.isFinite(water) ? water : "?"} g
+            {Number.isFinite(dose) ? dose : "?"} g → {Number.isFinite(actualWater) ? actualWater : "?"} g
+            {ratioDiffers ? ` · ${water}${t("brew.pouredLine.suffix")}` : ""}
           </div>
           {overRemaining ? (
             <p className="mt-1 flex min-h-8 items-center gap-1 text-sm text-ember">
               <TriangleAlert size={16} aria-hidden />
-              Over remaining - advisory only, saves anyway.
+              {t("brew.overRemaining")}
             </p>
           ) : null}
         </div>
 
       </div>
-      {recipeFrom ? <Card><p className="text-sm text-ink2">Starting from the last recipe - change only what changed. Tinted fields are inherited; editing one returns it to normal.</p></Card> : null}
+      {recipeFrom ? <Card><p className="text-sm text-ink2">{t("brew.copy.card")}</p></Card> : null}
       <SectionNav items={[
-        { id: "sec-recipe", label: "Recipe" },
-        { id: "sec-equipment", label: "Equipment" },
-        { id: "sec-pours", label: "Pours" },
-        { id: "sec-expected", label: "Expected" },
-        { id: "sec-result", label: "Result" },
-        { id: "sec-tasting", label: "Tasting" },
+        { id: "sec-recipe", label: t("brew.section.recipe") },
+        { id: "sec-equipment", label: t("brew.section.equipment") },
+        { id: "sec-pours", label: t("brew.section.pours") },
+        { id: "sec-expected", label: t("brew.section.expected") },
+        { id: "sec-result", label: t("brew.section.result") },
+        { id: "sec-tasting", label: t("brew.section.tasting") },
       ]} />
       <div>
-        <SectionHeader>Recipe</SectionHeader>
+        <SectionHeader>{t("brew.section.recipe")}</SectionHeader>
         <Card id="sec-recipe" className="mt-2 scroll-mt-14">
-        <Label htmlFor="coffeeId">Coffee *</Label>
+        <Label htmlFor="coffeeId">{t("brew.field.coffee")} *</Label>
         <Select id="coffeeId" error={!!form.formState.errors.coffeeId} className={inh("coffeeId")} {...form.register("coffeeId")}>
-          <option value="">Pick a coffee…</option>
+          <option value="">{t("brew.pickCoffee")}</option>
           {coffees.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
-        <FieldError>{form.formState.errors.coffeeId?.message}</FieldError>
+        <FieldError>{err("coffeeId")}</FieldError>
         {selectedCoffee ? (
           <p className="tnum mt-1 text-sm text-ink2">
-            {[selectedCoffee.origin, selectedCoffee.process].filter(Boolean).join(" · ") || "origin/process unknown"}
-            {" · "}~{selectedCoffee.remaining_weight_g ?? "?"} g remaining
-            {" · "}{formatReceived(selectedCoffee.received_date)}
+            {[selectedCoffee.origin, selectedCoffee.process].filter(Boolean).join(" · ") || t("coffee.metaUnknown")}
+            {" · "}~{selectedCoffee.remaining_weight_g ?? "?"} g {selectedCoffee.remaining_weight_g === 1 ? t("coffee.remainingOne") : t("coffee.remainingMany")}
+            {" · "}{formatReceived(selectedCoffee.received_date, locale)}
           </p>
         ) : null}
-        <Toggle
-          label="Selected beans"
+        <Switch
+          label={t("brew.field.selectedBeans")}
           pressed={values.selectedBeans === true}
           onToggle={() => form.setValue("selectedBeans", !(values.selectedBeans === true), { shouldDirty: true })}
-          className="mt-2 w-full"
+          className="mt-2 w-full justify-end"
         />
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <div><Label>Dose g *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.doseG} className={inh("doseG")} {...form.register("doseG")} /></div>
-          <div><Label>Water g *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterG} className={inh("waterG")} {...form.register("waterG")} /></div>
-          <div><Label>Grind clicks</Label><Input type="number" inputMode="numeric" error={!!form.formState.errors.grindClicks} className={inh("grindClicks")} {...form.register("grindClicks")} /></div>
-          <div><Label>Starting temp °C</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.tempC} className={inh("tempC")} {...form.register("tempC")} /></div>
+          <div><Label>{t("brew.field.dose")} *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.doseG} className={inh("doseG")} {...form.register("doseG")} /><FieldError>{err("doseG")}</FieldError></div>
+          <div><Label>{t("brew.field.water")} *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterG} className={inh("waterG")} {...form.register("waterG")} /><FieldError>{err("waterG")}</FieldError></div>
+          <div><Label>{t("brew.field.grindClicks")}</Label><Input type="number" inputMode="numeric" error={!!form.formState.errors.grindClicks} className={inh("grindClicks")} {...form.register("grindClicks")} /><FieldError>{err("grindClicks")}</FieldError></div>
+          <div><Label>{t("brew.field.startTemp")}</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.tempC} className={inh("tempC")} {...form.register("tempC")} /><FieldError>{err("tempC")}</FieldError></div>
           <div className="col-span-2">
-            <Label>Brew date</Label><Input type="date" max={defaultBrewedDate()} error={!!form.formState.errors.brewedAt} {...form.register("brewedAt")} />
+            <Label>{t("brew.field.brewDate")}</Label><Input type="date" max={defaultBrewedDate()} error={!!form.formState.errors.brewedAt} {...form.register("brewedAt")} />
+            <FieldError>{err("brewedAt")}</FieldError>
           </div>
           <div className="col-span-2">
-            <Label>Brew time</Label>
+            <Label>{t("brew.field.brewTime")}</Label>
             <MinutesSecondsInput
               minutes={String(values.brewTimeMin ?? "")}
               seconds={String(values.brewTimeSec ?? "")}
@@ -211,9 +233,9 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
         </div>
         {sessions.length > 0 ? (
           <div className="mt-3">
-            <Label htmlFor="sessionId">Session (optional)</Label>
+            <Label htmlFor="sessionId">{t("brew.field.sessionOptional")}</Label>
             <Select id="sessionId" error={!!form.formState.errors.sessionId} className={inh("sessionId")} {...form.register("sessionId")}>
-              <option value="">No session</option>
+              <option value="">{t("brew.warning.noSession")}</option>
               {sessions.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
             </Select>
           </div>
@@ -221,30 +243,32 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
       </Card>
       </div>
       <details open id="sec-equipment" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Equipment</summary>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.equipment")}</summary>
         <Card>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Grinder</Label><Input error={!!form.formState.errors.grinder} className={inh("grinder")} {...form.register("grinder")} /></div>
-            <div><Label>Dripper</Label><Input error={!!form.formState.errors.dripper} className={inh("dripper")} {...form.register("dripper")} /></div>
-            <div><Label>Filter</Label><Input error={!!form.formState.errors.filter} className={inh("filter")} {...form.register("filter")} /></div>
-            <div><Label>Water</Label><Input error={!!form.formState.errors.waterSource} className={inh("waterSource")} {...form.register("waterSource")} /></div>
-            <div><Label>Water brand</Label><Input error={!!form.formState.errors.waterBrand} className={inh("waterBrand")} {...form.register("waterBrand")} /></div>
-            <div><Label>PPM</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterPpm} className={inh("waterPpm")} {...form.register("waterPpm")} /></div>
+            <div><Label>{t("brew.field.grinder")}</Label><Input error={!!form.formState.errors.grinder} className={inh("grinder")} {...form.register("grinder")} /></div>
+            <div><Label>{t("brew.field.dripper")}</Label><Input error={!!form.formState.errors.dripper} className={inh("dripper")} {...form.register("dripper")} /></div>
+            <div><Label>{t("brew.field.filter")}</Label><Input error={!!form.formState.errors.filter} className={inh("filter")} {...form.register("filter")} /></div>
+            <div><Label>{t("brew.field.waterSource")}</Label><Input error={!!form.formState.errors.waterSource} className={inh("waterSource")} {...form.register("waterSource")} /></div>
+            <div><Label>{t("brew.field.ppm")}</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterPpm} className={inh("waterPpm")} {...form.register("waterPpm")} /><FieldError>{err("waterPpm")}</FieldError></div>
             <div className="col-span-2">
-              <Label>Water description</Label><Input error={!!form.formState.errors.waterDescription} className={inh("waterDescription")} {...form.register("waterDescription")} />
+              <Label>{t("brew.field.waterNotes")}</Label><Textarea rows={2} error={!!form.formState.errors.waterNotes} className={inh("waterNotes")} {...form.register("waterNotes")} />
             </div>
-            <div className="col-span-2">
-              <Label>Water notes</Label><Textarea rows={2} error={!!form.formState.errors.waterNotes} className={inh("waterNotes")} {...form.register("waterNotes")} />
+            <div><Label>{t("brew.field.thermalShock")}</Label><Input error={!!form.formState.errors.thermalShock} className={inh("thermalShock")} {...form.register("thermalShock")} /></div>
+            <div>
+              <Label>{t("brew.field.bypassG")}</Label>
+              <Input type="number" step="any" inputMode="decimal" min="0" error={!!form.formState.errors.bypassG} {...form.register("bypassG")} />
+              <p className="mt-1 text-[11px] text-ink3">{t("brew.field.bypassGHint")}</p>
             </div>
-            <div><Label>Thermal shock</Label><Input error={!!form.formState.errors.thermalShock} className={inh("thermalShock")} {...form.register("thermalShock")} /></div>
-            <div><Label>Bypass</Label><Input error={!!form.formState.errors.bypass} className={inh("bypass")} {...form.register("bypass")} /></div>
-            <Toggle
-              label="LilyDrip"
+            {/* legacy bypass text keeps riding copy sources untouched */}
+            <input type="hidden" {...form.register("bypass")} />
+            <Switch
+              label={t("brew.field.lilydrip")}
               pressed={values.lilydrip === true}
               onToggle={() => form.setValue("lilydrip", !(values.lilydrip === true), { shouldDirty: true })}
             />
-            <Toggle
-              label="Hario Switch"
+            <Switch
+              label={t("brew.field.harioSwitch")}
               pressed={values.harioSwitch === true}
               onToggle={() => form.setValue("harioSwitch", !(values.harioSwitch === true), { shouldDirty: true })}
             />
@@ -252,7 +276,7 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
         </Card>
       </details>
       <details open id="sec-pours" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Pours (optional)</summary>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.poursOptional")}</summary>
         <Card>
           <PourEditor
             rows={pourRowsFromJson(values.pours)}
@@ -261,30 +285,47 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             brewTemp={values.tempC != null && values.tempC !== "" ? String(values.tempC) : null}
             onChange={(rows) => form.setValue("pours", pourRowsToJson(rows), { shouldDirty: true })}
           />
+          {pouredTotal != null && Number.isFinite(Number(values.waterG)) ? (
+            <p className="tnum mt-2 text-xs text-ink2" aria-live="polite">
+              {t("brew.pouredLine.prefix")}{pouredTotal}{t("brew.pouredLine.middle")}{values.waterG}{t("brew.pouredLine.suffix")}
+              {plannedDelta != null && plannedDelta !== 0 ? ` · ${plannedDelta > 0 ? "+" : ""}${plannedDelta}${t("brew.pouredDelta.suffix")}` : ""}
+            </p>
+          ) : null}
         </Card>
       </details>
       <Card id="sec-expected" className="scroll-mt-14">
-        <Label htmlFor="expectedText">Expected from this brew</Label>
-        <Textarea id="expectedText" rows={2} className="mt-1" placeholder="What do you expect before tasting?" error={!!form.formState.errors.expectedText} {...form.register("expectedText")} />
-        <p className="mt-1 text-xs text-ink2">Fresh expectation for this brew only - never copied to the next brew.</p>
+        <Label htmlFor="expectedText">{t("brew.field.expected")}</Label>
+        <Textarea id="expectedText" rows={2} className="mt-1" placeholder={t("brew.field.expectedPlaceholder")} error={!!form.formState.errors.expectedText} {...form.register("expectedText")} />
       </Card>
-      <details id="sec-result" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Result</summary>
+      <details open id="sec-result" className="scroll-mt-14">
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.result")}</summary>
         <Card>
-          <div>
-            <Label>
-              Final beverage g{minBeverageG != null ? ` (target ≥ ${minBeverageG} g)` : ""}
-            </Label>
-            <Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.finalBeverageG} {...form.register("finalBeverageG")} />
-            {belowTarget ? (
-              <p className="mt-1 text-sm text-ember">Below the {minBeverageG} g target - saves anyway.</p>
-            ) : null}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>{t("brew.field.finalBeverage")}</Label>
+              <Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.finalBeverageG} {...form.register("finalBeverageG")} />
+            </div>
+            <div>
+              <Label>{t("brew.field.tds")}</Label>
+              <Input type="number" step="any" inputMode="decimal" min="0" max="30" error={!!form.formState.errors.tdsPercent} {...form.register("tdsPercent")} />
+              <p className="mt-1 text-[11px] text-ink3">{t("brew.field.tdsHint")}</p>
+            </div>
           </div>
-          <div className="mt-3"><Label>Brew notes</Label><Textarea rows={2} error={!!form.formState.errors.notes} {...form.register("notes")} /></div>
+          {ey != null || retained != null ? (
+            <div className="tnum mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink2" aria-live="polite">
+              {ey != null ? (
+                <span>{t("brew.field.ey")}: {ey}</span>
+              ) : null}
+              {retained != null ? (
+                <span>{t("brew.field.retention")}: {retained}</span>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="mt-3"><Label>{t("brew.field.brewNotes")}</Label><Textarea rows={2} error={!!form.formState.errors.notes} {...form.register("notes")} /></div>
         </Card>
       </details>
       <details open id="sec-tasting" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">Tasting</summary>
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.tasting")}</summary>
         <Card>
           <TastingDisclaimer />
           <TastingEditor
@@ -294,13 +335,13 @@ export function BrewForm({ userId, coffees, sessions, minBeverageG, initialCoffe
             onNotes={(stage, v) => form.setValue(`${stage}Notes`, v, { shouldDirty: true })}
           />
           <div className="mt-6 border-t border-line pt-5">
-            <h3 className="text-base font-medium">Overall notes</h3>
-            <Textarea rows={2} className="mt-1" aria-label="Overall notes" error={!!form.formState.errors.freeformNotes} {...form.register("freeformNotes")} />
+            <h3 className="text-base font-medium">{t("brew.field.overallNotes")}</h3>
+            <Textarea rows={2} className="mt-1" aria-label={t("brew.field.overallNotes")} error={!!form.formState.errors.freeformNotes} {...form.register("freeformNotes")} />
           </div>
         </Card>
       </details>
       {submitError ? <p role="alert" className="text-sm text-ember">{submitError}</p> : null}
-      <Button disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? "Saving brew…" : "Save brew"}</Button>
+      <Button disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? t("brew.saving") : t("brew.save")}</Button>
     </form>
   );
 }

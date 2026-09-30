@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button, Card } from "./ui/controls";
+import { useT } from "@/lib/i18n/client";
 
 // Shared destructive pattern: a quiet-but-ember trigger, then an inline
 // danger confirmation — "Delete this X?" / "This cannot be undone." /
@@ -15,6 +16,7 @@ export function DeleteButton({ label, title, body, confirmLabel, action }: {
   action: () => Promise<void>;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const t = useT();
   if (!confirming) {
     return (
       <button
@@ -33,7 +35,7 @@ export function DeleteButton({ label, title, body, confirmLabel, action }: {
       <p className="mt-1 text-sm text-ink2">{body}</p>
       <form action={action} className="mt-3 flex gap-2">
         <Button variant="ghost" type="button" onClick={() => setConfirming(false)}>
-          Cancel
+          {t("delete.cancel")}
         </Button>
         <Button type="submit">{confirmLabel}</Button>
       </form>

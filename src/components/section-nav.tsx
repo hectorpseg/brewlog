@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/components/ui/utils";
+import { useT } from "@/lib/i18n/client";
 
 // ponytail: scroll-spy with one RAF listener; no section-tracking library.
 export function SectionNav({ items }: { items: { id: string; label: string }[] }) {
+  const t = useT();
   const [activeId, setActiveId] = useState<string>(items[0]?.id ?? "");
   const navRef = useRef<HTMLElement>(null);
 
@@ -70,7 +72,7 @@ export function SectionNav({ items }: { items: { id: string; label: string }[] }
   return (
     <nav
       ref={navRef}
-      aria-label="Brew sections"
+      aria-label={t("brew.sectionsAria")}
       className="no-scrollbar sticky top-0 z-10 -mx-4 overflow-x-auto bg-paper/95 pl-4 py-1.5 backdrop-blur"
     >
       {/* pr-4 rides on the scrolled content: right padding on an
@@ -111,13 +113,12 @@ export function SectionNav({ items }: { items: { id: string; label: string }[] }
 }
 
 // One-line tasting semantics, shared by new-brew and editor so the wording
-// cannot drift between the two.
+// cannot drift between the two. Soft-blue card reads as guidance, never an error.
 export function TastingDisclaimer() {
+  const t = useT();
   return (
-    <p className="text-xs text-ink2">
-      Scores 1-10 are your own enjoyment (higher means you liked it more), not an
-      objective maximum. Not an official SCA score. For attributes like body,
-      higher means you enjoyed it more, not that the coffee objectively had more of it.
-    </p>
+    <div className="rounded-[10px] bg-info-soft px-3 py-2 text-xs text-ink2 text-justify">
+      {t("tasting.disclaimer")}
+    </div>
   );
 }

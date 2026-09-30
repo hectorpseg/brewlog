@@ -9,10 +9,13 @@ import {
   nativeSharePng,
   renderShareCardPng,
 } from "@/lib/share/share-card";
+import { useT } from "@/lib/i18n/client";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 // Visual preview mirroring the PNG layout: paper bg, ember rule, serif
 // coffee name, ratio hero, recipe rows, optional score, brand footer.
 export function ShareCardPreview({ card }: { card: ShareCardData }) {
+  const t = useT();
   return (
     <div className="overflow-hidden rounded-[10px] border border-line bg-paper">
       <div className="h-1.5 bg-ember" />
@@ -34,7 +37,7 @@ export function ShareCardPreview({ card }: { card: ShareCardData }) {
             ★ {card.scoreLabel} <span className="text-sm font-normal text-ink2">/ 5</span>
           </p>
         ) : null}
-        <p className="text-xs text-ink2">Brewed and logged with BrewLog</p>
+        <p className="text-xs text-ink2">{t("share.footer")}</p>
       </div>
     </div>
   );
@@ -42,9 +45,19 @@ export function ShareCardPreview({ card }: { card: ShareCardData }) {
 
 type Status = "idle" | "working" | "shared" | "downloaded" | "copied" | "copy-failed" | "failed";
 
+const STATUS_KEY: Record<Exclude<Status, "idle">, TranslationKey> = {
+  working: "share.status.working",
+  shared: "share.status.shared",
+  downloaded: "share.status.downloaded",
+  copied: "share.status.copied",
+  "copy-failed": "share.status.copyFailed",
+  failed: "share.status.failed",
+};
+
 // Reusable actions: native share when supported, PNG download fallback,
 // clipboard text fallback. Unsupported APIs degrade to the next option.
 export function ShareCardButtons({ card }: { card: ShareCardData }) {
+  const t = useT();
   const [status, setStatus] = useState<Status>("idle");
   // Lazy initializer (no effect): server renders false, client evaluates
   // capability on first render. canNativeShareImage guards SSR itself.
@@ -88,13 +101,7 @@ export function ShareCardButtons({ card }: { card: ShareCardData }) {
   }
 
   const label =
-    status === "shared" ? "Shared"
-    : status === "downloaded" ? "Downloaded"
-    : status === "copied" ? "Copied"
-    : status === "copy-failed" ? "Copy failed"
-    : status === "failed" ? "Failed, try download"
-    : status === "working" ? "Working…"
-    : null;
+    status === "idle" ? null : t(STATUS_KEY[status]);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -105,7 +112,7 @@ export function ShareCardButtons({ card }: { card: ShareCardData }) {
           disabled={status === "working"}
           className="min-h-11 rounded-[10px] bg-ember px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          Share image
+          {t("share.button.shareImage")}
         </button>
       ) : null}
       <button
@@ -114,14 +121,14 @@ export function ShareCardButtons({ card }: { card: ShareCardData }) {
         disabled={status === "working"}
         className="min-h-11 rounded-[10px] border border-line bg-card px-4 py-2 text-sm font-medium disabled:opacity-50"
       >
-        Download PNG
+        {t("share.button.download")}
       </button>
       <button
         type="button"
         onClick={copy}
         className="min-h-11 px-2 py-2 text-sm font-medium text-ember hover:underline"
       >
-        Copy text
+        {t("share.button.copyText")}
       </button>
       {label ? (
         <span role="status" className="text-sm text-ink2">

@@ -2,6 +2,7 @@
 import { ChevronRight } from "lucide-react";
 import { useListNav } from "./list-controls";
 import { formatBrewDate } from "@/lib/domain/brew-date";
+import { useLocale, useT } from "@/lib/i18n/client";
 import type { CuppingRow } from "./cupping-editor";
 
 export type CuppingCardData = {
@@ -13,11 +14,13 @@ export type CuppingCardData = {
 // Compact cupping card: whole card opens the detail, no per-card actions.
 // Mirrors CoffeeCard language.
 export function CuppingCard({ cupping, coffeeName }: CuppingCardData) {
+  const t = useT();
+  const locale = useLocale();
   return (
     <div className="relative rounded-[10px] border border-line bg-card px-3 py-2 transition-transform hover:bg-paper active:scale-[0.99]">
       <a
         href={`/cuppings/${cupping.id}`}
-        aria-label={`Open ${coffeeName}`}
+        aria-label={`${t("cupping.openAria")} ${coffeeName}`}
         className="absolute inset-0 rounded-[10px]"
       />
       <div className="flex items-start justify-between gap-2">
@@ -30,7 +33,7 @@ export function CuppingCard({ cupping, coffeeName }: CuppingCardData) {
         {cupping.dose_g ?? "?"} g / {cupping.water_g ?? "?"} g
       </div>
       <div className="text-[11px] text-ink3 line-clamp-1">
-        {formatBrewDate(cupping.cupped_at)}
+        {formatBrewDate(cupping.cupped_at, locale)}
       </div>
     </div>
   );
@@ -38,8 +41,9 @@ export function CuppingCard({ cupping, coffeeName }: CuppingCardData) {
 
 // Skeleton matching the compact cupping card.
 export function CuppingListSkeleton() {
+  const t = useT();
   return (
-    <div className="mt-3 flex flex-col gap-2" role="status" aria-label="Loading cuppings">
+    <div className="mt-3 flex flex-col gap-2" role="status" aria-label={t("cupping.loading")}>
       {[0, 1, 2].map((i) => (
         <div key={i} className="rounded-[10px] border border-line bg-card px-3 py-2">
           <div className="flex items-start justify-between gap-2">

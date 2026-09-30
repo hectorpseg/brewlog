@@ -7,6 +7,7 @@ import { EntityCard } from "@/components/entity-card";
 import { Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseSessionParams } from "@/lib/lists/params";
+import { getT, getLocale } from "@/lib/i18n/server";
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -14,6 +15,8 @@ const SECTION_LABEL = "mb-0 text-[11px] font-medium tracking-wide text-ink3 uppe
 
 export default async function SessionsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
+  const t = await getT();
+  const locale = await getLocale();
   const p = parseSessionParams(sp);
   // Full list state survives the login bounce (?next= carries the query).
   await requireUser(listHref("/sessions", { q: p.q, sort: p.sort, has: p.has, count: p.count }));
@@ -28,18 +31,18 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="font-display text-2xl">Sessions</h1>
-        <Link href="/sessions/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">+ Session</Link>
+        <h1 className="font-display text-2xl">{t("nav.sessions")}</h1>
+        <Link href="/sessions/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">{t("session.add")}</Link>
       </div>
       <ApplyListPrefs list="sessions" base="/sessions" params={params} explicit={explicit} />
       {sessions === null ? (
-        <Card><p className="text-sm">Supabase is not reachable. Check your connection, then reload.</p></Card>
+        <Card><p className="text-sm">{t("list.unreachable")}</p></Card>
       ) : (
         <>
           <ListSearchBox
             id="session-search"
-            label="Search sessions"
-            placeholder="Title, notes…"
+            label={t("session.search.label")}
+            placeholder={t("session.search.placeholder")}
             base="/sessions"
             params={params}
             labelClassName={SECTION_LABEL}
@@ -50,8 +53,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
             params={params}
             list="sessions"
             options={[
-              { value: "recent", label: "Recently added" },
-              { value: "title", label: "Title A–Z" },
+              { value: "recent", label: t("session.sort.recent") },
+              { value: "title", label: t("session.sort.title") },
             ]}
           />
           <FilterChips
@@ -60,20 +63,20 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
             param="has"
             list="sessions"
             options={[
-              { value: "brews", label: "Has brews" },
-              { value: "empty", label: "Empty" },
+              { value: "brews", label: t("session.filter.hasBrews") },
+              { value: "empty", label: t("session.filter.empty") },
             ]}
           />
           {rows.length === 0 ? (
             <div className="mt-2">
               {filtered ? (
-                <NoListMatches query={p.q || "these filters"} base="/sessions" params={params} list="sessions" />
+                <NoListMatches query={p.q || t("list.theseFilters")} base="/sessions" params={params} list="sessions" />
               ) : (
                 <EmptyState
-                  title="No sessions yet."
-                  body="Use a session to group related brews."
+                  title={t("session.empty.title")}
+                  body={t("session.empty.body")}
                   actionHref="/sessions/new"
-                  actionLabel="Create session"
+                  actionLabel={t("session.create")}
                 />
               )}
             </div>
@@ -90,7 +93,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
                           {typeof s.notes === "string" && s.notes !== "" ? (
                             <div className="mt-0.5 text-xs text-ink2 line-clamp-1">{s.notes}</div>
                           ) : null}
-                          <div className="tnum mt-0.5 text-[11px] text-ink3">{n} {n === 1 ? "brew" : "brews"}</div>
+                          <div className="tnum mt-0.5 text-[11px] text-ink3">{n} {n === 1 ? t("session.brewsOne") : t("session.brewsMany")}</div>
                         </div>
                         <ChevronRight size={16} aria-hidden className="mt-1 shrink-0 text-ink3" />
                       </div>
@@ -108,7 +111,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
                 scroll={false}
                 className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium transition-transform duration-150 active:scale-[0.97]"
               >
-                Show more
+                {t("list.showMore")}
               </Link>
             </div>
           ) : null}

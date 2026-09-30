@@ -1,5 +1,6 @@
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatRatio } from "@/lib/domain/ratio";
+import { pouredTotalG } from "@/lib/domain/brew-water";
 
 // ponytail: recently-viewed items are shaped here, purely, so the strip
 // renders whatever the query resolved. Rows are untyped records; missing
@@ -27,12 +28,14 @@ function str(v: unknown): string {
 }
 
 export function brewRecentItem(
-  row: { id: unknown; dose_g: unknown; water_g: unknown; brewed_at: unknown; created_at: unknown; coffee_name: unknown },
+  row: { id: unknown; dose_g: unknown; water_g: unknown; brewed_at: unknown; created_at: unknown; coffee_name: unknown; pours?: { amount_g?: unknown }[] | null },
   viewedAt: string,
 ): RecentItem | null {
   if (typeof row.id !== "string" || row.id === "") return null;
   const dose = typeof row.dose_g === "number" || typeof row.dose_g === "string" ? Number(row.dose_g) : NaN;
-  const water = typeof row.water_g === "number" || typeof row.water_g === "string" ? Number(row.water_g) : NaN;
+  // ratio reflects the actual water used: poured total when pours exist
+  const water = pouredTotalG(row.pours ?? null)
+    ?? (typeof row.water_g === "number" || typeof row.water_g === "string" ? Number(row.water_g) : NaN);
   const ratio = Number.isFinite(dose) && Number.isFinite(water) ? formatRatio(dose, water) : null;
   const coffee = str(row.coffee_name);
   const rawDay = typeof row.brewed_at === "string" && row.brewed_at !== ""

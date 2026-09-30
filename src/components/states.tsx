@@ -43,10 +43,11 @@ export function ErrorState({ title, body, backHref, backLabel }: {
   );
 }
 
-// Loading skeleton matching the card layout it replaces.
-export function CardSkeleton() {
+// Loading skeleton matching the card layout it replaces. `label` lets a
+// translated screen name what is loading; default keeps existing callers.
+export function CardSkeleton({ label = "Loading" }: { label?: string } = {}) {
   return (
-    <div className="flex flex-col gap-2" aria-label="Loading">
+    <div className="flex flex-col gap-2" aria-label={label}>
       {[0, 1, 2].map((i) => (
         <div key={i} className="skeleton h-20 w-full" />
       ))}

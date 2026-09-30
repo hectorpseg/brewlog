@@ -47,7 +47,7 @@ describe("formatBrewSummary", () => {
     expect(text).toBe(
       [
         "Competencia · Sep 21",
-        "15 g dose · 250 g water (1:16.7) · start 92°C · 70 clicks · K-Ultra · Origami · Abaca · Scala · 4 pours · 2:30 · 180 g out",
+        "15 g dose · 250 g water (1:16.7) · start 92°C · 70 clicks · K-Ultra · Origami · Abaca · Scala · 4 pours · 2:30 · 180 g out · 70 g retained",
         "Session: Phase 1",
         "Tasting — Hot: body 4, finish 2; Warm: sweetness 8",
         "Hot notes: Sweet, bright.",

@@ -3,10 +3,11 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Input, Label, Select, Textarea } from "@/components/ui/controls";
 import {
-  CUSTOM_ATTRIBUTE_VALUE, TASTING_MAX, TASTING_MIN, TASTING_STAGE_LABEL, TASTING_STAGES,
+  CUSTOM_ATTRIBUTE_VALUE, TASTING_MAX, TASTING_MIN, TASTING_STAGE_KEY, TASTING_STAGES,
   attributeOptions, isSuggestedAttribute, normalizeAttribute,
   type TastingDraftRow, type TastingStage,
 } from "@/lib/domain/tastings";
+import { useT } from "@/lib/i18n/client";
 
 // Three ruled moments in the cooling process, not three forms. Each stage
 // contains its attributes plus its temperature-specific notes textarea, so
@@ -23,6 +24,7 @@ export function TastingEditor({ rows, notes, onChange, onNotes }: {
   onChange: (rows: TastingDraftRow[]) => void;
   onNotes: (stage: TastingStage, value: string) => void;
 }) {
+  const t = useT();
   // Rows armed for custom entry with no text yet. Derived custom values
   // (non-empty, not suggested) need no tracking; indices are re-based on
   // removal so the set survives row deletion.
@@ -67,14 +69,13 @@ export function TastingEditor({ rows, notes, onChange, onNotes }: {
   }
   return (
     <div>
-      <p className="text-sm text-ink2">Rate {TASTING_MIN}-{TASTING_MAX} as it cools. An attribute can differ per stage.</p>
       {TASTING_STAGES.map((stage, si) => {
         const indexes = rows.map((r, i) => (r.stage === stage ? i : -1)).filter((i) => i >= 0);
         return (
-          <section key={stage} aria-label={`${TASTING_STAGE_LABEL[stage]} tasting`} className={si > 0 ? "mt-6 border-t border-line pt-5" : "mt-4"}>
-            <h3 className="text-base font-medium">{TASTING_STAGE_LABEL[stage]}</h3>
+          <section key={stage} aria-label={t(`tasting.section.${stage}`)} className={si > 0 ? "mt-6 border-t border-line pt-5" : "mt-4"}>
+            <h3 className="text-base font-medium">{t(TASTING_STAGE_KEY[stage])}</h3>
             {indexes.length === 0 ? (
-              <p className="mt-1 text-sm text-ink2">No attributes yet.</p>
+              <p className="mt-1 text-sm text-ink2">{t("tasting.noAttributes")}</p>
             ) : (
               <ul className="mt-1 flex flex-col">
                 {indexes.map((i) => {
@@ -85,8 +86,8 @@ export function TastingEditor({ rows, notes, onChange, onNotes }: {
                   <li key={i} className="grid grid-cols-[1fr_3.75rem_2.75rem] items-center gap-2 border-b border-line py-1.5 last:border-b-0">
                     {custom ? (
                       <Input
-                        aria-label={`${TASTING_STAGE_LABEL[stage]} custom attribute name`}
-                        placeholder="Custom attribute"
+                        aria-label={`${t(TASTING_STAGE_KEY[stage])} · ${t("tasting.customNameAria")}`}
+                        placeholder={t("tasting.customPlaceholder")}
                         autoComplete="off"
                         autoFocus={customRows.has(i)}
                         value={raw}
@@ -95,7 +96,7 @@ export function TastingEditor({ rows, notes, onChange, onNotes }: {
                       />
                     ) : (
                       <Select
-                        aria-label={`${TASTING_STAGE_LABEL[stage]} attribute name`}
+                        aria-label={`${t(TASTING_STAGE_KEY[stage])} · ${t("tasting.attributeNameAria")}`}
                         value={suggested ? normalizeAttribute(raw) : ""}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -103,13 +104,13 @@ export function TastingEditor({ rows, notes, onChange, onNotes }: {
                           else setAttribute(i, v);
                         }}
                       >
-                        {attributeOptions(raw).map((o) => (
+                        {attributeOptions(raw, t).map((o) => (
                           <option key={o.value + o.label} value={o.value}>{o.label}</option>
                         ))}
                       </Select>
                     )}
                     <Input
-                      aria-label={`${rows[i].attribute || "Attribute"} rating, ${TASTING_MIN} to ${TASTING_MAX}`}
+                      aria-label={`${rows[i].attribute || t("tasting.attributeFallback")} ${t("tasting.ratingAria")}`}
                       type="number"
                       inputMode="numeric"
                       min={TASTING_MIN}
@@ -122,7 +123,7 @@ export function TastingEditor({ rows, notes, onChange, onNotes }: {
                     <button
                       type="button"
                       onClick={() => removeAt(i)}
-                      aria-label={`Remove ${rows[i].attribute || "attribute"} from ${stage}`}
+                      aria-label={`${t("tasting.removePrefix")} ${rows[i].attribute || t("tasting.attributeLowerFallback")} ${t("tasting.removeMiddle")} ${t(TASTING_STAGE_KEY[stage])}`}
                       className="grid min-h-11 min-w-11 place-items-center text-ink2 transition-transform active:scale-95"
                     >
                       <Trash2 size={18} aria-hidden />
@@ -137,10 +138,10 @@ export function TastingEditor({ rows, notes, onChange, onNotes }: {
               onClick={() => addRow(stage)}
               className="mt-1 min-h-11 text-left text-sm font-medium text-ember hover:underline"
             >
-              + Add attribute
+              {t("tasting.addAttribute")}
             </button>
             <div className="mt-3">
-              <Label htmlFor={`taste-${stage}-notes`}>{TASTING_STAGE_LABEL[stage]} notes</Label>
+              <Label htmlFor={`taste-${stage}-notes`}>{t(`tasting.notes.${stage}`)}</Label>
               <Textarea
                 id={`taste-${stage}-notes`}
                 rows={2}

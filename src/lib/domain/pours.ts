@@ -4,6 +4,7 @@
 // storage; m:ss lives only in the UI via format/parse helpers here.
 
 import { formatDuration } from "@/lib/domain/brew-time";
+import { DICTIONARIES, type TranslationKey } from "@/lib/i18n/dictionaries";
 
 export const POUR_PATTERNS = [
   "center",
@@ -14,6 +15,16 @@ export const POUR_PATTERNS = [
   "custom",
 ] as const;
 export type PourPattern = (typeof POUR_PATTERNS)[number];
+
+// Display labels for the controlled pattern vocabulary; stored values never change.
+export const POUR_PATTERN_KEY: Record<PourPattern, TranslationKey> = {
+  center: "pour.pattern.center",
+  circular: "pour.pattern.circular",
+  "center+circular": "pour.pattern.centerCircular",
+  continuous: "pour.pattern.continuous",
+  pulse: "pour.pattern.pulse",
+  custom: "pour.pattern.custom",
+};
 
 export function isPourPattern(v: unknown): v is PourPattern {
   return (POUR_PATTERNS as readonly string[]).includes(typeof v === "string" ? v : "");
@@ -206,9 +217,13 @@ export function pourCountAndTotal(rows: PourDraftRow[]): { count: number; totalG
   return { count: entries.length, totalG: Math.round(total * 10) / 10 };
 }
 
-export function formatPourTotal(count: number, totalG: number): string | null {
+// Default renders the English dictionary, matching the pre-i18n wording.
+const englishLabel = (k: TranslationKey): string => DICTIONARIES.en[k];
+
+export function formatPourTotal(count: number, totalG: number, translate: (k: TranslationKey) => string = englishLabel): string | null {
   if (!Number.isInteger(count) || count <= 0) return null;
-  return `${count} pour${count === 1 ? "" : "s"} · ${totalG} g total`;
+  const unit = count === 1 ? translate("pours.total.one") : translate("pours.total.many");
+  return `${count} ${unit} · ${totalG} g ${translate("pours.total")}`;
 }
 
 // Freshest server timestamp, so a stale local draft can never clobber synced rows.

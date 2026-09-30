@@ -1,5 +1,6 @@
 import { Coffee, FlaskConical, Layers, Package, Scale, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { TranslationKey } from "./i18n/dictionaries";
 
 // ponytail: the only curated destination lists in the app. A feature shipping
 // does not earn a bottom tab — tabs are the recurring mid-brew workflow
@@ -12,19 +13,22 @@ import type { LucideIcon } from "lucide-react";
 // filter), never a Method entity — a future espresso mode adds one entry
 // here plus an optional method field, not a new navigation tree.
 
-export type NavLink = { href: string; label: string; Icon: LucideIcon };
-export type MoreLink = NavLink & { body: string };
+// Labels and descriptions are translation keys (UI concepts), never stored
+// data; callers with a translator resolve them (getT on the server, useT on
+// the client).
+export type NavLink = { href: string; labelKey: TranslationKey; Icon: LucideIcon };
+export type MoreLink = NavLink & { bodyKey: TranslationKey };
 
 export const PRIMARY_TABS: NavLink[] = [
-  { href: "/brews", label: "Brews", Icon: Coffee },
-  { href: "/coffees", label: "Coffees", Icon: Package },
-  { href: "/cuppings", label: "Cuppings", Icon: FlaskConical },
+  { href: "/brews", labelKey: "nav.brews", Icon: Coffee },
+  { href: "/coffees", labelKey: "nav.coffees", Icon: Package },
+  { href: "/cuppings", labelKey: "nav.cuppings", Icon: FlaskConical },
 ];
 
 export const MORE_LINKS: MoreLink[] = [
-  { href: "/sessions", label: "Sessions", body: "Group brews into explorations and phases.", Icon: Layers },
-  { href: "/brews/compare", label: "Compare brews", body: "Side-by-side recipe and cup differences.", Icon: Scale },
-  { href: "/account", label: "Account", body: "Sign-in and competition target.", Icon: User },
+  { href: "/sessions", labelKey: "nav.sessions", bodyKey: "nav.sessions.body", Icon: Layers },
+  { href: "/brews/compare", labelKey: "nav.compare", bodyKey: "nav.compare.body", Icon: Scale },
+  { href: "/account", labelKey: "nav.account", bodyKey: "nav.account.body", Icon: User },
 ];
 
 // Overflow destinations highlight the More tab instead of a primary tab.

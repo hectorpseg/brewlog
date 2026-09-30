@@ -7,6 +7,7 @@ import { Label, Select } from "./ui/controls";
 import { NoMatches, SearchField } from "./search-field";
 import { listHref } from "@/lib/lists/params";
 import { toggleFavorite } from "@/app/actions";
+import { useT } from "@/lib/i18n/client";
 import { BrewCard, type BrewCardData } from "./brew-card";
 import { CoffeeCard, CoffeeListSkeleton, type CoffeeCardData } from "./coffee-card";
 import { cn } from "./ui/utils";
@@ -115,9 +116,10 @@ export function ListSortSelect({ base, params, options, list }: {
   list: ListName;
 }) {
   const { navigate } = useListNav();
+  const t = useT();
   return (
     <div className="mt-3">
-      <Label htmlFor={`${list}-sort`}>Sort</Label>
+      <Label htmlFor={`${list}-sort`}>{t("list.sort")}</Label>
       <Select
         id={`${list}-sort`}
         value={String(params.sort)}
@@ -141,7 +143,7 @@ function ListSectionLabel({ children }: { children: React.ReactNode }) {
 
 // Compact sort pills for /brews: always visible, immediate optimistic active
 // state, and disabled while the list transition is pending.
-export function ListSortPills({ base, params, options, list, label = "Sort by" }: {
+export function ListSortPills({ base, params, options, list, label }: {
   base: string;
   params: Params;
   options: { value: string; label: string }[];
@@ -151,10 +153,11 @@ export function ListSortPills({ base, params, options, list, label = "Sort by" }
   const { isPending, navigate } = useListNav();
   const [, startTransition] = useTransition();
   const [optimisticSort, setOptimisticSort] = useOptimistic(String(params.sort));
+  const t = useT();
   return (
     <div className="mt-2">
-      <ListSectionLabel>{label}</ListSectionLabel>
-      <div className="no-scrollbar mt-1.5 flex gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label="Sort options">
+      <ListSectionLabel>{label ?? t("list.sortBy")}</ListSectionLabel>
+      <div className="no-scrollbar mt-1.5 flex gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label={t("list.sortOptions")}>
         {options.map((o) => {
           const on = optimisticSort === o.value;
           return (
@@ -192,8 +195,9 @@ export type BrewListRow = BrewCardData & { coffee_id?: unknown; is_favorite?: un
 
 // Skeleton resembling the compact brew cards it replaces.
 function BrewListSkeleton() {
+  const t = useT();
   return (
-    <div className="mt-3 flex flex-col gap-2" role="status" aria-label="Loading brews">
+    <div className="mt-3 flex flex-col gap-2" role="status" aria-label={t("brews.loading")}>
       {[0, 1, 2].map((i) => (
         <div key={i} className="rounded-[10px] border border-line bg-card px-3 py-2">
           <div className="skeleton h-4 w-2/5" />
@@ -297,9 +301,10 @@ export function NewFromThis({ brewId, coffeeId }: NewFromThisProps) {
 
 function NewFromThisLabel() {
   const { pending } = useLinkStatus();
+  const t = useT();
   return (
     <span className={cn("pointer-events-none", pending && "opacity-40")} aria-hidden={pending}>
-      New from this
+      {t("brew.action.newFromThis")}
     </span>
   );
 }
@@ -352,10 +357,11 @@ export function FilterChips({ base, params, param, options, list }: {
 }) {
   const router = useRouter();
   const active = String(params[param] ?? "all");
+  const t = useT();
   return (
     <div className="mt-2">
-      <ListSectionLabel>Filters</ListSectionLabel>
-      <div className="no-scrollbar mt-1.5 flex gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label="Filters">
+      <ListSectionLabel>{t("list.filters")}</ListSectionLabel>
+      <div className="no-scrollbar mt-1.5 flex gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label={t("list.filters")}>
         {options.map((o) => {
           const on = active === o.value;
           const next = on ? "all" : o.value;
@@ -398,6 +404,7 @@ export function BrewFilterBar({ base, params }: {
   const { isPending, navigate } = useListNav();
   const [, startTransition] = useTransition();
   const [showMore, setShowMore] = useState(false);
+  const t = useT();
   const [optimisticParams, setOptimisticParams] = useOptimistic({
     session: params.session,
     fav: params.fav,
@@ -443,25 +450,25 @@ export function BrewFilterBar({ base, params }: {
 
   return (
     <div className="mt-2">
-      <ListSectionLabel>Filters</ListSectionLabel>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filters">
+      <ListSectionLabel>{t("list.filters")}</ListSectionLabel>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("list.filters")}>
         {pill(
-          "No session",
+          t("list.filter.noSession"),
           hasNoSession,
           () => toggle({ ...optimisticParams, session: hasNoSession ? "all" : "none" }),
-          hasNoSession ? "Show all brews" : "Show brews with no session"
+          hasNoSession ? t("list.filter.showAll") : t("list.filter.showNoSession")
         )}
         {pill(
-          "Favorites",
+          t("list.filter.favorites"),
           hasFavorites,
           () => toggle({ ...optimisticParams, fav: hasFavorites ? "all" : "only" }),
-          hasFavorites ? "Show all brews" : "Show favorite brews"
+          hasFavorites ? t("list.filter.showAll") : t("list.filter.showFavorites")
         )}
         {pill(
-          "Tasted",
+          t("list.filter.tasted"),
           hasTasted,
           () => toggle({ ...optimisticParams, tasted: hasTasted ? "" : "1" }),
-          hasTasted ? "Show all brews" : "Show tasted brews"
+          hasTasted ? t("list.filter.showAll") : t("list.filter.showTasted")
         )}
         <button
           type="button"
@@ -474,14 +481,14 @@ export function BrewFilterBar({ base, params }: {
               : "border border-line bg-card text-ink2 hover:bg-paper"
           )}
         >
-          More filters
+          {t("list.filter.more")}
           <ChevronDown size={12} aria-hidden className={cn("transition-transform duration-150", showMore && "rotate-180")} />
         </button>
         {showMore && (
           <>
-            {pill("Untasted", hasUntasted, () => toggle({ ...optimisticParams, untasted: hasUntasted ? "" : "1" }))}
-            {pill("Has score", hasScoreFilter, () => toggle({ ...optimisticParams, "has-score": hasScoreFilter ? "" : "1" }))}
-            {pill("No score", hasNoScoreFilter, () => toggle({ ...optimisticParams, "no-score": hasNoScoreFilter ? "" : "1" }))}
+            {pill(t("list.filter.untasted"), hasUntasted, () => toggle({ ...optimisticParams, untasted: hasUntasted ? "" : "1" }))}
+            {pill(t("list.filter.hasScore"), hasScoreFilter, () => toggle({ ...optimisticParams, "has-score": hasScoreFilter ? "" : "1" }))}
+            {pill(t("list.filter.noScore"), hasNoScoreFilter, () => toggle({ ...optimisticParams, "no-score": hasNoScoreFilter ? "" : "1" }))}
           </>
         )}
       </div>

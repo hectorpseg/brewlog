@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { defaultBrewedDate, formatBrewDate, formatReceived, toBrewedAtIso, toDateInputValue } from "@/lib/domain/brew-date";
 import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
 import { describeDeletion } from "@/lib/domain/deletion";
+import { createTranslator } from "@/lib/i18n/translate";
+
+const t = createTranslator("en");
 
 describe("brew date", () => {
   it("pins a calendar day to noon UTC", () => {
@@ -75,28 +78,45 @@ describe("brew lifecycle", () => {
 
 describe("describeDeletion", () => {
   it("states brew consequences: notes die, dose returns", () => {
-    const d = describeDeletion("brew", { observations: 1 });
+    const d = describeDeletion("brew", { observations: 1 }, t);
     expect(d.body).toContain("1 tasting note set");
     expect(d.body).toContain("permanently deleted");
     expect(d.body).toContain("handed back");
     expect(d.confirm).toBe("Delete brew");
   });
   it("states brew consequences: structured tasting entries die with the brew", () => {
-    const d = describeDeletion("brew", { observations: 1, tastings: 3 });
+    const d = describeDeletion("brew", { observations: 1, tastings: 3 }, t);
     expect(d.body).toContain("3 tasting entries");
     expect(d.body).toContain("permanently deleted");
   });
+  it("joins three surviving fragments and never renders a zero count", () => {
+    const d = describeDeletion("brew", { observations: 2, tastings: 3, pours: 4 }, t);
+    expect(d.body).toContain("2 tasting note sets, 3 tasting entries, and 4 structured pours");
+    expect(d.body).not.toContain("0 ");
+  });
+  it("drops zero-count fragments and joins two survivors naturally", () => {
+    const d = describeDeletion("brew", { observations: 0, tastings: 1, pours: 0 }, t);
+    expect(d.body).toBe("1 tasting entry will be permanently deleted. The dose is handed back to the coffee's remaining weight. This cannot be undone.");
+  });
+  it("shows only the generic warning when nothing else dies", () => {
+    const d = describeDeletion("brew", { observations: 0, tastings: 0, pours: 0 }, t);
+    expect(d.body).toBe("This record will be permanently deleted. This cannot be undone.");
+    const c = describeDeletion("coffee", { brews: 0, observations: 0 }, t);
+    expect(c.body).toBe("This record will be permanently deleted. This cannot be undone.");
+    const s = describeDeletion("session", { brews: 0 }, t);
+    expect(s.body).toBe("This record will be permanently deleted. This cannot be undone.");
+  });
   it("states coffee consequences: brews die with their notes", () => {
-    const d = describeDeletion("coffee", { brews: 3, observations: 2 });
+    const d = describeDeletion("coffee", { brews: 3, observations: 2 }, t);
     expect(d.body).toContain("3 brews");
     expect(d.body).toContain("2 tasting note sets");
   });
   it("states session consequences: brews survive unassigned", () => {
-    const d = describeDeletion("session", { brews: 4 });
-    expect(d.body).toContain("stay in history, unassigned");
+    const d = describeDeletion("session", { brews: 4 }, t);
+    expect(d.body).toContain("4 brews stay in history, unassigned");
   });
   it("states cupping consequences: only the tasting record goes", () => {
-    const d = describeDeletion("cupping", {});
+    const d = describeDeletion("cupping", {}, t);
     expect(d.body).toContain("Only this tasting record is removed");
     expect(d.confirm).toBe("Delete cupping");
   });

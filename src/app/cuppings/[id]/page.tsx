@@ -7,12 +7,15 @@ import { BackLink } from "@/components/back-link";
 import { CopySummaryButton } from "@/components/copy-summary";
 import { CuppingForm, type CuppingRow } from "@/components/cupping-editor";
 import { DeleteButton } from "@/components/delete-button";
-import { describeDeletion } from "@/lib/domain/deletion";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatCuppingSummary } from "@/lib/domain/cupping-summary";
+import { describeDeletion } from "@/lib/domain/deletion";
+import { getT, getLocale } from "@/lib/i18n/server";
 
 export default async function CuppingDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await getT();
+  const locale = await getLocale();
   await requireUser(`/cuppings/${id}`);
   const raw = await getCupping(id);
   if (!raw) notFound();
@@ -22,17 +25,17 @@ export default async function CuppingDetail({ params }: { params: Promise<{ id: 
   const coffeeId = typeof coffee === "object" && coffee && "id" in coffee ? String(coffee.id) : "";
   const coffeeName = typeof coffee === "object" && coffee && "name" in coffee && typeof coffee.name === "string"
     ? coffee.name
-    : "Coffee";
+    : t("cupping.fallbackName");
 
   const edit = updateCupping.bind(null, id, coffeeId);
   const remove = deleteCupping.bind(null, id, coffeeId);
-  const del = describeDeletion("cupping", {});
   const summary = formatCuppingSummary({ cupping: raw, coffeeName });
+  const del = describeDeletion("cupping", {}, t);
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <BackLink href="/cuppings" label="Cuppings" />
+        <BackLink href="/cuppings" label={t("nav.cuppings")} />
         <h1 className="font-display text-2xl leading-snug text-ink">
           {coffeeId ? (
             <Link href={`/coffees/${coffeeId}`} className="text-ember no-underline hover:underline focus-visible:underline underline-offset-4">
@@ -43,15 +46,15 @@ export default async function CuppingDetail({ params }: { params: Promise<{ id: 
           )}
         </h1>
         <p className="tnum mt-1 text-xs text-ink2">
-          {cupping.dose_g ?? "?"} g / {cupping.water_g ?? "?"} g · {formatBrewDate(cupping.cupped_at)}
+          {cupping.dose_g ?? "?"} g / {cupping.water_g ?? "?"} g · {formatBrewDate(cupping.cupped_at, locale)}
         </p>
       </div>
-      <CuppingForm action={edit} cupping={cupping} submitLabel="Save cupping" idPrefix={`cup-${id}`} />
+      <CuppingForm action={edit} cupping={cupping} submitLabel={t("cupping.save")} idPrefix={`cup-${id}`} />
       <div className="flex items-center gap-2">
         <CopySummaryButton text={summary} />
       </div>
       <DeleteButton
-        label="Delete cupping"
+        label={t("cupping.delete")}
         title={del.title}
         body={del.body}
         confirmLabel={del.confirm}

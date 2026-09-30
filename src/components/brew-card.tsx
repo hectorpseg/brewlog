@@ -1,14 +1,18 @@
+"use client";
 import { ChevronRight, Heart } from "lucide-react";
 import { formatRatio } from "@/lib/domain/ratio";
+import { actualWaterG } from "@/lib/domain/brew-water";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatBrewScore } from "@/lib/domain/brew-score";
-import { brewLifecycle, brewWarnings, BREW_LIFECYCLE_LABEL } from "@/lib/domain/brew-status";
+import { brewLifecycle, brewWarningKeys, BREW_LIFECYCLE_KEY } from "@/lib/domain/brew-status";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { cn } from "./ui/utils";
 
 export type BrewCardData = {
   id: string;
   dose_g: number | null;
   water_g: number | null;
+  poured_total_g?: number | null;
   temp_c: number | null;
   grind_clicks: number | null;
   total_time_sec?: number | null;
@@ -37,11 +41,16 @@ export type BrewCardProps = {
 // itself scaling; the favorite button adds its own compact active state so the
 // heart's transition feels immediate.
 export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, action }: BrewCardProps) {
+  const t = useT();
+  const locale = useLocale();
   const status = brewLifecycle(brew, brew.observations as Record<string, unknown> | null | undefined);
-  const warnings = brewWarnings(brew);
+  const warnings = brewWarningKeys(brew).map((k) => t(k));
   const coffeeName = Array.isArray(brew.coffees) ? brew.coffees[0]?.name : brew.coffees?.name;
   const score = typeof brew.brew_score === "number" || typeof brew.brew_score === "string" ? Number(brew.brew_score) : NaN;
   const scored = Number.isFinite(score);
+  // ratio and the water number reflect actual brew water (poured total when
+  // structured pours exist); planned water lives on the detail page
+  const actualWater = actualWaterG(brew.water_g, brew.poured_total_g);
 
   return (
     <div
@@ -52,25 +61,25 @@ export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, 
     >
       <a
         href={`/brews/${brew.id}`}
-        aria-label={`Open brew ${coffeeName || "details"}`}
+        aria-label={`${t("brew.openAria")} ${coffeeName || t("brew.details")}`}
         className="absolute inset-0 rounded-[10px]"
       />
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <div className="font-display text-base leading-snug text-ink line-clamp-1">{coffeeName || "Untitled"}</div>
+          <div className="font-display text-base leading-snug text-ink line-clamp-1">{coffeeName || t("brew.untitled")}</div>
           <div className="tnum mt-0.5 text-xs text-ink2 line-clamp-1">
-            {formatBrewDate(brew.brewed_at ?? brew.created_at)}
+            {formatBrewDate(brew.brewed_at ?? brew.created_at, locale)}
             {" · "}
-            {brew.dose_g ?? "?"} g → {brew.water_g ?? "?"} g
+            {brew.dose_g ?? "?"} g → {actualWater ?? "?"} g
             {" · "}
-            {formatRatio(Number(brew.dose_g), Number(brew.water_g))}
+            {formatRatio(Number(brew.dose_g), actualWater ?? NaN)}
           </div>
           <div className="tnum text-[11px] text-ink3 line-clamp-1">
-            {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} clicks
+            {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} {t("brew.clicks")}
             {brew.filter ? ` · ${brew.filter}` : ""}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink2">
-            <span>{BREW_LIFECYCLE_LABEL[status]}</span>
+            <span>{t(BREW_LIFECYCLE_KEY[status])}</span>
             {scored && (
               <span className="tnum shrink-0">· {formatBrewScore(score)}</span>
             )}
@@ -83,7 +92,7 @@ export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, 
           <button
             type="button"
             aria-pressed={isFavorite}
-            aria-label={isFavorite ? "Remove favorite" : "Favorite this brew"}
+            aria-label={isFavorite ? t("brew.favorite.remove") : t("brew.favorite.add")}
             disabled={favoritePending}
             onClick={onFavoriteToggle}
             className="relative z-10 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] text-ink3 transition-all duration-150 hover:bg-line/50 active:scale-[0.92] disabled:cursor-not-allowed"

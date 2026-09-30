@@ -7,6 +7,8 @@ import { Button, Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseCoffeeParams } from "@/lib/lists/params";
 import type { CoffeeCardData } from "@/components/coffee-card";
+import { getT } from "@/lib/i18n/server";
+import { errorText } from "@/lib/i18n/errors";
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -14,6 +16,7 @@ const SECTION_LABEL = "mb-0 text-[11px] font-medium tracking-wide text-ink3 uppe
 
 export default async function CoffeesPage({ searchParams }: { searchParams: Promise<SP & { error?: string }> }) {
   const sp = await searchParams;
+  const t = await getT();
   const p = parseCoffeeParams(sp);
   // Full list state survives the login bounce (?next= carries the query).
   await requireUser(listHref("/coffees", { q: p.q, sort: p.sort, count: p.count }));
@@ -26,32 +29,32 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="font-display text-2xl">Coffees</h1>
-        <Link href="/coffees/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">+ Coffee</Link>
+        <h1 className="font-display text-2xl">{t("nav.coffees")}</h1>
+        <Link href="/coffees/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">{t("coffee.add")}</Link>
       </div>
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
-          {sp.error}
+          {errorText(sp.error, t)}
         </p>
       ) : null}
       {devSeed ? (
         <Card className="mb-3">
-          <p className="mb-2 text-sm text-ink2">Dev seed. Re-seeding resets Seed rows only.</p>
+          <p className="mb-2 text-sm text-ink2">{t("coffee.devSeed.note")}</p>
           <div className="flex gap-2">
-            <form action={seedDevData}><Button>Seed demo data</Button></form>
-            <form action={resetDevData}><Button variant="ghost">Reset</Button></form>
+            <form action={seedDevData}><Button>{t("coffee.devSeed.seed")}</Button></form>
+            <form action={resetDevData}><Button variant="ghost">{t("coffee.devSeed.reset")}</Button></form>
           </div>
         </Card>
       ) : null}
       <ApplyListPrefs list="coffees" base="/coffees" params={params} explicit={explicit} />
       {coffees === null ? (
-        <Card><p className="text-sm">Supabase is not reachable. Check your connection, then reload.</p></Card>
+        <Card><p className="text-sm">{t("list.unreachable")}</p></Card>
       ) : (
         <ListNavProvider>
           <ListSearchBox
             id="coffee-search"
-            label="Search coffees"
-            placeholder="Name, origin, process…"
+            label={t("coffee.search.label")}
+            placeholder={t("coffee.search.placeholder")}
             base="/coffees"
             params={params}
             labelClassName={SECTION_LABEL}
@@ -62,8 +65,8 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
             params={params}
             list="coffees"
             options={[
-              { value: "recent", label: "Recently added" },
-              { value: "name", label: "Name A–Z" },
+              { value: "recent", label: t("coffee.sort.recent") },
+              { value: "name", label: t("coffee.sort.name") },
             ]}
           />
           <CoffeeList rows={rows as CoffeeCardData[]}>
@@ -71,10 +74,10 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
               <NoListMatches query={p.q} base="/coffees" params={params} />
             ) : (
               <EmptyState
-                title="No coffees yet."
-                body="Add a coffee to start logging brews."
+                title={t("coffee.empty.title")}
+                body={t("coffee.empty.body")}
                 actionHref="/coffees/new"
-                actionLabel="+ Coffee"
+                actionLabel={t("coffee.add")}
               />
             )}
           </CoffeeList>
@@ -86,7 +89,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
                 scroll={false}
                 className="inline-flex min-h-11 items-center rounded-[10px] border border-line bg-card px-4 font-medium active:scale-[0.97]"
               >
-                Show more
+                {t("list.showMore")}
               </Link>
             </div>
           ) : null}

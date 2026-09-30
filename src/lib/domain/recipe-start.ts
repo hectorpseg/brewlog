@@ -94,10 +94,12 @@ export function recipeStartingValues(
     melodrip: p.melodrip === true ? true : undefined,
     harioSwitch: p.hario_switch === true ? true : undefined,
     pourCount: num(p.pour_count),
-    // result data starts empty on every fresh brew
+    // result data starts empty on every fresh brew (beverage, TDS, bypass g)
     brewTimeMin: undefined,
     brewTimeSec: undefined,
     finalBeverageG: undefined,
+    tdsPercent: undefined,
+    bypassG: undefined,
     notes: undefined,
     // S6: expectation belongs to the brew it was written for, never the next
     expectedText: undefined,

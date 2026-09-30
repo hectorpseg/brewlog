@@ -2,14 +2,15 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getSession, listBrewCandidates, listSessionBrews, recordRecentView } from "@/lib/db/queries";
 import { excludeSessionBrews, formatCandidateLabel, type CandidateRow } from "@/lib/domain/sessions";
+import { describeDeletion } from "@/lib/domain/deletion";
 import { deleteSession, moveBrewToSession, removeBrewFromSession, updateSession } from "@/app/actions";
 import { Button, Card, Label, SectionHeader, Select } from "@/components/ui/controls";
 import { DeleteButton } from "@/components/delete-button";
-import { SessionEditor } from "@/components/session-editor";
+import { SessionForm } from "@/components/session-form";
 import { BackLink } from "@/components/back-link";
 import { BrewCard } from "@/components/brew-card";
 import { EmptyState } from "@/components/states";
-import { describeDeletion } from "@/lib/domain/deletion";
+import { getT } from "@/lib/i18n/server";
 
 type BrewRow = {
   id: string;
@@ -24,6 +25,7 @@ type BrewRow = {
 
 export default async function SessionDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await getT();
   await requireUser(`/sessions/${id}`);
   const session = await getSession(id).catch(() => null);
   if (!session) notFound();
@@ -36,25 +38,27 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
   ]);
   const update = updateSession.bind(null, id);
   const candidates = excludeSessionBrews(allBrews as CandidateRow[], id);
-  const del = describeDeletion("session", { brews: brews.length });
+  // Deletion copy comes from the canonical domain composer: with no brews the
+  // body is just the generic warning; "No session" brews survive unassigned.
+  const del = describeDeletion("session", { brews: brews.length }, t);
   const remove = deleteSession.bind(null, id);
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <BackLink href="/sessions" label="Sessions" />
+        <BackLink href="/sessions" label={t("nav.sessions")} />
         <h1 className="font-display text-2xl leading-snug text-ink">{session.title}</h1>
         {session.notes ? <p className="mt-1 text-xs text-ink2">{session.notes}</p> : null}
       </div>
-      <SessionEditor session={session} update={update} />
+      <SessionForm action={update} session={session} submitLabel={t("session.save")} idPrefix={`session-${id}`} />
       <div>
-        <SectionHeader>Brews ({brews.length})</SectionHeader>
+        <SectionHeader>{t("session.brews")} ({brews.length})</SectionHeader>
         {brews.length === 0 ? (
           <div className="mt-2">
             <EmptyState
-              title="No brews in this session"
-              body="Add an existing brew below, or assign one from its brew page."
+              title={t("session.brewsEmpty.title")}
+              body={t("session.brewsEmpty.body")}
               actionHref="/brews/new"
-              actionLabel="+ New brew"
+              actionLabel={t("session.brewsEmpty.action")}
             />
           </div>
         ) : (
@@ -66,10 +70,10 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
                   action={
                     <div className="mt-1 flex justify-end">
                       <DeleteButton
-                        label="Remove from session"
-                        title="Remove this brew from the session?"
-                        body="The brew itself stays in history."
-                        confirmLabel="Remove"
+                        label={t("session.remove.label")}
+                        title={t("session.remove.title")}
+                        body={t("session.remove.body")}
+                        confirmLabel={t("session.remove.confirm")}
                         action={removeBrewFromSession.bind(null, b.id, `/sessions/${id}`)}
                       />
                     </div>
@@ -82,28 +86,28 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
       </div>
       {candidates.length > 0 ? (
         <div>
-          <SectionHeader>Add an existing brew</SectionHeader>
+          <SectionHeader>{t("session.addExisting")}</SectionHeader>
           <Card className="mt-2">
             <form action={moveBrewToSession} className="flex flex-col gap-3">
               <input type="hidden" name="sessionId" value={id} />
               <div>
-                <Label htmlFor="add-brew">Brew</Label>
+                <Label htmlFor="add-brew">{t("session.field.brew")}</Label>
                 <Select id="add-brew" name="brewId" defaultValue="">
-                  <option value="">Pick a brew…</option>
+                  <option value="">{t("session.pickBrew")}</option>
                   {candidates.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {formatCandidateLabel(b)}
+                      {formatCandidateLabel(b, t)}
                     </option>
                   ))}
                 </Select>
               </div>
-              <Button>Add to session</Button>
+              <Button>{t("session.addToSession")}</Button>
             </form>
           </Card>
         </div>
       ) : null}
       <DeleteButton
-        label="Delete session"
+        label={t("session.delete")}
         title={del.title}
         body={del.body}
         confirmLabel={del.confirm}
