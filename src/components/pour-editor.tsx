@@ -1,6 +1,6 @@
 "use client";
 import { Trash2 } from "lucide-react";
-import { Input, Label, Select, Switch, Textarea, Toggle, FieldError } from "@/components/ui/controls";
+import { Input, Label, Select, Switch, Textarea, FieldError } from "@/components/ui/controls";
 import {
   POUR_PATTERNS, POUR_PATTERN_KEY, bloomAllowed, clearLaterBloom, emptyPourDraft, formatPourTime, formatPourTotal, normalizePourTime, parsePourTime,
   pourCountAndTotal, pourSequenceInvalid, type PourDraftRow,
@@ -159,45 +159,41 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
                   />
                 </div>
               </div>
-              <div className="mt-2 grid grid-cols-2 items-end gap-2">
-                <div>
-                  <Label htmlFor={`pour-${i}-pattern`}>{t("pours.pattern")}</Label>
-                  <Select
-                    id={`pour-${i}-pattern`}
-                    value={POUR_PATTERNS.includes(r.pattern as (typeof POUR_PATTERNS)[number]) ? r.pattern : "center"}
-                    onChange={(e) => updateAt(i, { pattern: e.target.value })}
-                  >
-                    {POUR_PATTERNS.map((p) => <option key={p} value={p}>{t(POUR_PATTERN_KEY[p])}</option>)}
-                  </Select>
-                </div>
+              <div className="mt-2">
+                <Label htmlFor={`pour-${i}-pattern`}>{t("pours.pattern")}</Label>
+                <Select
+                  id={`pour-${i}-pattern`}
+                  value={POUR_PATTERNS.includes(r.pattern as (typeof POUR_PATTERNS)[number]) ? r.pattern : "center"}
+                  onChange={(e) => updateAt(i, { pattern: e.target.value })}
+                >
+                  {POUR_PATTERNS.map((p) => <option key={p} value={p}>{t(POUR_PATTERN_KEY[p])}</option>)}
+                </Select>
               </div>
-              <div className="mt-2 grid grid-cols-2 items-end gap-2">
-                <div>
-                  <Label htmlFor={`pour-${i}-temp`}>{t("pours.temp")}</Label>
-                  <Input
-                    id={`pour-${i}-temp`}
-                    inputMode="decimal"
-                    placeholder={i === 0 && brewTemp ? brewTemp : undefined}
-                    autoComplete="off"
-                    value={r.temp}
-                    onChange={(e) => updateAt(i, { temp: e.target.value })}
-                    aria-invalid={!tempValid(r.temp)}
+              <div className="mt-2">
+                <Label htmlFor={`pour-${i}-temp`}>{t("pours.temp")}</Label>
+                <Input
+                  id={`pour-${i}-temp`}
+                  inputMode="decimal"
+                  placeholder={i === 0 && brewTemp ? brewTemp : undefined}
+                  autoComplete="off"
+                  value={r.temp}
+                  onChange={(e) => updateAt(i, { temp: e.target.value })}
+                  aria-invalid={!tempValid(r.temp)}
+                />
+              </div>
+              <div className="mt-2 flex min-h-11 items-center gap-2">
+                <Switch
+                  label="MeloDrip"
+                  pressed={r.melodrip}
+                  onToggle={() => updateAt(i, { melodrip: !r.melodrip })}
+                />
+                {switchOn ? (
+                  <Switch
+                    label={r.switchState === "open" ? t("pour.switch.open") : t("pour.switch.closed")}
+                    pressed={r.switchState === "open"}
+                    onToggle={() => updateAt(i, { switchState: r.switchState === "open" ? "closed" : "open" })}
                   />
-                </div>
-                <div className="flex min-h-11 items-center gap-2">
-                  <Toggle
-                    label="MeloDrip"
-                    pressed={r.melodrip}
-                    onToggle={() => updateAt(i, { melodrip: !r.melodrip })}
-                  />
-                  {switchOn ? (
-                    <Toggle
-                      label={r.switchState === "open" ? t("pour.switch.open") : t("pour.switch.closed")}
-                      pressed={r.switchState === "open"}
-                      onToggle={() => updateAt(i, { switchState: r.switchState === "open" ? "closed" : "open" })}
-                    />
-                  ) : null}
-                </div>
+                ) : null}
               </div>
               <div className="mt-2">
                 <Label htmlFor={`pour-${i}-note`} className="sr-only">{t("pours.pour")} {i + 1} · {t("pours.notePlaceholder")}</Label>
