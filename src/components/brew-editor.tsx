@@ -149,7 +149,7 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
             <div><Label>{t("brew.field.water")}</Label><Input value={form.waterG} inputMode="decimal" onChange={(e) => set("waterG", e.target.value)} /></div>
             <div><Label>{t("brew.field.grindClicks")}</Label><Input value={form.grindClicks} inputMode="numeric" onChange={(e) => set("grindClicks", e.target.value)} /></div>
             <div><Label>{t("brew.field.startTemp")}</Label><Input value={form.tempC} inputMode="decimal" onChange={(e) => set("tempC", e.target.value)} /></div>
-            <div className="col-span-2"><Label>{t("brew.field.brewDate")}</Label><Input type="date" max={defaultBrewedDate()} value={form.brewedAt ?? ""} onChange={(e) => set("brewedAt", e.target.value)} /></div>
+            <div className="col-span-2 min-w-0"><Label>{t("brew.field.brewDate")}</Label><Input type="date" max={defaultBrewedDate()} value={form.brewedAt ?? ""} onChange={(e) => set("brewedAt", e.target.value)} /></div>
             <div className="col-span-2">
               <Label>{t("brew.field.brewTime")}</Label>
               <MinutesSecondsInput

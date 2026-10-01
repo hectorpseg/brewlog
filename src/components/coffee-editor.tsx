@@ -46,7 +46,7 @@ export async function CoffeeEditor({ coffee, update, brewAgainHref }: {
             <div><Label>{t("coffee.field.altitude")}</Label><Input name="altitude" defaultValue={coffee.altitude ?? ""} /></div>
           </div>
           <div><Label>{t("coffee.field.remaining")}</Label><Input name="remainingWeightG" type="number" step="any" inputMode="decimal" defaultValue={coffee.remaining_weight_g ?? ""} /></div>
-          <div><Label>{t("coffee.field.received")}</Label><Input name="receivedDate" type="date" max={defaultBrewedDate()} defaultValue={coffee.received_date ?? ""} /></div>
+          <div className="min-w-0"><Label>{t("coffee.field.received")}</Label><Input name="receivedDate" type="date" max={defaultBrewedDate()} defaultValue={coffee.received_date ?? ""} /></div>
           <div>
             <Button>{t("coffee.save")}</Button>
           </div>

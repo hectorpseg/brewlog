@@ -23,7 +23,7 @@ Button.displayName = "Button";
 
 // ponytail: one shared field surface — warm line border, card bg, ember focus.
 const fieldCls =
-  "min-h-11 w-full rounded-[10px] border border-line bg-card px-3 py-2 text-base text-ink placeholder:text-ink3 transition-colors focus:border-ember disabled:cursor-not-allowed disabled:border-line disabled:bg-paper disabled:text-ink3 read-only:bg-paper read-only:text-ink2";
+  "min-h-11 w-full max-w-full rounded-[10px] border border-line bg-card px-3 py-2 text-base text-ink placeholder:text-ink3 transition-colors focus:border-ember disabled:cursor-not-allowed disabled:border-line disabled:bg-paper disabled:text-ink3 read-only:bg-paper read-only:text-ink2";
 
 const errorCls = "border-ember bg-ember/5";
 

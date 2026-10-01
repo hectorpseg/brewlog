@@ -41,7 +41,7 @@ export default async function NewCoffeePage({ searchParams }: { searchParams: Pr
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label htmlFor="initialWeightG">{t("coffee.field.initialWeight")}</Label><Input id="initialWeightG" name="initialWeightG" type="number" step="any" inputMode="decimal" /></div>
-            <div className="col-span-2 sm:col-span-1"><Label htmlFor="receivedDate">{t("coffee.field.received")}</Label><Input id="receivedDate" name="receivedDate" type="date" max={defaultBrewedDate()} /></div>
+            <div className="col-span-2 min-w-0 sm:col-span-1"><Label htmlFor="receivedDate">{t("coffee.field.received")}</Label><Input id="receivedDate" name="receivedDate" type="date" max={defaultBrewedDate()} /></div>
           </div>
           <div><Label htmlFor="notes">{t("coffee.field.notes")}</Label><Textarea id="notes" name="notes" rows={3} /></div>
           <Button>{t("coffee.save")}</Button>
