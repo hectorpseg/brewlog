@@ -1,5 +1,5 @@
 "use client";
-import { ButtonHTMLAttributes, forwardRef } from "react";
+import { ButtonHTMLAttributes, forwardRef, TextareaHTMLAttributes, useLayoutEffect, useRef } from "react";
 import { cn } from "./utils";
 
 const R = "rounded-[10px]";
@@ -47,12 +47,42 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
 );
 Select.displayName = "Select";
 
-// Shared note/observation textarea: tall enough for ~4-5 lines on phones,
-// user-resizable vertically, growth unrestricted (min-height, never fixed).
-export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement> & { error?: boolean | string }>(
-  ({ className, error, ...p }, ref) => (
-    <textarea ref={ref} aria-invalid={error ? "true" : undefined} className={cn(fieldCls, "resize-y", "min-h-32", className, error && errorCls)} {...p} />
-  ),
+// Shared note/observation textarea: starts at ~4 lines on mobile, then
+// auto-grows with the content (type, paste, wrap, delete all re-measure) so
+// there is never an internal scrollbar during normal entry. max-h-80 caps
+// extreme notes; after that the box scrolls normally. Reruns on controlled
+// value changes so restored drafts render fully expanded.
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement> & { error?: boolean | string }>(
+  ({ className, error, value, onInput, ...p }, ref) => {
+    const inner = useRef<HTMLTextAreaElement | null>(null);
+    // collapse to auto, then apply content height as a border-box height
+    // (offsetHeight - clientHeight = the border pair) so nothing clips
+    const resize = (el: HTMLTextAreaElement | null) => {
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+    };
+    useLayoutEffect(() => {
+      resize(inner.current);
+    }, [value]);
+    return (
+      <textarea
+        ref={(el) => {
+          inner.current = el;
+          if (typeof ref === "function") ref(el);
+          else if (ref) ref.current = el;
+        }}
+        value={value}
+        onInput={(e) => {
+          resize(e.currentTarget);
+          onInput?.(e);
+        }}
+        aria-invalid={error ? "true" : undefined}
+        className={cn(fieldCls, "min-h-28 max-h-80 resize-none overflow-y-auto", className, error && errorCls)}
+        {...p}
+      />
+    );
+  },
 );
 Textarea.displayName = "Textarea";
 
