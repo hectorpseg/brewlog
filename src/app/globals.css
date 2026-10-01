@@ -88,6 +88,15 @@ input[type="date"] {
   max-width: 100%;
 }
 
+/* Parent-driven sizing constraint restoring what eb32fef removed: any
+   flex/grid item wrapping a date input must be shrinkable, not just the
+   per-site min-w-0 wrappers. Date fields overflowed again inside brew-form
+   where an unsized ancestor chain let the native control's intrinsic width
+   win. */
+*:has(> input[type="date"]) {
+  min-width: 0;
+}
+
 /* WebKit builds date controls in a shadow DOM whose internals ignore the
    input's own min-width: 0 (twbs/bootstrap#34433), so iPhones still overflow.
    Normalizing the shadow parts lets the w-full input actually fill its track;
