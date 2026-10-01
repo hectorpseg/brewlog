@@ -1,9 +1,9 @@
 "use client";
 import { Trash2 } from "lucide-react";
-import { Input, Label, Select, Switch, Textarea, Toggle } from "@/components/ui/controls";
+import { Input, Label, Select, Switch, Textarea, Toggle, FieldError } from "@/components/ui/controls";
 import {
   POUR_PATTERNS, POUR_PATTERN_KEY, bloomAllowed, clearLaterBloom, emptyPourDraft, formatPourTime, formatPourTotal, normalizePourTime, parsePourTime,
-  pourCountAndTotal, type PourDraftRow,
+  pourCountAndTotal, pourSequenceInvalid, type PourDraftRow,
 } from "@/lib/domain/pours";
 import { useT } from "@/lib/i18n/client";
 
@@ -38,8 +38,8 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
     onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   }
   // Toggling bloom off clears it from later pours too, so rows always stay
-  // consistent with the bloom rule; toggling on is only possible when the
-  // previous pour is also bloom (rule enforced via `disabled` on the switch).
+  // consistent with the bloom rule; the switch is only rendered while bloom
+  // is possible (pour 1, or all previous pours bloom) — no disabled controls.
   function toggleBloom(index: number) {
     if (!rows[index].bloom) {
       updateAt(index, { bloom: true });
@@ -48,7 +48,11 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
     }
   }
   function removeAt(index: number) {
-    onChange(rows.filter((_, i) => i !== index));
+    const next = rows.filter((_, i) => i !== index);
+    // removing a pour can break the bloom prefix: clear bloom from any later
+    // pour that is no longer allowed so the sequence stays valid
+    const firstBad = next.findIndex((r, i) => r.bloom && !bloomAllowed(next, i));
+    onChange(firstBad === -1 ? next : clearLaterBloom(next, firstBad - 1));
   }
   // New pours inherit temperature, MeloDrip, and Switch from the previous
   // pour. Pour 1 starts from the Brew's starting temperature value (the brew
@@ -62,6 +66,10 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
   const t = useT();
   const { count, totalG } = pourCountAndTotal(rows);
   const total = formatPourTotal(count, totalG, t);
+  // Chronological rule (strictly increasing elapsed seconds), re-derived from
+  // the current rows on every render so it updates as times are typed.
+  const seqInvalid = pourSequenceInvalid(rows);
+  const times = rows.map((r) => parsePourTime(r.time));
   if (rows.length === 0) {
     return (
       <div>
@@ -88,6 +96,7 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
         {rows.map((r, i) => {
           const parsed = parsePourTime(r.time);
           const amountOk = r.amount.trim() === "" || (Number.isFinite(Number(r.amount)) && Number(r.amount) > 0);
+          const prevTime = i > 0 ? times[i - 1] : null;
           return (
             <li key={i} className="border-b border-line py-2 last:border-b-0">
               <div className="flex items-center justify-between">
@@ -104,12 +113,21 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
                   <Trash2 size={18} aria-hidden />
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              {bloomAllowed(rows, i) ? (
+                <div className="mt-2">
+                  <Switch
+                    label={t("pour.bloom")}
+                    pressed={r.bloom}
+                    onToggle={() => toggleBloom(i)}
+                  />
+                </div>
+              ) : null}
+              <div className="mt-2 grid grid-cols-2 gap-2">
                 <div>
                   <Label htmlFor={`pour-${i}-time`}>{t("pours.time")}</Label>
                   <Input
                     id={`pour-${i}-time`}
-                    placeholder="0:35"
+                    placeholder={prevTime != null ? formatPourTime(prevTime) ?? "0:35" : "0:35"}
                     autoComplete="off"
                     autoCapitalize="none"
                     autoCorrect="off"
@@ -121,8 +139,10 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
                       const next = normalizePourTime(e.target.value);
                       if (next !== e.target.value) updateAt(i, { time: next });
                     }}
-                    aria-invalid={r.time.trim() !== "" && parsed == null}
+                    aria-invalid={(r.time.trim() !== "" && parsed == null) || seqInvalid[i]}
+                    error={seqInvalid[i]}
                   />
+                  {seqInvalid[i] ? <FieldError>{t("pours.error.sequence")}</FieldError> : null}
                 </div>
                 <div>
                   <Label htmlFor={`pour-${i}-amount`}>{t("pours.amount")}</Label>
@@ -150,12 +170,6 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
                     {POUR_PATTERNS.map((p) => <option key={p} value={p}>{t(POUR_PATTERN_KEY[p])}</option>)}
                   </Select>
                 </div>
-                <Switch
-                  label={t("pour.bloom")}
-                  pressed={r.bloom}
-                  onToggle={() => toggleBloom(i)}
-                  disabled={!r.bloom && !bloomAllowed(rows, i)}
-                />
               </div>
               <div className="mt-2 grid grid-cols-2 items-end gap-2">
                 <div>
@@ -190,6 +204,7 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
                 <Textarea
                   id={`pour-${i}-note`}
                   rows={1}
+                  className="min-h-11"
                   maxLength={500}
                   placeholder={t("pours.notePlaceholder")}
                   autoComplete="off"

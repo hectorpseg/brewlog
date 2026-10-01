@@ -132,6 +132,18 @@ export function normalizePourTime(v: string): string {
   return formatPourTime(secs) ?? t;
 }
 
+// Chronological rule: elapsed seconds must strictly increase pour over pour
+// ("0:00 → 0:45 → 1:20" valid, "1:10 → 0:40" not). One flag per row. A row
+// with an empty or unparseable time is a completeness/format problem, not a
+// sequence problem, so it never flags here. Never reorders or edits values.
+export function pourSequenceInvalid(rows: PourDraftRow[]): boolean[] {
+  const times = rows.map((r) => parsePourTime(r.time));
+  return times.map((t, i) => {
+    const prev = i > 0 ? times[i - 1] : null;
+    return t != null && prev != null && t <= prev;
+  });
+}
+
 function draftRow(v: unknown): PourDraftRow | null {
   if (typeof v !== "object" || v === null) return null;
   const r = v as Record<string, unknown>;
