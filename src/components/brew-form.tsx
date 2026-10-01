@@ -9,7 +9,7 @@ import { splitSeconds } from "@/lib/domain/brew-time";
 import { defaultBrewedDate, formatReceived } from "@/lib/domain/brew-date";
 import { inheritedFieldNames, recipeStartingValues } from "@/lib/domain/recipe-start";
 import type { PourFact } from "@/lib/domain/pours";
-import { pourRowsFromJson, pourRowsToJson, completePourEntries } from "@/lib/domain/pours";
+import { pourRowsFromJson, pourRowsToJson, completePourEntries, pourSequenceInvalid } from "@/lib/domain/pours";
 import { eyPercent, pouredTotalG, plannedDeltaG, retainedG } from "@/lib/domain/brew-water";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
@@ -139,6 +139,12 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
 
   async function onSubmit(data: NewBrewFormInput) {
     setSubmitError(null);
+    // chronological pour rule: an out-of-order sequence blocks submission;
+    // the offending pour is flagged inline in the editor
+    if (pourSequenceInvalid(pourRowsFromJson(data.pours)).some(Boolean)) {
+      setSubmitError(t("pours.error.sequence"));
+      return;
+    }
     const fd = new FormData();
     for (const [k, v] of Object.entries(data)) if (v !== undefined) fd.set(k, String(v));
     // brewTimeMin/Sec ride along; the action normalizes to total_time_sec
@@ -217,7 +223,7 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
           <div><Label>{t("brew.field.water")} *</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.waterG} className={inh("waterG")} {...form.register("waterG")} /><FieldError>{err("waterG")}</FieldError></div>
           <div><Label>{t("brew.field.grindClicks")}</Label><Input type="number" inputMode="numeric" error={!!form.formState.errors.grindClicks} className={inh("grindClicks")} {...form.register("grindClicks")} /><FieldError>{err("grindClicks")}</FieldError></div>
           <div><Label>{t("brew.field.startTemp")}</Label><Input type="number" step="any" inputMode="decimal" error={!!form.formState.errors.tempC} className={inh("tempC")} {...form.register("tempC")} /><FieldError>{err("tempC")}</FieldError></div>
-          <div className="col-span-2">
+          <div className="col-span-2 min-w-0">
             <Label>{t("brew.field.brewDate")}</Label><Input type="date" max={defaultBrewedDate()} error={!!form.formState.errors.brewedAt} {...form.register("brewedAt")} />
             <FieldError>{err("brewedAt")}</FieldError>
           </div>

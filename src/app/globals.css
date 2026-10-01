@@ -80,12 +80,12 @@ input[type="number"] {
 }
 
 /* Date inputs keep the native picker affordance (no custom icon). Native
-   date controls carry a large intrinsic min-width; inside grid layouts the
-   item's automatic minimum would otherwise expand the tracks and overlap
-   neighboring fields on phone widths. min-width: 0 lets the (w-full) input
-   shrink to its track; desktop keeps the same two-column grid. */
+   date controls carry a large intrinsic min-width; min-width: 0 lets the
+   (w-full) input shrink to its track and max-width: 100% hard-clamps it to
+   its container regardless of shadow-DOM intrinsic sizing. */
 input[type="date"] {
   min-width: 0;
+  max-width: 100%;
 }
 
 /* WebKit builds date controls in a shadow DOM whose internals ignore the
@@ -100,11 +100,6 @@ input[type="date"]::-webkit-date-and-time-value {
   min-width: 85px;
   margin: 0;
   text-align: left;
-}
-
-/* The field's wrapper div (a grid item) must be shrinkable too. */
-*:has(> input[type="date"]) {
-  min-width: 0;
 }
 
 /* skeleton shimmer without elaborate animation */

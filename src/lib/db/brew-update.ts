@@ -4,7 +4,7 @@ import { toBrewedAtIso, toDateInputValue } from "@/lib/domain/brew-date";
 import { splitSeconds } from "@/lib/domain/brew-time";
 import { tastingRowsToJson, tastingServerRowsToDraft } from "@/lib/domain/tastings";
 import {
-  completePourEntries, pourRowsFromJson, pourRowsToJson, pourServerRowsToDraft,
+  completePourEntries, pourRowsFromJson, pourRowsToJson, pourServerRowsToDraft, pourSequenceInvalid,
   type PourEntry,
 } from "@/lib/domain/pours";
 
@@ -164,8 +164,15 @@ export function planBrewSync(
   synced: Record<string, string | undefined>,
 ): BrewSyncPlan {
   const str = (v: string | undefined) => v ?? "";
-  const pourEntries = completePourEntries(pourRowsFromJson(str(form.pours)));
-  const pourCount = pourEntries.length > 0 ? String(pourEntries.length) : null;
+  const pourRows = pourRowsFromJson(str(form.pours));
+  // Pours must be chronological: an out-of-order draft is held locally until
+  // fixed, so its rows (and the derived counter) are never synced. The poured
+  // slice plans again once the sequence is repaired.
+  const poursReady = !pourSequenceInvalid(pourRows).some(Boolean);
+  const pourEntries = completePourEntries(pourRows);
+  const pourCount = !poursReady
+    ? str(synced.pourCount) || null
+    : pourEntries.length > 0 ? String(pourEntries.length) : null;
   const slices: BrewSyncSlice[] = [];
   const recipeDirty =
     BREW_RECIPE_KEYS.some((k) => str(form[k]) !== str(synced[k])) ||
@@ -174,7 +181,7 @@ export function planBrewSync(
     (pourCount !== null && pourCount !== str(synced.pourCount));
   if (recipeDirty) slices.push("recipe");
   if (str(form.tastings) !== str(synced.tastings)) slices.push("tastings");
-  if (str(form.pours) !== str(synced.pours)) slices.push("pours");
+  if (str(form.pours) !== str(synced.pours) && poursReady) slices.push("pours");
   if (BREW_NOTE_KEYS.some((k) => str(form[k]) !== str(synced[k]))) slices.push("notes");
   return { slices, pourEntries, pourCount };
 }
