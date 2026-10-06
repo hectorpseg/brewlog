@@ -143,6 +143,7 @@ const en = {
   "brew.saving": "Saving brew…",
 
   "share.footer": "Brewed and logged with BrewLog",
+  "share.button.share": "Share",
   "share.button.shareImage": "Share image",
   "share.button.download": "Download PNG",
   "share.button.copyText": "Copy text",
@@ -217,9 +218,13 @@ const en = {
   "tasting.attr.juiciness": "juiciness",
   "tasting.disclaimer": "1-10 is how much you enjoyed it, not an official SCA score. Rate as it cools - an attribute can differ per stage. Higher simply means more of that attribute to your taste.",
 
-  // Compare UI side labels (A and B stay literal).
-  "compare.brewA": "Brew A",
-  "compare.brewB": "Brew B",
+  // Compare UI slot labels (numbered: up to 4 brews in parallel) and actions.
+  "compare.brew1": "Brew 1",
+  "compare.brew2": "Brew 2",
+  "compare.brew3": "Brew 3",
+  "compare.brew4": "Brew 4",
+  "compare.add": "Add brew",
+  "compare.remove": "Remove from comparison",
 
   // Save-state badge.
   "save.editing": "Editing",
@@ -561,6 +566,7 @@ const es: Record<TranslationKey, string> = {
   "brew.saving": "Guardando extracción…",
 
   "share.footer": "Preparado y registrado con BrewLog",
+  "share.button.share": "Compartir",
   "share.button.shareImage": "Compartir imagen",
   "share.button.download": "Descargar PNG",
   "share.button.copyText": "Copiar texto",
@@ -630,9 +636,13 @@ const es: Record<TranslationKey, string> = {
   "tasting.attr.juiciness": "jugosidad",
   "tasting.disclaimer": "Del 1 al 10 puntúa cuánto te gustó, no es una puntuación oficial SCA. Puntúa mientras se enfría: un atributo puede cambiar por etapa. Un número más alto solo significa más de ese atributo para tu gusto.",
 
-  // Compare UI side labels (A and B stay literal).
-  "compare.brewA": "Extracción A",
-  "compare.brewB": "Extracción B",
+  // Compare UI slot labels (numbered: up to 4 brews in parallel) and actions.
+  "compare.brew1": "Extracción 1",
+  "compare.brew2": "Extracción 2",
+  "compare.brew3": "Extracción 3",
+  "compare.brew4": "Extracción 4",
+  "compare.add": "Añadir extracción",
+  "compare.remove": "Quitar de la comparación",
 
   "save.editing": "Editando",
   "save.saving": "Guardando…",

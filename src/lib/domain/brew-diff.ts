@@ -2,6 +2,7 @@ import { brewRatio, formatRatio } from "@/lib/domain/ratio";
 import { pouredTotalG } from "@/lib/domain/brew-water";
 import { formatBrewDate } from "@/lib/domain/brew-date";
 import { formatDuration } from "@/lib/domain/brew-time";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 // ponytail: compare works on pre-resolved scalar strings, never on joined rows.
 // Nested relations (coffee/session/observations) are flattened to names/values
@@ -90,6 +91,24 @@ export const COMPARE_NOTE_FIELDS = [
   "Process notes", "Hot notes", "Warm notes", "Cold notes", "Overall notes",
 ] as const;
 
+// One comparison row across N brews. values keeps slot order matching the
+// input brews; "-" = unrecorded. changed per valuesChanged.
+export type CompareRow = {
+  label: string;
+  values: string[];
+  changed: boolean;
+};
+
+// Rows for one compare section over N pre-resolved scalar maps. Rows are
+// hidden when unrecorded on every brew ("-" = unknown) or when every recorded
+// value is "No": false is the not-null default, so all-No carries no signal.
+export function compareRowsFor(scalars: Record<string, string>[], fields: readonly string[]): CompareRow[] {
+  return fields
+    .map((label) => ({ label, values: scalars.map((s) => s[label] ?? "-") }))
+    .filter((r) => r.values.some((v) => v !== "-") && !r.values.every((v) => v === "No"))
+    .map((r) => ({ ...r, changed: valuesChanged(r.values) }));
+}
+
 // Selector option for the compare dropdowns: ratio · coffee · day · session.
 export type CompareOptionRow = {
   id: string;
@@ -135,16 +154,37 @@ export function stepActive(current: number, delta: number, length: number): numb
   return (current + delta + length) % length;
 }
 
-// URL state for independent selection: explicit params win when they point at
-// real, distinct brews; otherwise fall back to the latest two. Null when there
-// is nothing to compare — refresh and bookmarks re-derive the same pair.
-export function resolveCompareIds(
+// URL state for up to COMPARE_MAX independent slots (?a=&b=&c=&d=): explicit
+// params win when they point at real, distinct brews; unknown or duplicate
+// params are dropped in order. The list pads to two brews from the top of
+// `ids` (latest first) so a one-brew deep link opens a real comparison —
+// but never pads beyond two without an explicit param. Null when there is
+// nothing to compare — refresh and bookmarks re-derive the same selection.
+// ponytail: 4 brews is where phone-width value columns stop staying legible.
+export const COMPARE_MAX = 4;
+
+export function resolveCompareSelection(
   ids: string[],
-  a?: string | null,
-  b?: string | null,
-): { aId: string; bId: string } | null {
+  wanted: (string | null | undefined)[],
+): string[] | null {
   if (ids.length < 2) return null;
-  const aId = a && ids.includes(a) ? a : ids[0];
-  const bId = b && ids.includes(b) && b !== aId ? b : ids.find((id) => id !== aId)!;
-  return { aId, bId };
+  const picked: string[] = [];
+  for (const w of wanted) {
+    if (picked.length >= COMPARE_MAX) break;
+    if (typeof w === "string" && ids.includes(w) && !picked.includes(w)) picked.push(w);
+  }
+  for (const id of ids) {
+    if (picked.length >= 2) break;
+    if (!picked.includes(id)) picked.push(id);
+  }
+  return picked.length >= 2 ? picked : null;
 }
+
+// "Changed" across N brews: values differ, including a recorded value next to
+// an unrecorded "-". Identical values (any count) are not a change.
+export function valuesChanged(values: string[]): boolean {
+  return new Set(values).size > 1;
+}
+
+// Slot header labels, fixed vocabulary like the tasting attributes.
+export const COMPARE_SLOT_KEYS: TranslationKey[] = ["compare.brew1", "compare.brew2", "compare.brew3", "compare.brew4"];

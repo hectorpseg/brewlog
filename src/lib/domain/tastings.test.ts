@@ -160,37 +160,45 @@ describe("compareTastings", () => {
     { stage: "cold", attribute: "acidity", value: 6 },
   ];
 
-  it("structures Stage -> Attribute -> A / B with stable alphabetical order", () => {
-    const stages = compareTastings(a, b);
+  it("structures Stage -> Attribute -> per-brew values with stable alphabetical order", () => {
+    const stages = compareTastings([a, b]);
     expect(stages.map((s) => s.stage)).toEqual(["hot", "warm", "cold"]);
     expect(stages[0].rows.map((r) => r.attribute)).toEqual(["body", "finish", "intensity"]);
-    expect(stages[0].rows[0]).toEqual({ attribute: "body", a: 4, b: 6, changed: true });
-    expect(stages[0].rows[2]).toEqual({ attribute: "intensity", a: 5, b: 5, changed: false });
+    expect(stages[0].rows[0]).toEqual({ attribute: "body", values: [4, 6], changed: true });
+    expect(stages[0].rows[2]).toEqual({ attribute: "intensity", values: [5, 5], changed: false });
   });
 
   it("represents one-sided attributes as missing, never invented", () => {
-    const stages = compareTastings(a, b);
+    const stages = compareTastings([a, b]);
     const warm = stages.find((s) => s.stage === "warm")!;
     expect(warm.rows).toEqual([
-      { attribute: "florality", a: null, b: 6, changed: true },
-      { attribute: "sweetness", a: 7, b: 8, changed: true },
+      { attribute: "florality", values: [null, 6], changed: true },
+      { attribute: "sweetness", values: [7, 8], changed: true },
     ]);
     const cold = stages.find((s) => s.stage === "cold")!;
-    expect(cold.rows).toEqual([{ attribute: "acidity", a: null, b: 6, changed: true }]);
+    expect(cold.rows).toEqual([{ attribute: "acidity", values: [null, 6], changed: true }]);
+  });
+
+  it("compares N brews in slot order", () => {
+    const c = [{ stage: "hot", attribute: "body", value: 6 }];
+    const stages = compareTastings([a, b, c]);
+    const hot = stages.find((s) => s.stage === "hot")!;
+    expect(hot.rows[0]).toEqual({ attribute: "body", values: [4, 6, 6], changed: true });
+    expect(hot.rows[1].values).toEqual([2, 5, null]);
   });
 
   it("omits stages with no entries on either side", () => {
-    expect(compareTastings([], [])).toEqual([]);
-    expect(compareTastings(null, null)).toEqual([]);
-    const stages = compareTastings(a.slice(0, 3), b.slice(0, 3));
+    expect(compareTastings([[], []])).toEqual([]);
+    expect(compareTastings([null, null])).toEqual([]);
+    const stages = compareTastings([a.slice(0, 3), b.slice(0, 3)]);
     expect(stages.map((s) => s.stage)).toEqual(["hot"]);
   });
 
   it("ignores garbage rows instead of comparing them", () => {
-    const stages = compareTastings(
+    const stages = compareTastings([
       [{ stage: "hot", attribute: "x", value: "lots" }, null] as never,
       [{ stage: "lukewarm", attribute: "x", value: 5 }] as never,
-    );
+    ]);
     expect(stages).toEqual([]);
   });
 });

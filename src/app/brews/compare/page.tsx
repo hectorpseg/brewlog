@@ -1,37 +1,49 @@
 import { getBrew, listBrewIds, listTastings, listPours } from "@/lib/db/queries";
-import { diffBrews } from "@/lib/domain/compare";
-import { COMPARE_NOTE_FIELDS, COMPARE_RECIPE_FIELDS, resolveCompareIds, toComparableBrew } from "@/lib/domain/brew-diff";
-import { compareTastings } from "@/lib/domain/tastings";
+import {
+  COMPARE_NOTE_FIELDS,
+  COMPARE_RECIPE_FIELDS,
+  COMPARE_SLOT_KEYS,
+  compareRowsFor,
+  resolveCompareSelection,
+  toComparableBrew,
+  valuesChanged,
+  type CompareRow,
+} from "@/lib/domain/brew-diff";
 import { comparePourFields } from "@/lib/domain/pours";
+import { compareTastings } from "@/lib/domain/tastings";
+import { compareBrewDates, formatCompareSummary } from "@/lib/domain/compare-summary";
 import { getT } from "@/lib/i18n/server";
 import { TastingCompare } from "@/components/tasting-compare";
-import { CompareFieldTable, type CompareFieldRow } from "@/components/compare-fields";
+import { CompareFieldTable } from "@/components/compare-fields";
+import { CompareShareActions } from "@/components/compare-share";
 import { Card, SectionHeader } from "@/components/ui/controls";
 import { ErrorState } from "@/components/states";
 
-export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string }> }) {
+// URL slots (?a=&b=&c=&d=), up to 4 compared brews: one fetched row per
+// requested brew, then ?a=2 classic pairs keep working untouched.
+export default async function ComparePage({ searchParams }: { searchParams: Promise<{ a?: string; b?: string; c?: string; d?: string }> }) {
   // Auth guard lives in the layout above (single requireUser per render,
-  // shared via the cached lookup). Deep links (?a=&b=) survive: the layout
+  // shared via the cached lookup). Deep links survive: the layout
   // redirects anonymous users to /login?next=/brews/compare.
   const sp = await searchParams;
   const t = await getT();
-  // Common path (dropdown change, deep link): fetch exactly the two compared
+  // Common path (selector change, deep link): fetch exactly the compared
   // brews. The 50-row selector dataset lives in the layout and is not
-  // reloaded here. Identical ?a=&b= collapses to A-only so B re-derives.
-  const wantA = sp.a ?? null;
-  const wantB = sp.b && sp.b !== sp.a ? sp.b : null;
-  const [firstA, firstB] = await Promise.all([
-    wantA ? getBrew(wantA).catch(() => null) : Promise.resolve(null),
-    wantB ? getBrew(wantB).catch(() => null) : Promise.resolve(null),
-  ]);
-  let rawA = firstA;
-  let rawB = firstB;
-  if (!rawA || !rawB) {
+  // reloaded here. Duplicate requests collapse to one row per brew.
+  const wantIds = [...new Set([sp.a, sp.b, sp.c, sp.d].filter((v): v is string => !!v))];
+  const raws = await Promise.all(wantIds.map((id) => getBrew(id).catch(() => null)));
+  const byId = new Map<string, Awaited<ReturnType<typeof getBrew>>>();
+  wantIds.forEach((id, i) => {
+    if (raws[i]) byId.set(id, raws[i]);
+  });
+  let selection: string[] | null = wantIds.filter((id) => byId.has(id));
+  if (selection.length < 2) {
     // Missing params or a stale/deleted id: fall back like before, keeping
-    // whichever side (if any) still resolves. The id list is scalars only.
+    // whichever requested brews (if any) still resolve. The id list is
+    // scalars only.
     const ids = await listBrewIds().catch(() => [] as string[]);
-    const resolved = resolveCompareIds(ids, rawA ? wantA : null, rawB ? wantB : null);
-    if (!resolved) {
+    selection = resolveCompareSelection(ids, wantIds);
+    if (!selection) {
       return (
         <ErrorState
           title="Need two brews"
@@ -41,101 +53,102 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
         />
       );
     }
-    const { aId, bId } = resolved;
-    [rawA, rawB] = await Promise.all([getBrew(aId).catch(() => null), getBrew(bId).catch(() => null)]);
-    if (!rawA || !rawB) {
-      return (
-        <ErrorState
-          title="Brews not found"
-          body="One of them may have been deleted."
-          backHref="/brews"
-          backLabel="Back to brews"
-        />
-      );
-    }
+    const missing = selection.filter((id) => !byId.has(id));
+    const extra = await Promise.all(missing.map((id) => getBrew(id).catch(() => null)));
+    missing.forEach((id, i) => {
+      if (extra[i]) byId.set(id, extra[i]);
+    });
   }
+  // Drop requests that never resolved (deleted brews pointing into the
+  // fallback list); a comparison needs at least two live brews.
+  const ids = selection.filter((id) => byId.has(id));
+  if (ids.length < 2) {
+    return (
+      <ErrorState
+        title="Brews not found"
+        body="One of them may have been deleted."
+        backHref="/brews"
+        backLabel="Back to brews"
+      />
+    );
+  }
+  const brews = ids.map((id) => byId.get(id)!);
   // pours feed both the scalar diff (actual ratio) and the pour table
-  const [poursA, poursB] = await Promise.all([
-    listPours(rawA.id).catch(() => []),
-    listPours(rawB.id).catch(() => []),
+  const [pours, tastingRows] = await Promise.all([
+    Promise.all(ids.map((id) => listPours(id).catch(() => []))),
+    Promise.all(ids.map((id) => listTastings(id).catch(() => []))),
   ]);
   // ponytail: relations resolved to names before diffing — the diff only ever
   // sees scalar strings, so UUIDs and [object Object] cannot reach the UI.
-  const a = toComparableBrew(rawA, poursA);
-  const b = toComparableBrew(rawB, poursB);
-  const changedKeys = new Set(diffBrews(a, b).changed);
-  const rowsFor = (fields: readonly string[]): CompareFieldRow[] =>
-    fields
-      .map((label) => ({ label, a: a[label], b: b[label], changed: changedKeys.has(label) }))
-      // hidden when both sides are absent ("-" = unrecorded) or both flagged
-      // "No": false is the not-null default, so two No's carry no signal.
-      .filter((r) => (r.a !== "-" || r.b !== "-") && !(r.a === "No" && r.b === "No"));
-  const recipe = rowsFor(COMPARE_RECIPE_FIELDS);
-  const notes = rowsFor(COMPARE_NOTE_FIELDS);
-  // structured tasting compares separately: Stage → Attribute → A / B.
-  // Legacy fixed attributes are gone from the scalar diff above on purpose.
-  const [tastingsA, tastingsB] = await Promise.all([
-    listTastings(rawA.id).catch(() => []),
-    listTastings(rawB.id).catch(() => []),
-  ]);
-  const tasting = compareTastings(tastingsA, tastingsB);
+  const scalars = brews.map((b, i) => toComparableBrew(b, pours[i]));
+  const labels = ids.map((_, i) => t(COMPARE_SLOT_KEYS[i]));
+  const recipe = compareRowsFor(scalars, COMPARE_RECIPE_FIELDS);
+  const notes = compareRowsFor(scalars, COMPARE_NOTE_FIELDS);
   // Water accounting leads the pours section: actual poured water (from the
   // pouredTotalG domain calc via the scalar map) and numeric bypass sit
   // directly above the per-pour rows. Planned water stays in the Recipe list.
-  const waterRows: CompareFieldRow[] = [
-    { label: "Poured water", a: a.Poured, b: b.Poured, changed: a.Poured !== b.Poured },
-    { label: "Bypass (g)", a: a["Bypass (g)"], b: b["Bypass (g)"], changed: a["Bypass (g)"] !== b["Bypass (g)"] },
-  ].filter((r) => r.a !== "-" || r.b !== "-");
-  const pourRows: CompareFieldRow[] = [
+  const waterRows: CompareRow[] = [
+    { label: "Poured water", values: scalars.map((s) => s.Poured ?? "-"), changed: valuesChanged(scalars.map((s) => s.Poured ?? "-")) },
+    { label: "Bypass (g)", values: scalars.map((s) => s["Bypass (g)"] ?? "-"), changed: valuesChanged(scalars.map((s) => s["Bypass (g)"] ?? "-")) },
+  ].filter((r) => r.values.some((v) => v !== "-"));
+  const pourRows: CompareRow[] = [
     ...waterRows,
     ...comparePourFields(
-      poursA,
-      poursB,
+      pours,
       // Switch positions only make sense (and only display) when one of the
       // compared brews actually uses the Hario Switch.
-      rawA.hario_switch === true || rawB.hario_switch === true,
+      brews.some((b) => b.hario_switch === true),
     ),
   ];
-  const changedCount = [...changedKeys].filter((k) => a[k] !== "-" || b[k] !== "-").length;
+  const shownChanged = [...recipe, ...notes, ...waterRows].filter((r) => r.changed);
+  const changedCount = shownChanged.length;
+  const summary = formatCompareSummary(
+    scalars,
+    compareBrewDates(brews),
+    [...shownChanged, ...pourRows.filter((r) => r.changed)],
+  );
   return (
     <div className="flex flex-col gap-4">
       <div>
         <p className="tnum mt-1 text-sm text-ink2">
-          {a.Coffee} · {a.Ratio} → {b.Ratio}
+          {scalars[0].Coffee} · {scalars.map((s) => s.Ratio).join(" · ")}
           {" · "}{changedCount} change{changedCount === 1 ? "" : "s"}
         </p>
+        <div className="mt-2">
+          <CompareShareActions text={summary} />
+        </div>
       </div>
       <div>
         <SectionHeader>Recipe</SectionHeader>
         <Card className="mt-2">
-          <CompareFieldTable rows={recipe} />
+          <CompareFieldTable rows={recipe} labels={labels} />
         </Card>
       </div>
       {pourRows.length > 0 ? (
         <div>
           <SectionHeader>Pours &amp; water</SectionHeader>
           <Card className="mt-2">
-            <CompareFieldTable rows={pourRows} />
+            <CompareFieldTable rows={pourRows} labels={labels} />
           </Card>
         </div>
       ) : null}
       <div>
         <SectionHeader>Tasting</SectionHeader>
-        {tasting.length === 0 ? (
+        {tastingRows.every((rows) => rows.length === 0) ? (
           <p className="mt-2 text-sm text-ink2">No tasting entries yet - rate Hot, Warm, Cold on each brew.</p>
         ) : (
           <Card className="mt-2">
-            <TastingCompare aLabel={t("compare.brewA")} bLabel={t("compare.brewB")} stages={tasting} />
+            <TastingCompare labels={labels} stages={compareTastings(tastingRows)} />
           </Card>
         )}
       </div>
       <div>
         <SectionHeader>Notes</SectionHeader>
         {notes.length === 0 ? (
-          <p className="mt-2 text-sm text-ink2">No notes on either brew.</p>
+          <p className="mt-2 text-sm text-ink2">No notes on any brew.</p>
         ) : (
           <Card className="mt-2">
-            <CompareFieldTable rows={notes} />
+            <CompareFieldTable rows={notes} labels={labels} />
           </Card>
         )}
       </div>

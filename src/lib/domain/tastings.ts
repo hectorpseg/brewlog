@@ -182,13 +182,12 @@ export function tastingsUpdatedAt(rows: { updated_at?: unknown }[] | null | unde
   return latest;
 }
 
-// Comparison matrix for two brews: per stage, the union of attributes in
+// Comparison matrix for N brews: per stage, the union of attributes in
 // stable alphabetical order. Missing sides are null (rendered as "-"),
 // never invented. changed flags values that differ or exist on one side only.
 export type TastingComparisonRow = {
   attribute: string;
-  a: number | null;
-  b: number | null;
+  values: (number | null)[];
   changed: boolean;
 };
 
@@ -204,11 +203,13 @@ function factValue(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export function compareTastings(a: TastingFact[] | null | undefined, b: TastingFact[] | null | undefined): TastingComparisonStage[] {
+export function compareTastings(
+  sides: (TastingFact[] | null | undefined)[],
+): TastingComparisonStage[] {
   const out: TastingComparisonStage[] = [];
   for (const stage of TASTING_STAGES) {
-    const values = new Map<string, { a: number | null; b: number | null }>();
-    for (const [side, rows] of [["a", a], ["b", b]] as const) {
+    const byAttribute = new Map<string, (number | null)[]>();
+    sides.forEach((rows, side) => {
       for (const r of rows ?? []) {
         if (typeof r !== "object" || r === null) continue;
         if (r.stage !== stage) continue;
@@ -216,15 +217,15 @@ export function compareTastings(a: TastingFact[] | null | undefined, b: TastingF
         if (attribute === "" || attribute.length > 40) continue;
         const value = factValue(r.value);
         if (value === null) continue;
-        const slot = values.get(attribute) ?? { a: null, b: null };
+        const slot = byAttribute.get(attribute) ?? Array<number | null>(sides.length).fill(null);
         slot[side] = value;
-        values.set(attribute, slot);
+        byAttribute.set(attribute, slot);
       }
-    }
-    if (values.size === 0) continue;
-    const rows = [...values.entries()]
+    });
+    if (byAttribute.size === 0) continue;
+    const rows = [...byAttribute.entries()]
       .sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0))
-      .map(([attribute, v]) => ({ attribute, ...v, changed: v.a !== v.b }));
+      .map(([attribute, values]) => ({ attribute, values, changed: new Set(values).size > 1 }));
     out.push({ stage, rows });
   }
   return out;
