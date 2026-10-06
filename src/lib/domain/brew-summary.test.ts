@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { createTranslator } from "@/lib/i18n/translate";
 import { formatBrewSummary } from "@/lib/domain/brew-summary";
+
+const en = createTranslator("en");
+const es = createTranslator("es");
 
 const brew = {
   id: "b1",
@@ -37,13 +41,16 @@ const tastings = [
 
 describe("formatBrewSummary", () => {
   it("renders the canonical deterministic summary", () => {
-    const text = formatBrewSummary({
-      brew,
-      coffeeName: "Competencia",
-      sessionTitle: "Phase 1",
-      observation,
-      tastings,
-    });
+    const text = formatBrewSummary(
+      {
+        brew,
+        coffeeName: "Competencia",
+        sessionTitle: "Phase 1",
+        observation,
+        tastings,
+      },
+      en,
+    );
     expect(text).toBe(
       [
         "Competencia · Sep 21",
@@ -57,35 +64,43 @@ describe("formatBrewSummary", () => {
       ].join("\n"),
     );
     // same input twice, same string — no randomness, no timestamps
-    expect(formatBrewSummary({
-      brew, coffeeName: "Competencia", sessionTitle: "Phase 1",
-      observation, tastings,
-    })).toBe(text);
+    expect(formatBrewSummary(
+      { brew, coffeeName: "Competencia", sessionTitle: "Phase 1", observation, tastings },
+      en,
+    )).toBe(text);
   });
 
   it("omits absent values and never leaks database IDs", () => {
-    const text = formatBrewSummary({ brew: { dose_g: 15, water_g: 250 } });
+    const text = formatBrewSummary({ brew: { dose_g: 15, water_g: 250 } }, en);
     expect(text).toBe("Brew\n15 g dose · 250 g water (1:16.7)");
     expect(text).not.toContain("b1");
     expect(text).not.toContain("u1");
   });
 
   it("includes structured pours in sequence order when present", () => {
-    const text = formatBrewSummary({
-      brew,
-      coffeeName: "Competencia",
-      pours: [
-        { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "", temp_c: 90 },
-        { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null, temp_c: null },
-      ],
-    });
-    expect(text).toContain("Pours: 1. 0:00 · 40 g · center · bloom; 2. 0:35 · 60 g · circular · 90°C");
+    const text = formatBrewSummary(
+      {
+        brew,
+        coffeeName: "Competencia",
+        pours: [
+          { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "", temp_c: 90 },
+          { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null, temp_c: null },
+        ],
+      },
+      en,
+    );
+    expect(text).toContain("Pours: 1. 0:00 · 40 g · center · Bloom; 2. 0:35 · 60 g · circular · 90°C");
+  });
+
+  it("pluralizes the pour count", () => {
+    expect(formatBrewSummary({ brew: { ...brew, pour_count: 1 } }, en)).toContain("1 pour");
+    expect(formatBrewSummary({ brew: { ...brew, pour_count: 4 } }, en)).toContain("4 pours");
   });
 
   it("omits the pours line for historical brews without structured pours", () => {
-    expect(formatBrewSummary({ brew })).not.toContain("Pours:");
-    expect(formatBrewSummary({ brew, pours: [] })).not.toContain("Pours:");
-    expect(formatBrewSummary({ brew, pours: [{ sequence: 1 }] })).not.toContain("Pours:");
+    expect(formatBrewSummary({ brew }, en)).not.toContain("Pours:");
+    expect(formatBrewSummary({ brew, pours: [] }, en)).not.toContain("Pours:");
+    expect(formatBrewSummary({ brew, pours: [{ sequence: 1 }] }, en)).not.toContain("Pours:");
   });
 
   it("orders tastings deterministically regardless of input order", () => {
@@ -94,42 +109,48 @@ describe("formatBrewSummary", () => {
       { stage: "hot", attribute: "finish", value: 2 },
       { stage: "hot", attribute: "body", value: 4 },
     ];
-    const text = formatBrewSummary({ brew, tastings: shuffled });
+    const text = formatBrewSummary({ brew, tastings: shuffled }, en);
     expect(text).toContain("Tasting — Hot: body 4, finish 2; Warm: sweetness 8");
-    expect(formatBrewSummary({ brew, tastings: [...shuffled].reverse() })).toBe(text);
+    expect(formatBrewSummary({ brew, tastings: [...shuffled].reverse() }, en)).toBe(text);
   });
   it("skips garbage tasting rows", () => {
-    const text = formatBrewSummary({
-      brew,
-      tastings: [
-        { stage: "lukewarm", attribute: "x", value: 5 },
-        { stage: "hot", attribute: "", value: 5 },
-        { stage: "hot", attribute: "ok", value: "lots" },
-      ],
-    });
+    const text = formatBrewSummary(
+      {
+        brew,
+        tastings: [
+          { stage: "lukewarm", attribute: "x", value: 5 },
+          { stage: "hot", attribute: "", value: 5 },
+          { stage: "hot", attribute: "ok", value: "lots" },
+        ],
+      },
+      en,
+    );
     expect(text).not.toContain("Tasting");
   });
   it("never emits an experiments line", () => {
-    const text = formatBrewSummary({ brew, observation, tastings });
+    const text = formatBrewSummary({ brew, observation, tastings }, en);
     expect(text).not.toContain("Experiments");
   });
 
   it("includes water, technique and expected details when recorded", () => {
-    const text = formatBrewSummary({
-      brew: {
-        ...brew,
-        water_brand: "Third Wave Water",
-        water_ppm: 120,
-        water_description: "mineral profile",
-        water_notes: "Soft, slightly sweet.",
-        thermal_shock: "no thermal shock",
-        lilydrip: true,
-        melodrip: true,
-        hario_switch: true,
-        expected_text: "Brighter acidity",
+    const text = formatBrewSummary(
+      {
+        brew: {
+          ...brew,
+          water_brand: "Third Wave Water",
+          water_ppm: 120,
+          water_description: "mineral profile",
+          water_notes: "Soft, slightly sweet.",
+          thermal_shock: "no thermal shock",
+          lilydrip: true,
+          melodrip: true,
+          hario_switch: true,
+          expected_text: "Brighter acidity",
+        },
+        coffeeName: "Competencia",
       },
-      coffeeName: "Competencia",
-    });
+      en,
+    );
     expect(text).toContain(
       "Third Wave Water · 120 ppm · mineral profile · LilyDrip · MeloDrip · Hario Switch · no thermal shock",
     );
@@ -138,7 +159,7 @@ describe("formatBrewSummary", () => {
   });
 
   it("omits water, technique and expected details that were never recorded", () => {
-    const text = formatBrewSummary({ brew, observation, tastings });
+    const text = formatBrewSummary({ brew, observation, tastings }, en);
     expect(text).not.toContain("ppm");
     expect(text).not.toContain("LilyDrip");
     expect(text).not.toContain("MeloDrip");
@@ -148,13 +169,38 @@ describe("formatBrewSummary", () => {
   });
 
   it("carries per-pour MeloDrip and Switch state in pour order", () => {
-    const text = formatBrewSummary({
-      brew,
-      pours: [
-        { sequence: 2, amount_g: 60, timing_seconds: 45, bloom: false, pattern: "circular", melodrip: true, switch_state: "open" },
-        { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", melodrip: false, switch_state: null },
-      ],
-    });
-    expect(text).toContain("Pours: 1. 0:00 · 40 g · center · bloom; 2. 0:45 · 60 g · circular · MeloDrip · Switch open");
+    const text = formatBrewSummary(
+      {
+        brew,
+        pours: [
+          { sequence: 2, amount_g: 60, timing_seconds: 45, bloom: false, pattern: "circular", melodrip: true, switch_state: "open" },
+          { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", melodrip: false, switch_state: null },
+        ],
+      },
+      en,
+    );
+    expect(text).toContain("Pours: 1. 0:00 · 40 g · center · Bloom; 2. 0:45 · 60 g · circular · MeloDrip · Switch Open");
+  });
+
+  it("localizes the summary into Spanish", () => {
+    const text = formatBrewSummary(
+      {
+        brew,
+        coffeeName: "Competencia",
+        sessionTitle: "Fase 1",
+        observation,
+        tastings,
+      },
+      es,
+      "es",
+    );
+    expect(text).toContain("Competencia · 21 sept");
+    expect(text).toContain("15 g dosis · 250 g agua");
+    expect(text).toContain("inicio 92°C");
+    expect(text).toContain("Sesión: Fase 1");
+    expect(text).toContain("Cata — Caliente: body 4, finish 2; Tibio: sweetness 8");
+    expect(text).toContain("Notas en caliente: Sweet, bright.");
+    expect(text).toContain("General: Best cup this week.");
+    expect(text).toContain("Notas de la extracción: good");
   });
 });
