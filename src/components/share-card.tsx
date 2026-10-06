@@ -62,7 +62,7 @@ export function ShareCardButtons({ card }: { card: ShareCardData }) {
   // Lazy initializer (no effect): server renders false, client evaluates
   // capability on first render. canNativeShareImage guards SSR itself.
   const [nativeOk] = useState(() => canNativeShareImage());
-  const text = formatShareCardText(card);
+  const text = formatShareCardText(card, t);
   const filename = shareCardFilename(card.coffeeName);
 
   function done(s: Status) {

@@ -107,6 +107,11 @@ input[type="date"]::-webkit-datetime-edit {
 }
 input[type="date"]::-webkit-date-and-time-value {
   min-width: 85px;
+  /* Safari renders the value box with an intrinsic height that ignores the
+     input's line height, pushing the segments off-center inside the field
+     (companion of twbs/bootstrap#34433). A neutral floor keeps the value
+     vertically inside the 44px control. Chromium/Gecko ignore the part. */
+  min-height: 1.5em;
   margin: 0;
   text-align: left;
 }

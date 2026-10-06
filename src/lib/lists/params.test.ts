@@ -56,6 +56,11 @@ describe("other lists", () => {
     expect(parseSessionParams({ has: "bogus" })).toMatchObject({ has: "all" });
     expect(parseCuppingParams({ sort: "oldest", count: "60" })).toMatchObject({ sort: "oldest", count: 60 });
   });
+  it("parses coffee status filter with fallback to available", () => {
+    expect(parseCoffeeParams({})).toMatchObject({ status: "available" });
+    expect(parseCoffeeParams({ status: "depleted" })).toMatchObject({ status: "depleted" });
+    expect(parseCoffeeParams({ status: "bogus" })).toMatchObject({ status: "available" });
+  });
 });
 
 describe("escapeLike", () => {
@@ -68,8 +73,12 @@ describe("escapeLike", () => {
 describe("toQuery/listHref", () => {
   it("omits defaults for short URLs", () => {
     expect(toQuery({ q: "", sort: "newest", session: "all", coffee: "", count: 20 })).toBe("");
+    expect(toQuery({ q: "", sort: "recent", status: "available", count: 20 })).toBe("");
     expect(listHref("/brews", { q: "tabi", sort: "oldest", session: "none", count: 40 })).toBe(
       "/brews?q=tabi&sort=oldest&session=none&count=40",
+    );
+    expect(listHref("/coffees", { q: "gesha", sort: "name", status: "depleted", count: 40 })).toBe(
+      "/coffees?q=gesha&sort=name&status=depleted&count=40",
     );
   });
   it("resets count on search/filter/sort changes", () => {

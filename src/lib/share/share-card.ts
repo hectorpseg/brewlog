@@ -169,6 +169,22 @@ export async function nativeSharePng(blob: Blob, filename: string, text: string)
   return "shared";
 }
 
+// Native share for text-only payloads (no files) — comparison summaries, etc.
+// Returns "shared", or "unsupported" when the browser has no share sheet
+// (caller falls back to the clipboard).
+export async function nativeShareText(title: string, text: string): Promise<"shared" | "unsupported"> {
+  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    try {
+      await navigator.share({ title, text });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return "shared"; // user dismissed, not an error
+      throw e;
+    }
+    return "shared";
+  }
+  return "unsupported";
+}
+
 export function downloadPng(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

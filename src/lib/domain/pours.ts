@@ -292,12 +292,12 @@ function factText(v: unknown): string | null {
 }
 
 // Deterministic per-sequence comparison: the union of sequences in numeric
-// order. A side that lacks the pour reads "-" on every field; changed flags
-// a pour that differs or exists on one side only. No derived values.
+// order, pooled across N brews. A brew that lacks the pour reads "-" on every
+// field; changed flags a pour that differs or exists on one brew only. No
+// derived values.
 export type PourComparisonRow = {
   sequence: number;
-  a: PourEntry | null;
-  b: PourEntry | null;
+  values: (PourEntry | null)[];
   changed: boolean;
 };
 
@@ -338,45 +338,46 @@ function samePour(a: PourEntry, b: PourEntry): boolean {
 }
 
 export function comparePours(
-  a: PourFact[] | null | undefined,
-  b: PourFact[] | null | undefined,
+  sides: (PourFact[] | null | undefined)[],
 ): PourComparisonRow[] {
-  const bySeq = new Map<number, { a: PourEntry | null; b: PourEntry | null }>();
-  for (const [side, rows] of [["a", a], ["b", b]] as const) {
+  const bySeq = new Map<number, (PourEntry | null)[]>();
+  sides.forEach((rows, side) => {
     for (const r of rows ?? []) {
       const e = toEntry(r);
       if (!e) continue;
-      const slot = bySeq.get(e.sequence) ?? { a: null, b: null };
+      const slot = bySeq.get(e.sequence) ?? Array<PourEntry | null>(sides.length).fill(null);
       // first row wins per side: duplicates cannot inflate the comparison
       if (slot[side] == null) slot[side] = e;
       bySeq.set(e.sequence, slot);
     }
-  }
+  });
   return [...bySeq.entries()]
     .sort(([x], [y]) => x - y)
-    .map(([sequence, v]) => ({
-      sequence,
-      ...v,
-      changed: v.a == null || v.b == null || !samePour(v.a, v.b),
-    }));
+    .map(([sequence, values]) => {
+      const present = values.filter((v): v is PourEntry => v != null);
+      // missing on any brew counts as a difference, like the pair compare did
+      const changed =
+        present.length !== sides.length ||
+        present.some((v) => !samePour(present[0], v));
+      return { sequence, values, changed };
+    });
 }
 
 // Field rows for the shared compare table: one row per pour field, in
-// sequence order. Missing sides read "-", never invented; changed is
+// sequence order. Missing brews read "-", never invented; changed is
 // per-field so identical fields stay quiet even when the pour differs.
 // Per-pour enrichment follows the same conventions: temperature carries °C,
 // MeloDrip reads Yes/No like bloom, and the Switch position (Open/Closed)
 // appears only when at least one compared brew uses the Hario Switch;
 // unrecorded values stay "-" for all of them.
-export type PourFieldRow = { label: string; a: string; b: string; changed: boolean };
+export type PourFieldRow = { label: string; values: string[]; changed: boolean };
 
 export function comparePourFields(
-  a: PourFact[] | null | undefined,
-  b: PourFact[] | null | undefined,
+  sides: (PourFact[] | null | undefined)[],
   switchOn = false,
 ): PourFieldRow[] {
   const rows: PourFieldRow[] = [];
-  for (const { sequence, a: pa, b: pb } of comparePours(a, b)) {
+  for (const { sequence, values } of comparePours(sides)) {
     const time = (p: PourEntry | null) => (p ? (formatPourTime(p.timing_seconds) ?? "-") : "-");
     const amount = (p: PourEntry | null) => (p ? `${p.amount_g} g` : "-");
     const temp = (p: PourEntry | null) => (p?.temp_c != null ? `${p.temp_c}°C` : "-");
@@ -385,21 +386,21 @@ export function comparePourFields(
     const melodrip = (p: PourEntry | null) => (p ? (p.melodrip ? "Yes" : "No") : "-");
     const switchState = (p: PourEntry | null) => (p?.switch_state ?? "-");
     const note = (p: PourEntry | null) => (p?.note?.trim() ? p.note.trim() : "-");
-    const fields: [string, string, string][] = [
-      [`Pour ${sequence} time`, time(pa), time(pb)],
-      [`Pour ${sequence} amount`, amount(pa), amount(pb)],
-      [`Pour ${sequence} temp`, temp(pa), temp(pb)],
-      [`Pour ${sequence} pattern`, pattern(pa), pattern(pb)],
-      [`Pour ${sequence} bloom`, bloom(pa), bloom(pb)],
-      [`Pour ${sequence} melodrip`, melodrip(pa), melodrip(pb)],
+    const fields: string[][] = [
+      [`Pour ${sequence} time`, ...values.map(time)],
+      [`Pour ${sequence} amount`, ...values.map(amount)],
+      [`Pour ${sequence} temp`, ...values.map(temp)],
+      [`Pour ${sequence} pattern`, ...values.map(pattern)],
+      [`Pour ${sequence} bloom`, ...values.map(bloom)],
+      [`Pour ${sequence} melodrip`, ...values.map(melodrip)],
       ...(switchOn
-        ? [[`Pour ${sequence} switch`, switchState(pa), switchState(pb)] as [string, string, string]]
+        ? [[`Pour ${sequence} switch`, ...values.map(switchState)]]
         : []),
-      [`Pour ${sequence} note`, note(pa), note(pb)],
+      [`Pour ${sequence} note`, ...values.map(note)],
     ];
-    for (const [label, x, y] of fields) {
-      if (x === "-" && y === "-") continue;
-      rows.push({ label, a: x, b: y, changed: x !== y });
+    for (const [label, ...vals] of fields) {
+      if (vals.every((x) => x === "-")) continue;
+      rows.push({ label, values: vals, changed: new Set(vals).size > 1 });
     }
   }
   return rows;

@@ -351,32 +351,39 @@ export function ListFilterLink({ href, children, ...rest }: {
 export function FilterChips({ base, params, param, options, list }: {
   base: string;
   params: Params;
-  param: "session" | "has" | "fav";
+  param: "session" | "has" | "fav" | "status";
   options: { value: string; label: string }[];
   list: ListName;
 }) {
-  const router = useRouter();
+  const { isPending, navigate } = useListNav();
+  const [, startTransition] = useTransition();
   const active = String(params[param] ?? "all");
+  const [optimisticActive, setOptimisticActive] = useOptimistic(active);
   const t = useT();
   return (
     <div className="mt-2">
       <ListSectionLabel>{t("list.filters")}</ListSectionLabel>
       <div className="no-scrollbar mt-1.5 flex gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label={t("list.filters")}>
         {options.map((o) => {
-          const on = active === o.value;
+          const on = optimisticActive === o.value;
           const next = on ? "all" : o.value;
           return (
             <button
               key={o.value}
               type="button"
               aria-pressed={on}
+              disabled={isPending}
               onClick={() => {
-                const s = storage();
-                writeListPrefs(s, list, { ...readListPrefs(s, list), [param]: next });
-                router.replace(listHref(base, { ...params, [param]: next }, true), { scroll: false });
+                if (isPending) return;
+                startTransition(() => {
+                  setOptimisticActive(next);
+                  const s = storage();
+                  writeListPrefs(s, list, { ...readListPrefs(s, list), [param]: next });
+                  navigate(listHref(base, { ...params, [param]: next }, true));
+                });
               }}
               className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96]",
+                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96] disabled:opacity-60",
                 on
                   ? "bg-ember text-white"
                   : "border border-line bg-card text-ink2 hover:bg-paper"

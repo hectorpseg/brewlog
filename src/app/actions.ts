@@ -12,12 +12,13 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from "@/lib/i18n/config";
 // ponytail: thin zod-then-insert actions; RLS enforces ownership, user_id never from client
 
 // Supabase/PostgREST failures stay server-side: known auth cases map to a
-// stable code, everything else to the generic save error. The raw message is
-// logged here (request-log pattern) and never travels to the client.
-function saveErrorCode(error: { message: string } | null): string {
+// stable code, everything else to a contextual per-operation code passed by
+// the caller (msg(save.failed) remains the generic fallback). The raw message
+// is logged here (request-log pattern) and never travels to the client.
+function saveErrorCode(error: { message: string } | null, contextCode?: string): string {
   const m = error?.message ?? "";
   if (/Invalid login credentials/i.test(m)) return msg("auth.invalidCredentials");
-  return msg("save.failed");
+  return contextCode ?? msg("save.failed");
 }
 
 export async function login(formData: FormData): Promise<void> {
@@ -27,7 +28,11 @@ export async function login(formData: FormData): Promise<void> {
     email: String(formData.get("email")),
     password: String(formData.get("password")),
   });
-  if (error) redirect(`/login?error=${encodeURIComponent(saveErrorCode(error))}&next=${encodeURIComponent(next)}`);
+  if (error) {
+    const code = saveErrorCode(error);
+    const authError = code === msg("auth.invalidCredentials") ? code : msg("auth.loginFailed");
+    redirect(`/login?error=${encodeURIComponent(authError)}&next=${encodeURIComponent(next)}`);
+  }
   redirect(next);
 }
 
@@ -49,7 +54,7 @@ export async function setLocale(locale: string): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-function nullish(v: FormDataEntryValue | null) {
+function nullish(v: unknown) {
   const s = v == null ? "" : String(v).trim();
   return s === "" ? undefined : s;
 }
@@ -82,42 +87,43 @@ export async function createCoffee(formData: FormData): Promise<void> {
     initial_weight_g: d.initialWeightG, remaining_weight_g: d.remainingWeightG,
     notes: d.notes,
   }).select("id").single();
-  if (error) redirect(`/coffees/new?error=${encodeURIComponent(saveErrorCode(error))}`);
+  if (error) redirect(`/coffees/new?error=${encodeURIComponent(saveErrorCode(error, msg("coffee.saveFailed")))}`);
   revalidatePath("/coffees");
   redirect(`/coffees/${data.id}`);
 }
 
-export async function updateCoffee(id: string, formData: FormData): Promise<void> {
+// Coffee edits autosave from the detail editor: every sync sends the full
+// desired state (same update semantics as before, minus the redirect that
+// would break debounced saves). Validation and DB failures return { error }
+// so the shared save-state badge can surface them with Retry.
+export async function updateCoffee(id: string, patch: Record<string, string | undefined>): Promise<{ error?: string }> {
   const parsed = coffeeSchema.safeParse({
-    name: nullish(formData.get("name")),
-    origin: nullish(formData.get("origin")),
-    process: nullish(formData.get("process")),
-    variety: nullish(formData.get("variety")),
-    producer: nullish(formData.get("producer")),
-    country: nullish(formData.get("country")),
-    region: nullish(formData.get("region")),
-    farm: nullish(formData.get("farm")),
-    altitude: nullish(formData.get("altitude")),
-    roastDate: nullish(formData.get("roastDate")),
-    receivedDate: nullish(formData.get("receivedDate")),
-    initialWeightG: nullish(formData.get("initialWeightG")),
-    remainingWeightG: nullish(formData.get("remainingWeightG")),
-    notes: nullish(formData.get("notes")),
+    name: nullish(patch.name),
+    origin: nullish(patch.origin),
+    process: nullish(patch.process),
+    variety: nullish(patch.variety),
+    producer: nullish(patch.producer),
+    country: nullish(patch.country),
+    region: nullish(patch.region),
+    farm: nullish(patch.farm),
+    altitude: nullish(patch.altitude),
+    receivedDate: nullish(patch.receivedDate),
+    remainingWeightG: nullish(patch.remainingWeightG),
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? msg("coffee.invalid") };
   const d = parsed.data;
   const db = await createClient();
   const { error } = await db.from("coffees").update({
     name: d.name, origin: d.origin, process: d.process,
     variety: d.variety, producer: d.producer, country: d.country,
     region: d.region, farm: d.farm, altitude: d.altitude,
-    roast_date: d.roastDate, received_date: d.receivedDate,
-    initial_weight_g: d.initialWeightG, remaining_weight_g: d.remainingWeightG,
-    notes: d.notes, updated_at: new Date().toISOString(),
+    received_date: d.receivedDate, remaining_weight_g: d.remainingWeightG,
+    updated_at: new Date().toISOString(),
   }).eq("id", id);
-  if (error) return;
+  if (error) return { error: saveErrorCode(error) };
   revalidatePath("/coffees");
-  redirect("/coffees");
+  revalidatePath(`/coffees/${id}`);
+  return {};
 }
 
 export async function createBrew(prev: unknown, formData: FormData): Promise<{ error?: string; id?: string }> {
@@ -163,12 +169,20 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
   const { toSeconds } = await import("@/lib/domain/brew-time");
   const { toBrewedAtIso } = await import("@/lib/domain/brew-date");
   const { completePourEntries, pourRowsFromJson } = await import("@/lib/domain/pours");
+  const { deductedFor } = await import("@/lib/domain/inventory");
   // the manual pour count is gone: structured pours are the counter. A legacy
   // inherited count survives only when no structured pours were entered.
   const createPourEntries = completePourEntries(pourRowsFromJson(d.pours));
   const db = await createClient();
+  // read the stock before the row exists, so the brew records exactly how
+  // many grams it deducts (deletion later restores that, never more).
+  const { data: coffeeStock } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
+  const deducted = coffeeStock?.remaining_weight_g != null
+    ? deductedFor(Number(coffeeStock.remaining_weight_g), Number(d.doseG))
+    : null;
   const { data, error } = await db.from("brews").insert({
     coffee_id: d.coffeeId, session_id: d.sessionId, dose_g: d.doseG, water_g: d.waterG, temp_c: d.tempC,
+    inventory_deducted_g: deducted ?? undefined,
     brewed_at: toBrewedAtIso(d.brewedAt) ?? new Date().toISOString(),
     grind_clicks: d.grindClicks, grinder: d.grinder, dripper: d.dripper,
     filter: d.filter, water_source: d.waterSource,
@@ -186,7 +200,7 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
     notes: d.notes,
     expected_text: d.expectedText,
   }).select("id").single();
-  if (error) return { error: saveErrorCode(error) };
+  if (error) return { error: saveErrorCode(error, msg("brew.saveFailed")) };
   // structured pours are independent of each other, so they persist in
   // parallel rather than sequentially. Only complete entries persist.
   const { completeTastingEntries, tastingRowsFromJson } = await import("@/lib/domain/tastings");
@@ -237,12 +251,17 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
   for (const res of await Promise.all(childWrites)) {
     if (res.error) return { error: res.error };
   }
-  // approximate inventory decrement, advisory only
-  const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
-  if (coffee?.remaining_weight_g != null) {
-    await db.from("coffees").update({
-      remaining_weight_g: Math.max(0, Number(coffee.remaining_weight_g) - Number(d.doseG)),
+  // approximate inventory decrement, advisory only — apply exactly the
+  // recorded deduction (remaining_after = stock - deducted)
+  if (coffeeStock?.remaining_weight_g != null) {
+    const { error: invError } = await db.from("coffees").update({
+      remaining_weight_g: Math.max(0, Number(coffeeStock.remaining_weight_g) - Number(d.doseG)),
     }).eq("id", d.coffeeId);
+    if (invError) {
+      // brew persisted but took no coffee: clear the stored deduction so a
+      // later delete cannot hand back grams that were never taken out
+      await db.from("brews").update({ inventory_deducted_g: 0 }).eq("id", data.id);
+    }
   }
   revalidatePath("/brews");
   return { id: data.id };
@@ -255,7 +274,7 @@ export async function updateBrew(id: string, patch: Record<string, string | unde
   const fields = toBrewUpdateRow(patch);
   if (Object.keys(fields).length === 0) return;
   const { error } = await db.from("brews").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", id);
-  if (error) return { error: saveErrorCode(error) };
+  if (error) return { error: saveErrorCode(error, msg("brew.saveFailed")) };
 }
 
 // Move an existing brew into a session, or out (target ""/missing = unassign).
@@ -308,7 +327,7 @@ export async function upsertObservation(patch: Record<string, string | undefined
     hot_notes: d.hotNotes, warm_notes: d.warmNotes, cold_notes: d.coldNotes,
     freeform_notes: d.freeformNotes, updated_at: new Date().toISOString(),
   }, { onConflict: "brew_id" });
-  if (error) return { error: saveErrorCode(error) };
+  if (error) return { error: saveErrorCode(error, msg("brew.notesFailed")) };
 }
 
 // Structured tastings ride the brew editor autosave: the payload is the full
@@ -324,7 +343,7 @@ export async function upsertTastings(brewId: string, entries: { stage: string; a
   }));
   if (rows.length > 0) {
     const { error } = await db.from("tastings").upsert(rows, { onConflict: "brew_id,stage,attribute" });
-    if (error) return { error: saveErrorCode(error) };
+    if (error) return { error: saveErrorCode(error, msg("brew.tastingFailed")) };
   }
   const keep = new Set(rows.map((r) => `${r.stage}\n${r.attribute}`));
   const { data: existing } = await db.from("tastings").select("id, stage, attribute").eq("brew_id", brewId);
@@ -333,7 +352,7 @@ export async function upsertTastings(brewId: string, entries: { stage: string; a
     .map((e) => e.id);
   if (dropIds.length > 0) {
     const { error } = await db.from("tastings").delete().in("id", dropIds);
-    if (error) return { error: saveErrorCode(error) };
+    if (error) return { error: saveErrorCode(error, msg("brew.tastingFailed")) };
   }
 }
 
@@ -357,7 +376,7 @@ export async function upsertPours(brewId: string, entries: { sequence: number; a
   }));
   if (rows.length > 0) {
     const { error } = await db.from("pours").upsert(rows, { onConflict: "brew_id,sequence" });
-    if (error) return { error: saveErrorCode(error) };
+    if (error) return { error: saveErrorCode(error, msg("brew.poursFailed")) };
   }
   const keep = new Set(rows.map((r) => r.sequence));
   const { data: existing } = await db.from("pours").select("id, sequence").eq("brew_id", brewId);
@@ -366,7 +385,7 @@ export async function upsertPours(brewId: string, entries: { sequence: number; a
     .map((e) => e.id);
   if (dropIds.length > 0) {
     const { error } = await db.from("pours").delete().in("id", dropIds);
-    if (error) return { error: saveErrorCode(error) };
+    if (error) return { error: saveErrorCode(error, msg("brew.poursFailed")) };
   }
 }
 
@@ -414,16 +433,22 @@ export async function toggleFavorite(brewId: string, value: boolean): Promise<vo
 export async function deleteBrew(id: string): Promise<void> {
   const { restoredAfter } = await import("@/lib/domain/inventory");
   const db = await createClient();
-  // read the dose first (RLS-scoped): deleting hands the coffee back
-  const { data: brew } = await db.from("brews").select("coffee_id, dose_g").eq("id", id).single();
+  // read the row first (RLS-scoped): deleting hands back exactly what this
+  // brew deducted at record time (inventory_deducted_g). Legacy rows (NULL)
+  // and never-deducted rows (0) restore nothing — grams that were never taken
+  // from the bag are never invented back.
+  const { data: brew } = await db.from("brews").select("coffee_id, inventory_deducted_g").eq("id", id).single();
   const { error } = await db.from("brews").delete().eq("id", id);
-  if (error) return;
+  if (error) redirect(`/brews?error=${encodeURIComponent(msg("brew.deleteFailed"))}`);
   if (brew) {
-    const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", brew.coffee_id).single();
-    if (coffee?.remaining_weight_g != null) {
-      await db.from("coffees").update({
-        remaining_weight_g: restoredAfter(Number(coffee.remaining_weight_g), Number(brew.dose_g)),
-      }).eq("id", brew.coffee_id);
+    const deducted = Number(brew.inventory_deducted_g ?? 0);
+    if (deducted > 0) {
+      const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", brew.coffee_id).single();
+      if (coffee?.remaining_weight_g != null) {
+        await db.from("coffees").update({
+          remaining_weight_g: restoredAfter(Number(coffee.remaining_weight_g), deducted),
+        }).eq("id", brew.coffee_id);
+      }
     }
   }
   revalidatePath("/brews");
@@ -435,7 +460,7 @@ export async function deleteBrew(id: string): Promise<void> {
 export async function deleteCoffee(id: string): Promise<void> {
   const db = await createClient();
   const { error } = await db.from("coffees").delete().eq("id", id);
-  if (error) return;
+  if (error) redirect(`/coffees?error=${encodeURIComponent(msg("coffee.deleteFailed"))}`);
   revalidatePath("/coffees");
   revalidatePath("/brews");
   redirect("/coffees");
@@ -444,7 +469,7 @@ export async function deleteCoffee(id: string): Promise<void> {
 export async function deleteSession(id: string): Promise<void> {
   const db = await createClient();
   const { error } = await db.from("sessions").delete().eq("id", id);
-  if (error) return;
+  if (error) redirect(`/sessions?error=${encodeURIComponent(msg("session.deleteFailed"))}`);
   revalidatePath("/sessions");
   revalidatePath("/brews");
   redirect("/sessions");
@@ -470,28 +495,35 @@ export async function createCupping(formData: FormData): Promise<void> {
   });
   if (!parsed.success) return;
   const d = parsed.data;
-  const { remainingAfter } = await import("@/lib/domain/inventory");
+  const { deductedFor } = await import("@/lib/domain/inventory");
   const db = await createClient();
+  // read the stock before the row exists so the cupping records exactly how
+  // many grams it deducts (deletion later restores that, never more).
+  let stockBefore: number | null = null;
+  if (d.doseG != null) {
+    const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
+    if (coffee?.remaining_weight_g != null) stockBefore = Number(coffee.remaining_weight_g);
+  }
+  const deducted = stockBefore != null ? deductedFor(stockBefore, Number(d.doseG)) : null;
   const { data: inserted, error } = await db.from("cuppings").insert({
     coffee_id: d.coffeeId, cupped_at: cuppedAtIso(d.cuppedAt),
     dose_g: d.doseG, water_g: d.waterG, grind: d.grind,
     grinder: d.grinder, grind_clicks: d.grindClicks, notes: d.notes,
     hot_notes: d.hotNotes, warm_notes: d.warmNotes, cold_notes: d.coldNotes,
+    inventory_deducted_g: deducted ?? undefined,
   }).select("id").single();
   if (error || !inserted) return;
-  // tasting consumes coffee like brewing does: same advisory decrement,
-  // clamped at zero, skipped when remaining is unknown.
-  if (d.doseG != null) {
-    const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
-    if (coffee?.remaining_weight_g != null) {
-      const { error: invError } = await db.from("coffees").update({
-        remaining_weight_g: Math.max(0, remainingAfter(Number(coffee.remaining_weight_g), Number(d.doseG))),
-      }).eq("id", d.coffeeId);
-      if (invError) {
-        // compensate: no cupping without its inventory move
-        await db.from("cuppings").delete().eq("id", inserted.id);
-        return;
-      }
+  // tasting consumes coffee like brewing does: apply exactly the recorded
+  // deduction (stock_after = stock_before - deducted), clamped at zero,
+  // skipped when remaining is unknown.
+  if (stockBefore != null && deducted != null) {
+    const { error: invError } = await db.from("coffees").update({
+      remaining_weight_g: Math.max(0, stockBefore - deducted),
+    }).eq("id", d.coffeeId);
+    if (invError) {
+      // compensate: no cupping without its inventory move
+      await db.from("cuppings").delete().eq("id", inserted.id);
+      return;
     }
   }
   revalidatePath(`/coffees/${d.coffeeId}`);
@@ -514,17 +546,21 @@ export async function updateCupping(id: string, coffeeId: string, formData: Form
   });
   if (!parsed.success) return;
   const d = parsed.data;
-  const { applyInventoryDelta, cuppingDoseDelta } = await import("@/lib/domain/inventory");
+  const { deductAdjustment, cuppingDoseDelta } = await import("@/lib/domain/inventory");
   const db = await createClient();
-  // read the old dose first (RLS-scoped): inventory moves by the delta only
-  const { data: current } = await db.from("cuppings").select("dose_g").eq("id", id).single();
+  // read the row first (RLS-scoped): inventory moves by the dose delta only
+  const { data: current } = await db.from("cuppings").select("dose_g, inventory_deducted_g").eq("id", id).single();
   if (!current) return;
   const delta = cuppingDoseDelta(current.dose_g, d.doseG);
+  // conserving edit: hand back at most what this cupping deducted, consume at
+  // most the bag's content — the edit can never mint or destroy grams.
+  let adjustment: { deducted: number; next: number } | null = null;
   if (delta !== 0) {
     const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
     if (coffee?.remaining_weight_g != null) {
+      adjustment = deductAdjustment(current.inventory_deducted_g as number | null, delta, Number(coffee.remaining_weight_g));
       const { error: invError } = await db.from("coffees").update({
-        remaining_weight_g: applyInventoryDelta(Number(coffee.remaining_weight_g), delta),
+        remaining_weight_g: adjustment.next,
       }).eq("id", d.coffeeId);
       if (invError) return;
     }
@@ -534,15 +570,19 @@ export async function updateCupping(id: string, coffeeId: string, formData: Form
     dose_g: d.doseG, water_g: d.waterG, grind: d.grind,
     grinder: d.grinder, grind_clicks: d.grindClicks, notes: d.notes,
     hot_notes: d.hotNotes, warm_notes: d.warmNotes, cold_notes: d.coldNotes,
+    ...(adjustment ? { inventory_deducted_g: adjustment.deducted } : {}),
     updated_at: new Date().toISOString(),
   }).eq("id", id);
   if (error) {
-    // reverse the inventory move when the row update did not persist
-    if (delta !== 0) {
+    // reverse the inventory move when the row update did not persist: the
+    // stock goes back to what it was before the delta (the recorded deduction
+    // the row kept: consumed - returned = deducted_next - recorded)
+    if (adjustment) {
+      const recordedBefore = Number((current.inventory_deducted_g as number | null) ?? 0);
       const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", d.coffeeId).single();
       if (coffee?.remaining_weight_g != null) {
         await db.from("coffees").update({
-          remaining_weight_g: applyInventoryDelta(Number(coffee.remaining_weight_g), -delta),
+          remaining_weight_g: adjustment.next + adjustment.deducted - recordedBefore,
         }).eq("id", d.coffeeId);
       }
     }
@@ -555,17 +595,18 @@ export async function updateCupping(id: string, coffeeId: string, formData: Form
 export async function deleteCupping(id: string, coffeeId: string): Promise<void> {
   const { restoredAfter } = await import("@/lib/domain/inventory");
   const db = await createClient();
-  // read the dose first (RLS-scoped): deleting hands the coffee back, exactly
-  // what this cupping consumed — never derived from current stock.
-  const { data: cupping } = await db.from("cuppings").select("dose_g, coffee_id").eq("id", id).single();
+  // read the row first (RLS-scoped): deleting hands back exactly what this
+  // cupping deducted at record time (inventory_deducted_g) — never derived
+  // from the dose beyond that. Legacy/never-deducted rows restore nothing.
+  const { data: cupping } = await db.from("cuppings").select("coffee_id, inventory_deducted_g").eq("id", id).single();
   if (!cupping) return;
-  const dose = Number((cupping.dose_g as number | null) ?? 0);
+  const deducted = Number(cupping.inventory_deducted_g ?? 0);
   const ownerId = (cupping.coffee_id as string) ?? coffeeId;
-  if (dose > 0) {
+  if (deducted > 0) {
     const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", ownerId).single();
     if (coffee?.remaining_weight_g != null) {
       const { error: invError } = await db.from("coffees").update({
-        remaining_weight_g: restoredAfter(Number(coffee.remaining_weight_g), dose),
+        remaining_weight_g: restoredAfter(Number(coffee.remaining_weight_g), deducted),
       }).eq("id", ownerId);
       if (invError) return;
     }
@@ -573,11 +614,11 @@ export async function deleteCupping(id: string, coffeeId: string): Promise<void>
   const { error } = await db.from("cuppings").delete().eq("id", id);
   if (error) {
     // reverse the restore when the delete did not happen
-    if (dose > 0) {
+    if (deducted > 0) {
       const { data: coffee } = await db.from("coffees").select("remaining_weight_g").eq("id", ownerId).single();
       if (coffee?.remaining_weight_g != null) {
         await db.from("coffees").update({
-          remaining_weight_g: Math.max(0, Number(coffee.remaining_weight_g) - dose),
+          remaining_weight_g: Math.max(0, Number(coffee.remaining_weight_g) - deducted),
         }).eq("id", ownerId);
       }
     }

@@ -24,6 +24,7 @@ import { formatRatio } from "@/lib/domain/ratio";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { errorText } from "@/lib/i18n/errors";
 import { cn } from "@/components/ui/utils";
+import { partitionCoffeesForBrewSelect } from "@/lib/domain/inventory";
 
 type CoffeeOption = {
   id: string;
@@ -109,13 +110,17 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
   const inh = (name: keyof NewBrewFormInput) =>
     inherited.has(name) && !dirty[name] ? "bg-paper" : "";
   // Validation messages are stable codes (schemas.ts msg()); the dictionaries
-  // hold the only user-facing wording. Zod's own default messages (ranges,
-  // uuid/type checks) are not application-owned and degrade to the generic.
-  const err = (name: keyof NewBrewFormInput) => errorText(form.formState.errors[name]?.message, t);
+  // hold the only user-facing wording. No error -> null, so FieldError stays
+  // hidden: the generic fallback must surface only under an actual error.
+  const err = (name: keyof NewBrewFormInput) => {
+    const message = form.formState.errors[name]?.message;
+    return typeof message === "string" ? errorText(message, t) : null;
+  };
   // ponytail: context comes from the already-loaded list — selecting a coffee
   // never fires a request.
   const selectedCoffee = coffees.find((c) => c.id === values.coffeeId);
   const remaining = selectedCoffee?.remaining_weight_g;
+  const depleted = remaining === 0;
   const overRemaining = remaining != null && dose > remaining;
   // legacy manual count from the copy source, shown until structured
   // pours take over the counter. Never editable, never invented.
@@ -150,7 +155,9 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
     // brewTimeMin/Sec ride along; the action normalizes to total_time_sec
     const { createBrew } = await import("@/app/actions");
     const res = await createBrew(null, fd);
-    if (res.error) setSubmitError(res.error);
+    // action failures travel as stable codes; translate at the boundary so
+    // the user never sees "save.failed" verbatim
+    if (res.error) setSubmitError(errorText(res.error, t));
     else if (res.id) {
       const { localDraftStore } = await import("@/lib/drafts/local-store");
       await localDraftStore.clear(key);
@@ -202,15 +209,35 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
         <Label htmlFor="coffeeId">{t("brew.field.coffee")} *</Label>
         <Select id="coffeeId" error={!!form.formState.errors.coffeeId} className={inh("coffeeId")} {...form.register("coffeeId")}>
           <option value="">{t("brew.pickCoffee")}</option>
-          {coffees.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {(() => {
+            const { available, depleted } = partitionCoffeesForBrewSelect(coffees);
+            return (
+              <>
+                {available.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {depleted.length > 0 ? (
+                  <optgroup label={t("coffee.depletedGroup")}>
+                    {depleted.map((c) => <option key={c.id} value={c.id}>{c.name} · ~0 g</option>)}
+                  </optgroup>
+                ) : null}
+              </>
+            );
+          })()}
         </Select>
         <FieldError>{err("coffeeId")}</FieldError>
         {selectedCoffee ? (
+          <>
           <p className="tnum mt-1 text-sm text-ink2">
             {[selectedCoffee.origin, selectedCoffee.process].filter(Boolean).join(" · ") || t("coffee.metaUnknown")}
             {" · "}~{selectedCoffee.remaining_weight_g ?? "?"} g {selectedCoffee.remaining_weight_g === 1 ? t("coffee.remainingOne") : t("coffee.remainingMany")}
             {" · "}{formatReceived(selectedCoffee.received_date, locale)}
           </p>
+          {depleted ? (
+            <p className="mt-1 flex min-h-8 items-center gap-1 text-sm text-ember" role="alert">
+              <TriangleAlert size={16} aria-hidden />
+              {t("brew.depleted")}
+            </p>
+          ) : null}
+          </>
         ) : null}
         <Switch
           label={t("brew.field.selectedBeans")}

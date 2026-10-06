@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/controls";
 import { PAGE_SIZE, listHref, parseBrewsParams } from "@/lib/lists/params";
 import { BREWS_LIST_PREF_KEYS, type ListPrefs } from "@/lib/lists/prefs";
 import { getT } from "@/lib/i18n/server";
+import { errorText } from "@/lib/i18n/errors";
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -82,6 +83,11 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
       </div>
       <ApplyListPrefs list="brews" base="/brews" params={params} explicit={explicit} persist={BREWS_LIST_PREF_KEYS} />
       <RecentlyViewed items={recent} />
+      {sp.error ? (
+        <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
+          {errorText(typeof sp.error === "string" ? sp.error : null, t)}
+        </p>
+      ) : null}
       {page === null ? (
         <Card><p className="text-sm">{t("list.unreachable")}</p></Card>
       ) : (

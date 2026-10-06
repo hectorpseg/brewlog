@@ -41,11 +41,11 @@ export type CoffeeInput = z.infer<typeof coffeeSchema>;
 const sensory = z.string().max(40).nullish();
 
 export const brewSchema = z.object({
-  coffeeId: z.string().uuid("Pick a coffee"),
-  doseG: z.coerce.number().positive().max(200),
-  waterG: z.coerce.number().positive().max(2000),
+  coffeeId: z.string().uuid(msg("coffee.pick")),
+  doseG: z.coerce.number({ message: msg("brew.dose.required") }).positive(msg("brew.dose.required")).max(200),
+  waterG: z.coerce.number({ message: msg("brew.water.required") }).positive(msg("brew.water.required")).max(2000),
   // preparation date, distinct from created_at: "2026-09-21" from <input type="date">
-  brewedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date").refine((s) => !isFutureDateString(s), msg("date.future")).nullish()),
+  brewedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, msg("date.invalid")).refine((s) => !isFutureDateString(s), msg("date.future")).nullish()),
   tempC: optNum(z.coerce.number().min(50).max(100)),
   grindClicks: optNum(z.coerce.number().int().min(0).max(300)),
   grinder: z.string().max(80).nullish(),
@@ -130,8 +130,8 @@ export type SessionInput = z.infer<typeof sessionSchema>;
 // fields (never entities), mirroring Brew; legacy free-text `grind` stays
 // readable for old rows. Sensory rides on hot/warm/cold + notes.
 export const cuppingSchema = z.object({
-  coffeeId: z.string().uuid(),
-  cuppedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date").refine((s) => !isFutureDateString(s), msg("cupping.date.future")).nullish()),
+  coffeeId: z.string().uuid(msg("coffee.pick")),
+  cuppedAt: z.preprocess(emptyToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/, msg("date.invalid")).refine((s) => !isFutureDateString(s), msg("cupping.date.future")).nullish()),
   doseG: optNum(z.coerce.number().positive().max(200)),
   waterG: optNum(z.coerce.number().positive().max(2000)),
   grind: z.string().max(80).nullish(),

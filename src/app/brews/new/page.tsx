@@ -7,8 +7,11 @@ import { formatRatio } from "@/lib/domain/ratio";
 import { actualWaterG, pouredTotalG } from "@/lib/domain/brew-water";
 import { formInitKey } from "@/lib/domain/recipe-start";
 
+import { getT } from "@/lib/i18n/server";
+
 export default async function NewBrewPage({ searchParams }: { searchParams: Promise<{ coffee?: string; copy?: string; brew?: string }> }) {
   const sp = await searchParams;
+  const t = await getT();
   const here = `/brews/new${sp.brew ? `?brew=${encodeURIComponent(sp.brew)}&copy=1` : sp.coffee ? `?coffee=${encodeURIComponent(sp.coffee)}${sp.copy ? "&copy=1" : ""}` : ""}`;
   const user = await requireUser(here);
   // fetch-once reference data: stable for the session, never refetched on keystroke
@@ -37,18 +40,18 @@ export default async function NewBrewPage({ searchParams }: { searchParams: Prom
   const lastActual = actualWaterG(last?.water_g, pouredTotalG(lastPours));
   return (
     <div>
-      <h1 className="mb-3 font-display text-2xl">New brew</h1>
+      <h1 className="mb-3 font-display text-2xl">{t("brew.new.title")}</h1>
       {last && lastCoffeeName ? (
         <Card className="mb-3">
           <p className="text-sm text-ink2">
-            Last brew · {lastCoffeeName} ·{" "}
+            {t("brew.last")} · {lastCoffeeName} ·{" "}
             {formatRatio(Number(last.dose_g), lastActual ?? NaN)}
           </p>
           <Link
             href={`/brews/new?coffee=${last.coffee_id}&copy=1`}
             className="mt-2 inline-block min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white transition-transform duration-150 active:scale-[0.95]"
           >
-            Continue from last brew
+            {t("brew.continueLast")}
           </Link>
         </Card>
       ) : null}

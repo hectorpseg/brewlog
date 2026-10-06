@@ -18,6 +18,7 @@ import { formatBrewDate } from "@/lib/domain/brew-date";
 import { brewFinalScore, formatBrewScore } from "@/lib/domain/brew-score";
 import { eyPercent, pouredTotalG, actualWaterG, retainedG } from "@/lib/domain/brew-water";
 import { formatBrewSummary } from "@/lib/domain/brew-summary";
+import type { PourFact } from "@/lib/domain/pours";
 import { toShareCardData } from "@/lib/domain/share-card";
 import { brewLifecycle, brewWarningKeys, BREW_LIFECYCLE_KEY } from "@/lib/domain/brew-status";
 import { describeDeletion } from "@/lib/domain/deletion";
@@ -56,7 +57,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
   // with the persisted tasting rows (never observation text).
   const score = brewFinalScore(tastings);
   // Extraction metrics reuse the one domain module; missing inputs hide values.
-  const poursFacts = pours as { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown }[];
+  const poursFacts = pours as PourFact[];
   const ey = eyPercent(brew as Record<string, unknown>);
   const retained = retainedG(brew as Record<string, unknown>, poursFacts);
   // ratio reflects actual brew water; planned water stays explicit when pours differ
@@ -70,17 +71,21 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     coffeeName: typeof coffeeName === "string" ? coffeeName : null,
     score,
     pours: poursFacts,
-  });
-  const summary = formatBrewSummary({
-    brew: brew as Record<string, unknown>,
-    coffeeName: typeof coffeeName === "string" ? coffeeName : null,
-    sessionTitle: brewSession && typeof brewSession === "object" && "title" in brewSession
-      ? String((brewSession as { title: unknown }).title)
-      : null,
-    observation: obs as Record<string, unknown> | null,
-    tastings: tastings as { stage: unknown; attribute: unknown; value: unknown }[],
-    pours: pours as { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown }[],
-  });
+  }, t);
+  const summary = formatBrewSummary(
+    {
+      brew: brew as Record<string, unknown>,
+      coffeeName: typeof coffeeName === "string" ? coffeeName : null,
+      sessionTitle: brewSession && typeof brewSession === "object" && "title" in brewSession
+        ? String((brewSession as { title: unknown }).title)
+        : null,
+      observation: obs as Record<string, unknown> | null,
+      tastings: tastings as { stage: unknown; attribute: unknown; value: unknown }[],
+      pours: poursFacts,
+    },
+    t,
+    locale,
+  );
   return (
     <div className="flex flex-col gap-4">
       <div>
