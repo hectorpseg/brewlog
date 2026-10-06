@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterBrewOptions, resolveCompareIds, stepActive, toComparableBrew, toCompareOption, type BrewOption } from "@/lib/domain/brew-diff";
+import { compareRowsFor, filterBrewOptions, resolveCompareSelection, stepActive, toComparableBrew, toCompareOption, valuesChanged, type BrewOption } from "@/lib/domain/brew-diff";
 import { diffBrews } from "@/lib/domain/compare";
 import { formatDuration } from "@/lib/domain/brew-time";
 
@@ -87,34 +87,80 @@ describe("compare answers what changed", () => {
   it("splits changed vs unchanged on resolved scalars", () => {
     const a = toComparableBrew(base);
     const b = toComparableBrew({ ...base, temp_c: 94, grind_clicks: 73, filter: "Cafec Wave" });
-    const d = diffBrews(a, b);
-    expect(d.changed.sort()).toEqual(["Filter", "Grind", "Starting temperature"]);
-    expect(d.same).toContain("Coffee");
-    expect(d.same).toContain("Dose");
-    expect(d.same).toContain("Session");
+    expect(diffBrews(a, b).changed.sort()).toEqual(["Filter", "Grind", "Starting temperature"]);
+    expect(diffBrews(a, b).same).toContain("Coffee");
+    expect(diffBrews(a, b).same).toContain("Dose");
+    expect(diffBrews(a, b).same).toContain("Session");
   });
 });
 
-describe("resolveCompareIds", () => {
-  const ids = ["a", "b", "c"];
+describe("resolveCompareSelection", () => {
+  const ids = ["a", "b", "c", "d"];
   it("defaults to the latest two", () => {
-    expect(resolveCompareIds(ids)).toEqual({ aId: "a", bId: "b" });
+    expect(resolveCompareSelection(ids, [])).toEqual(["a", "b"]);
   });
-  it("opens a Compare-this-brew deep link (?a= only) with the brew as A", () => {
-    expect(resolveCompareIds(ids, "c", null)).toEqual({ aId: "c", bId: "a" });
-    expect(resolveCompareIds(ids, "c", undefined)).toEqual({ aId: "c", bId: "a" });
+  it("opens a Compare-this-brew deep link (?a= only) with the brew as slot 1", () => {
+    expect(resolveCompareSelection(ids, ["c", null, null, null])).toEqual(["c", "a"]);
   });
   it("honors explicit, valid, distinct params", () => {
-    expect(resolveCompareIds(ids, "c", "a")).toEqual({ aId: "c", bId: "a" });
+    expect(resolveCompareSelection(ids, ["c", "a", null, null])).toEqual(["c", "a"]);
   });
-  it("falls back per side on unknown ids and de-duplicates", () => {
-    expect(resolveCompareIds(ids, "zzz", "b")).toEqual({ aId: "a", bId: "b" });
-    expect(resolveCompareIds(ids, "a", "a")).toEqual({ aId: "a", bId: "b" });
-    expect(resolveCompareIds(ids, "b", "zzz")).toEqual({ aId: "b", bId: "a" });
+  it("keeps >2 explicit params and drops unknown or duplicate ones in order", () => {
+    expect(resolveCompareSelection(ids, ["c", "a", "d", null])).toEqual(["c", "a", "d"]);
+    expect(resolveCompareSelection(ids, ["zzz", "b", null, null])).toEqual(["b", "a"]);
+    expect(resolveCompareSelection(ids, ["a", "a", null, null])).toEqual(["a", "b"]);
+    expect(resolveCompareSelection(ids, ["a", "a", "b", null])).toEqual(["a", "b"]);
+  });
+  it("caps at COMPARE_MAX slots", () => {
+    expect(resolveCompareSelection(ids, ["d", "c", "b", "a"])).toEqual(["d", "c", "b", "a"]);
+    expect(resolveCompareSelection([...ids, "e"], ["e", "d", "c", "b", "a"])).toEqual(["e", "d", "c", "b"]);
+  });
+  it("pads to exactly two from the id list, never more, without explicit params", () => {
+    expect(resolveCompareSelection(ids, ["c"])).toEqual(["c", "a"]);
+    expect(resolveCompareSelection(ids, [null, null, null, null])).toEqual(["a", "b"]);
   });
   it("returns null when there is nothing to compare", () => {
-    expect(resolveCompareIds([])).toBeNull();
-    expect(resolveCompareIds(["a"])).toBeNull();
+    expect(resolveCompareSelection([], [])).toBeNull();
+    expect(resolveCompareSelection(["a"], [])).toBeNull();
+    expect(resolveCompareSelection(["a"], ["a"])).toBeNull();
+  });
+});
+
+describe("valuesChanged", () => {
+  it("flags any difference across N values, including '-'", () => {
+    expect(valuesChanged(["92°C", "92°C", "94°C"])).toBe(true);
+    expect(valuesChanged(["-", "40 g", "40 g"])).toBe(true);
+    expect(valuesChanged(["No", "No", "No"])).toBe(false);
+    expect(valuesChanged(["1:15", "1:15"])).toBe(false);
+  });
+});
+
+describe("compareRowsFor", () => {
+  const scalars = [
+    { Coffee: "A", Dose: "15 g", LilyDrip: "Yes", Temp: "92°C" },
+    { Coffee: "A", Dose: "17 g", LilyDrip: "No", Temp: "92°C" },
+  ];
+  it("builds rows with slot-aligned values and per-row changed", () => {
+    const rows = compareRowsFor(scalars, ["Coffee", "Dose", "LilyDrip", "Temp"]);
+    expect(rows).toEqual([
+      { label: "Coffee", values: ["A", "A"], changed: false },
+      { label: "Dose", values: ["15 g", "17 g"], changed: true },
+      { label: "LilyDrip", values: ["Yes", "No"], changed: true },
+      { label: "Temp", values: ["92°C", "92°C"], changed: false },
+    ]);
+  });
+  it("hides all-'-' and all-'No' rows across N brews", () => {
+    const rs = compareRowsFor(
+      [{ X: "-" }, { X: "-" }, { X: "-" }],
+      ["X"],
+    );
+    expect(rs).toEqual([]);
+    expect(compareRowsFor([{ X: "No" }, { X: "No" }], ["X"])).toEqual([]);
+  });
+  it("keeps a row recorded on a single brew only", () => {
+    expect(compareRowsFor([{ X: "-" }, { X: "40 g" }], ["X"])).toEqual([
+      { label: "X", values: ["-", "40 g"], changed: true },
+    ]);
   });
 });
 

@@ -1,30 +1,36 @@
 import { Fragment } from "react";
-import { getT } from "@/lib/i18n/server";
 
-export type CompareFieldRow = { label: string; a: string; b: string; changed: boolean };
+export type CompareFieldRow = { label: string; values: string[]; changed: boolean };
 
-// One compare section table: fixed field order, label | brew A | brew B.
-// Changed values read ember; missing reads "-". Pairs missing on both
-// sides never reach this component — order never changes.
-export async function CompareFieldTable({ rows }: { rows: CompareFieldRow[] }) {
-  const t = await getT();
+// One compare section table: label column + one value column per brew.
+// Changed values read ember; missing reads "-". Rows missing on every brew
+// never reach this component — order never changes. Two brews keep the tight
+// `1fr auto auto` layout; more brews use equal shrinking columns (the cap of
+// 4 slots keeps numeric columns legible on a phone).
+export function CompareFieldTable({ rows, labels }: { rows: CompareFieldRow[]; labels: string[] }) {
+  const cols =
+    labels.length === 2
+      ? "1fr auto auto"
+      : `minmax(0,1fr) repeat(${labels.length - 1}, minmax(0,1fr))`;
   return (
-    <div className="tnum mt-2 grid grid-cols-[1fr_auto_auto] items-baseline gap-x-3 gap-y-2 text-sm">
+    <div
+      className="tnum mt-2 grid items-baseline gap-x-3 gap-y-2 text-sm"
+      style={{ gridTemplateColumns: cols }}
+    >
       <span className="text-ink2"> </span>
-      <span className="text-center text-ink2">{t("compare.brewA")}</span>
-      <span className="text-center text-ink2">{t("compare.brewB")}</span>
+      {labels.map((l, i) => (
+        <span key={i} className="text-center text-ink2">{l}</span>
+      ))}
       {rows.map((r) => (
         <Fragment key={r.label}>
           <span className="text-ink2">{r.label}</span>
-          <span className={r.a === "-" ? "text-center text-ink3" : r.changed ? "text-center font-medium text-ember" : "text-center font-medium"}>
-            {r.a}
-          </span>
-          <span className={r.b === "-" ? "text-center text-ink3" : r.changed ? "text-center font-medium text-ember" : "text-center font-medium"}>
-            {r.b}
-          </span>
+          {r.values.map((v, i) => (
+            <span key={i} className={v === "-" ? "text-center text-ink3" : r.changed ? "text-center font-medium text-ember" : "text-center font-medium"}>
+              {v}
+            </span>
+          ))}
         </Fragment>
       ))}
     </div>
   );
 }
-

@@ -224,50 +224,57 @@ const pourA2 = { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pa
 
 describe("comparePours", () => {
   it("flags changed, unchanged, and missing pours", () => {
-    const rows = comparePours([pourA1, pourA2], [{ ...pourA1 }, { ...pourA2, amount_g: 70 }]);
+    const rows = comparePours([[pourA1, pourA2], [{ ...pourA1 }, { ...pourA2, amount_g: 70 }]]);
     expect(rows.map((r) => [r.sequence, r.changed])).toEqual([[1, false], [2, true]]);
   });
   it("flags temperature, MeloDrip, and Switch changes", () => {
-    const rows = comparePours(
+    const rows = comparePours([
       [pourA1],
       [{ ...pourA1, temp_c: 92, melodrip: true, switch_state: "open" }],
-    );
+    ]);
     expect(rows[0].changed).toBe(true);
     // identical enrichment reads unchanged
-    expect(comparePours([pourA1], [{ ...pourA1, temp_c: null }])[0].changed).toBe(false);
+    expect(comparePours([[pourA1], [{ ...pourA1, temp_c: null }]])[0].changed).toBe(false);
   });
   it("marks one-sided pours as changed", () => {
-    const rows = comparePours([pourA1], [pourA1, pourA2]);
+    const rows = comparePours([[pourA1], [pourA1, pourA2]]);
     expect(rows).toHaveLength(2);
-    expect(rows[1]).toMatchObject({ sequence: 2, a: null, changed: true });
+    expect(rows[1]).toMatchObject({ sequence: 2, changed: true });
   });
   it("returns nothing when neither side has pours", () => {
-    expect(comparePours(null, [])).toEqual([]);
-    expect(comparePours(undefined, undefined)).toEqual([]);
+    expect(comparePours([null, []])).toEqual([]);
+    expect(comparePours([undefined, undefined])).toEqual([]);
   });
   it("orders deterministically and ignores garbage rows", () => {
-    const rows = comparePours(
+    const rows = comparePours([
       [pourA2, { sequence: 9, amount_g: "x", timing_seconds: 1, bloom: false, pattern: "center" }],
       [pourA1],
-    );
+    ]);
     expect(rows.map((r) => r.sequence)).toEqual([1, 2]);
+  });
+  it("pools sequences across three brews in slot order", () => {
+    const rows = comparePours([[pourA1], [pourA2], [{ ...pourA1, amount_g: 45 }]]);
+    expect(rows.map((r) => r.sequence)).toEqual([1, 2]);
+    expect(rows[0].values).toHaveLength(3);
+    expect(rows[0].values[2]?.amount_g).toBe(45);
+    expect(rows[1].values[0]).toBeNull();
   });
 });
 
 describe("comparePourFields", () => {
   it("renders per-field rows with - for missing sides", () => {
-    const rows = comparePourFields([pourA1], [{ ...pourA1 }, pourA2]);
+    const rows = comparePourFields([[pourA1], [{ ...pourA1 }, pourA2]]);
     const byLabel = Object.fromEntries(rows.map((r) => [r.label, r]));
-    expect(byLabel["Pour 1 time"]).toMatchObject({ a: "0:00", b: "0:00", changed: false });
-    expect(byLabel["Pour 1 bloom"]).toMatchObject({ a: "Yes", b: "Yes", changed: false });
-    expect(byLabel["Pour 2 amount"]).toMatchObject({ a: "-", b: "60 g", changed: true });
-    expect(byLabel["Pour 2 note"]).toMatchObject({ a: "-", b: "slow", changed: true });
+    expect(byLabel["Pour 1 time"]).toMatchObject({ values: ["0:00", "0:00"], changed: false });
+    expect(byLabel["Pour 1 bloom"]).toMatchObject({ values: ["Yes", "Yes"], changed: false });
+    expect(byLabel["Pour 2 amount"]).toMatchObject({ values: ["-", "60 g"], changed: true });
+    expect(byLabel["Pour 2 note"]).toMatchObject({ values: ["-", "slow"], changed: true });
   });
   it("returns nothing when neither side has pours", () => {
-    expect(comparePourFields(null, [])).toEqual([]);
+    expect(comparePourFields([null, []])).toEqual([]);
   });
   it("keeps identical fields quiet when only one field changed", () => {
-    const rows = comparePourFields([pourA1], [{ ...pourA1, amount_g: 45 }]);
+    const rows = comparePourFields([[pourA1], [{ ...pourA1, amount_g: 45 }]]);
     const byLabel = Object.fromEntries(rows.map((r) => [r.label, r]));
     expect(byLabel["Pour 1 amount"].changed).toBe(true);
     expect(byLabel["Pour 1 time"].changed).toBe(false);
@@ -275,15 +282,21 @@ describe("comparePourFields", () => {
   });
   it("compares temperature, MeloDrip, notes, and Switch with - for unrecorded", () => {
     const enriched = { ...pourA1, temp_c: 92, melodrip: true, switch_state: "closed" as const, note: "slow spiral" };
-    const rows = comparePourFields([pourA1], [enriched], true);
+    const rows = comparePourFields([[pourA1], [enriched]], true);
     const byLabel = Object.fromEntries(rows.map((r) => [r.label, r]));
-    expect(byLabel["Pour 1 temp"]).toMatchObject({ a: "-", b: "92°C", changed: true });
-    expect(byLabel["Pour 1 melodrip"]).toMatchObject({ a: "No", b: "Yes", changed: true });
-    expect(byLabel["Pour 1 switch"]).toMatchObject({ a: "-", b: "closed", changed: true });
-    expect(byLabel["Pour 1 note"]).toMatchObject({ a: "-", b: "slow spiral", changed: true });
+    expect(byLabel["Pour 1 temp"]).toMatchObject({ values: ["-", "92°C"], changed: true });
+    expect(byLabel["Pour 1 melodrip"]).toMatchObject({ values: ["No", "Yes"], changed: true });
+    expect(byLabel["Pour 1 switch"]).toMatchObject({ values: ["-", "closed"], changed: true });
+    expect(byLabel["Pour 1 note"]).toMatchObject({ values: ["-", "slow spiral"], changed: true });
+  });
+  it("compares three brews with per-field changed flags", () => {
+    const rows = comparePourFields([[pourA1], [pourA1], [{ ...pourA1, amount_g: 45 }]]);
+    const byLabel = Object.fromEntries(rows.map((r) => [r.label, r]));
+    expect(byLabel["Pour 1 amount"]).toMatchObject({ values: ["40 g", "40 g", "45 g"], changed: true });
+    expect(byLabel["Pour 1 time"]).toMatchObject({ values: ["0:00", "0:00", "0:00"], changed: false });
   });
   it("hides switch rows entirely when neither brew uses the Hario Switch", () => {
-    const rows = comparePourFields([pourA1], [{ ...pourA1, melodrip: true }]);
+    const rows = comparePourFields([[pourA1], [{ ...pourA1, melodrip: true }]]);
     expect(rows.some((r) => r.label.includes("switch"))).toBe(false);
     // temperature rows still appear (enrichment compares regardless of Switch)
     expect(rows.some((r) => r.label.endsWith("melodrip"))).toBe(true);
