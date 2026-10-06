@@ -158,6 +158,13 @@ const en = {
   "share.status.failed": "Failed, try download",
   "share.status.working": "Working…",
 
+  // Share-card generated labels. These label stored data; coffee names,
+  // equipment, and numeric values are never translated.
+  "share.label.coffee": "coffee",
+  "share.label.start": "Start",
+  "share.label.grind": "Grind",
+  "share.label.total": "Total",
+
   // Pour editor and pour display helpers. Stored pattern values stay English;
   // only their display labels are translated.
   "pours.add": "Add pour",
@@ -616,6 +623,12 @@ const es: Record<TranslationKey, string> = {
   "share.status.copyFailed": "Error al copiar",
   "share.status.failed": "Error, prueba a descargar",
   "share.status.working": "Procesando…",
+
+  // Share-card generated labels.
+  "share.label.coffee": "café",
+  "share.label.start": "Inicio",
+  "share.label.grind": "Molienda",
+  "share.label.total": "Total",
 
   "pours.add": "Añadir vertido",
   "pours.pour": "Vertido",

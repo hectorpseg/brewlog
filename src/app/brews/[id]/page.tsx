@@ -71,7 +71,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     coffeeName: typeof coffeeName === "string" ? coffeeName : null,
     score,
     pours: poursFacts,
-  });
+  }, t);
   const summary = formatBrewSummary(
     {
       brew: brew as Record<string, unknown>,

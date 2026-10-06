@@ -1,3 +1,4 @@
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import { brewRatio } from "@/lib/domain/ratio";
 import { eyPercent, pouredTotalG } from "@/lib/domain/brew-water";
 import { formatDuration } from "@/lib/domain/brew-time";
@@ -7,6 +8,8 @@ import { formatBrewScore } from "@/lib/domain/brew-score";
 // fields listed here ever reach the image or clipboard text: coffee identity,
 // recipe parameters, derived score. Notes, observations, tastings detail,
 // sessions, and IDs never enter this type by construction.
+
+type Translator = (key: TranslationKey) => string;
 
 export type ShareCardData = {
   coffeeName: string;
@@ -38,9 +41,9 @@ function num(v: unknown): number | null {
 
 // Card-ready snapshot. Score is passed in (callers derive it with
 // brewFinalScore); null omits it, never faked.
-export function toShareCardData(input: ShareCardInput): ShareCardData {
+export function toShareCardData(input: ShareCardInput, t: Translator): ShareCardData {
   const { brew, coffeeName, score = null, pours } = input;
-  const name = text(coffeeName, 80) ?? "Brew";
+  const name = text(coffeeName, 80) ?? t("summary.brewFallback");
   const dose = num(brew.dose_g);
   const water = num(brew.water_g);
   // ratio reflects actual brew water: poured total when pours exist
@@ -50,32 +53,34 @@ export function toShareCardData(input: ShareCardInput): ShareCardData {
 
   const recipeLines: string[] = [];
   const recipe: string[] = [];
-  if (dose != null) recipe.push(`${dose} g coffee`);
+  if (dose != null) recipe.push(`${dose} g ${t("share.label.coffee")}`);
   if (poured != null && water != null && Math.abs(poured - water) >= 0.05) {
-    recipe.push(`${poured} g poured (${water} g planned)`);
+    recipe.push(`${poured} g ${t("summary.poured")} (${water} g ${t("summary.planned")})`);
   } else if (actual != null) {
-    recipe.push(`${actual} g water`);
+    recipe.push(`${actual} g ${t("summary.water")}`);
   }
   if (recipe.length > 0) {
     recipeLines.push(ratio != null ? `${recipe.join(" · ")} (1:${ratio})` : recipe.join(" · "));
   }
   const temp = num(brew.temp_c);
   // brews.temp_c is the starting temperature; per-pour temps may differ
-  if (temp != null) recipeLines.push(`Start ${temp}°C`);
+  if (temp != null) recipeLines.push(`${t("share.label.start")} ${temp}°C`);
   const clicks = num(brew.grind_clicks);
-  if (clicks != null) recipeLines.push(`Grind ${clicks} clicks`);
+  if (clicks != null) recipeLines.push(`${t("share.label.grind")} ${clicks} ${t("brew.clicks")}`);
   for (const key of ["grinder", "dripper", "filter", "water_source"] as const) {
-    const t = text(brew[key]);
-    if (t) recipeLines.push(t);
+    const t2 = text(brew[key]);
+    if (t2) recipeLines.push(t2);
   }
   const pourCount = num(brew.pour_count);
-  if (pourCount != null) recipeLines.push(`${pourCount} pours`);
+  if (pourCount != null) {
+    recipeLines.push(`${pourCount} ${t(pourCount === 1 ? "summary.pourCountOne" : "summary.pourCountMany")}`);
+  }
   const time = formatDuration(
     brew.total_time_sec != null && brew.total_time_sec !== "" ? Number(brew.total_time_sec) : null,
   );
-  if (time) recipeLines.push(`Total ${time}`);
+  if (time) recipeLines.push(`${t("share.label.total")} ${time}`);
   const beverage = num(brew.final_beverage_g);
-  if (beverage != null) recipeLines.push(`${beverage} g out`);
+  if (beverage != null) recipeLines.push(`${beverage} g ${t("summary.out")}`);
   // extraction metrics via the shared water module; absent values are omitted
   const facts = {
     water_g: brew.water_g, final_beverage_g: brew.final_beverage_g,
@@ -83,9 +88,9 @@ export function toShareCardData(input: ShareCardInput): ShareCardData {
   };
   const ey = eyPercent(facts);
   const bypass = num(brew.bypass_g);
-  if (brew.tds_percent != null) recipeLines.push(`TDS ${brew.tds_percent}%`);
-  if (ey != null) recipeLines.push(`EY ${ey}%`);
-  if (bypass != null) recipeLines.push(`${bypass} g bypass`);
+  if (brew.tds_percent != null) recipeLines.push(`${t("summary.tds")} ${brew.tds_percent}%`);
+  if (ey != null) recipeLines.push(`${t("summary.ey")} ${ey}%`);
+  if (bypass != null) recipeLines.push(`${bypass} g ${t("summary.bypass")}`);
 
   return {
     coffeeName: name,
@@ -97,11 +102,11 @@ export function toShareCardData(input: ShareCardInput): ShareCardData {
 }
 
 // Clipboard fallback: same privacy-safe fields as the image, plain text.
-export function formatShareCardText(card: ShareCardData): string {
+export function formatShareCardText(card: ShareCardData, t: Translator): string {
   const lines = [card.coffeeName];
   if (card.ratio) lines.push(card.ratio);
   lines.push(...card.recipeLines);
-  if (card.scoreLabel != null) lines.push(`Score ${card.scoreLabel} / 5`);
+  if (card.scoreLabel != null) lines.push(`${t("brew.scoreLabel")} ${card.scoreLabel} / 5`);
   lines.push("BrewLog");
   return lines.join("\n");
 }
