@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/supabase/require-user";
 import { listCoffeesPage } from "@/lib/db/queries";
 import { resetDevData, seedDevData } from "@/app/actions";
-import { ApplyListPrefs, CoffeeList, ListNavProvider, ListSearchBox, ListSortPills, NoListMatches } from "@/components/list-controls";
+import { ApplyListPrefs, CoffeeList, FilterChips, ListNavProvider, ListSearchBox, ListSortPills, NoListMatches } from "@/components/list-controls";
 import { Button, Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseCoffeeParams } from "@/lib/lists/params";
@@ -19,10 +19,10 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   const t = await getT();
   const p = parseCoffeeParams(sp);
   // Full list state survives the login bounce (?next= carries the query).
-  await requireUser(listHref("/coffees", { q: p.q, sort: p.sort, count: p.count }));
-  const params = { q: p.q, sort: p.sort, count: p.count };
-  const explicit = { sort: "sort" in sp ? p.sort : undefined };
-  const coffees = await listCoffeesPage({ q: p.q, sort: p.sort, limit: p.count, offset: 0 }).catch(() => null);
+  await requireUser(listHref("/coffees", { q: p.q, sort: p.sort, status: p.status, count: p.count }));
+  const params = { q: p.q, sort: p.sort, status: p.status, count: p.count };
+  const explicit = { sort: "sort" in sp ? p.sort : undefined, status: "status" in sp ? p.status : undefined };
+  const coffees = await listCoffeesPage({ q: p.q, sort: p.sort, status: p.status, limit: p.count, offset: 0 }).catch(() => null);
   const filtered = p.q !== "";
   const rows = coffees?.rows ?? [];
   const devSeed = process.env.ALLOW_DEV_SEED === "true";
@@ -46,7 +46,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           </div>
         </Card>
       ) : null}
-      <ApplyListPrefs list="coffees" base="/coffees" params={params} explicit={explicit} />
+      <ApplyListPrefs list="coffees" base="/coffees" params={params} explicit={explicit} persist={["sort", "status"]} />
       {coffees === null ? (
         <Card><p className="text-sm">{t("list.unreachable")}</p></Card>
       ) : (
@@ -69,9 +69,26 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
               { value: "name", label: t("coffee.sort.name") },
             ]}
           />
+          <FilterChips
+            base="/coffees"
+            params={params}
+            list="coffees"
+            param="status"
+            options={[
+              { value: "available", label: t("coffee.filter.available") },
+              { value: "depleted", label: t("coffee.filter.depleted") },
+            ]}
+          />
           <CoffeeList rows={rows as CoffeeCardData[]}>
             {filtered ? (
               <NoListMatches query={p.q} base="/coffees" params={params} />
+            ) : p.status === "depleted" ? (
+              <EmptyState
+                title={t("coffee.empty.depleted.title")}
+                body={t("coffee.empty.depleted.body")}
+                actionHref="/coffees/new"
+                actionLabel={t("coffee.add")}
+              />
             ) : (
               <EmptyState
                 title={t("coffee.empty.title")}

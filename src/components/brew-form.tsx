@@ -24,6 +24,7 @@ import { formatRatio } from "@/lib/domain/ratio";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { errorText } from "@/lib/i18n/errors";
 import { cn } from "@/components/ui/utils";
+import { partitionCoffeesForBrewSelect } from "@/lib/domain/inventory";
 
 type CoffeeOption = {
   id: string;
@@ -116,6 +117,7 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
   // never fires a request.
   const selectedCoffee = coffees.find((c) => c.id === values.coffeeId);
   const remaining = selectedCoffee?.remaining_weight_g;
+  const depleted = remaining === 0;
   const overRemaining = remaining != null && dose > remaining;
   // legacy manual count from the copy source, shown until structured
   // pours take over the counter. Never editable, never invented.
@@ -202,15 +204,35 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
         <Label htmlFor="coffeeId">{t("brew.field.coffee")} *</Label>
         <Select id="coffeeId" error={!!form.formState.errors.coffeeId} className={inh("coffeeId")} {...form.register("coffeeId")}>
           <option value="">{t("brew.pickCoffee")}</option>
-          {coffees.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {(() => {
+            const { available, depleted } = partitionCoffeesForBrewSelect(coffees);
+            return (
+              <>
+                {available.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {depleted.length > 0 ? (
+                  <optgroup label={t("coffee.depletedGroup")}>
+                    {depleted.map((c) => <option key={c.id} value={c.id}>{c.name} · ~0 g</option>)}
+                  </optgroup>
+                ) : null}
+              </>
+            );
+          })()}
         </Select>
         <FieldError>{err("coffeeId")}</FieldError>
         {selectedCoffee ? (
+          <>
           <p className="tnum mt-1 text-sm text-ink2">
             {[selectedCoffee.origin, selectedCoffee.process].filter(Boolean).join(" · ") || t("coffee.metaUnknown")}
             {" · "}~{selectedCoffee.remaining_weight_g ?? "?"} g {selectedCoffee.remaining_weight_g === 1 ? t("coffee.remainingOne") : t("coffee.remainingMany")}
             {" · "}{formatReceived(selectedCoffee.received_date, locale)}
           </p>
+          {depleted ? (
+            <p className="mt-1 flex min-h-8 items-center gap-1 text-sm text-ember" role="alert">
+              <TriangleAlert size={16} aria-hidden />
+              {t("brew.depleted")}
+            </p>
+          ) : null}
+          </>
         ) : null}
         <Switch
           label={t("brew.field.selectedBeans")}

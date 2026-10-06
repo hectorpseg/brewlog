@@ -351,7 +351,7 @@ export function ListFilterLink({ href, children, ...rest }: {
 export function FilterChips({ base, params, param, options, list }: {
   base: string;
   params: Params;
-  param: "session" | "has" | "fav";
+  param: "session" | "has" | "fav" | "status";
   options: { value: string; label: string }[];
   list: ListName;
 }) {
