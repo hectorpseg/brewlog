@@ -68,12 +68,18 @@ export function parseBrewsParams(sp: Record<string, unknown>): BrewsListParams {
   };
 }
 
-export type CoffeeListParams = { q: string; sort: "recent" | "name"; count: number };
+export type CoffeeListParams = {
+  q: string;
+  sort: "recent" | "name";
+  status: "available" | "depleted";
+  count: number;
+};
 
 export function parseCoffeeParams(sp: Record<string, unknown>): CoffeeListParams {
   return {
     q: cleanQuery(sp.q),
     sort: oneOf(sp.sort, ["recent", "name"] as const, "recent"),
+    status: oneOf(sp.status, ["available", "depleted"] as const, "available"),
     count: cleanCount(sp.count),
   };
 }
@@ -113,6 +119,7 @@ export function toQuery(params: Record<string, string | number>, resetCount = fa
     if (v === "" || v === "all") continue;
     if (k === "sort" && v === "newest") continue;
     if (k === "sort" && v === "recent") continue;
+    if (k === "status" && v === "available") continue;
     if (k === "count" && Number(v) === PAGE_SIZE) continue;
     out.set(k, String(v));
   }

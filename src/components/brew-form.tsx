@@ -24,6 +24,7 @@ import { formatRatio } from "@/lib/domain/ratio";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { errorText } from "@/lib/i18n/errors";
 import { cn } from "@/components/ui/utils";
+import { partitionCoffeesForBrewSelect } from "@/lib/domain/inventory";
 
 type CoffeeOption = {
   id: string;
@@ -208,7 +209,19 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
         <Label htmlFor="coffeeId">{t("brew.field.coffee")} *</Label>
         <Select id="coffeeId" error={!!form.formState.errors.coffeeId} className={inh("coffeeId")} {...form.register("coffeeId")}>
           <option value="">{t("brew.pickCoffee")}</option>
-          {coffees.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {(() => {
+            const { available, depleted } = partitionCoffeesForBrewSelect(coffees);
+            return (
+              <>
+                {available.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {depleted.length > 0 ? (
+                  <optgroup label={t("coffee.depletedGroup")}>
+                    {depleted.map((c) => <option key={c.id} value={c.id}>{c.name} · ~0 g</option>)}
+                  </optgroup>
+                ) : null}
+              </>
+            );
+          })()}
         </Select>
         <FieldError>{err("coffeeId")}</FieldError>
         {selectedCoffee ? (

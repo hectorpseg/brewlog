@@ -10,6 +10,7 @@ export type ListName = "brews" | "coffees" | "sessions" | "cuppings";
 export type ListPrefs = {
   q?: string;
   sort?: string;
+  status?: string;
   session?: string;
   has?: string;
   fav?: string;

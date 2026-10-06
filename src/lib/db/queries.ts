@@ -291,7 +291,13 @@ export async function listBrewsPage(opts: BrewsPageOpts): Promise<ListPage<Recor
   return { rows, hasMore: page.hasMore };
 }
 
-export type CoffeesPageOpts = { q: string; sort: "recent" | "name"; limit: number; offset: number };
+export type CoffeesPageOpts = {
+  q: string;
+  sort: "recent" | "name";
+  status: "available" | "depleted";
+  limit: number;
+  offset: number;
+};
 
 export async function listCoffeesPage(opts: CoffeesPageOpts): Promise<ListPage<Record<string, unknown>>> {
   const db = await createClient();
@@ -299,6 +305,8 @@ export async function listCoffeesPage(opts: CoffeesPageOpts): Promise<ListPage<R
   query = opts.sort === "name"
     ? query.order("name", { ascending: true }).order("created_at", { ascending: false })
     : query.order("created_at", { ascending: false });
+  if (opts.status === "depleted") query = query.eq("remaining_weight_g", 0);
+  else query = query.or("remaining_weight_g.is.null,remaining_weight_g.gt.0");
   if (opts.q) query = query.ilike("search_blob", `%${escapeLike(opts.q)}%`);
   query = query.range(opts.offset, opts.offset + opts.limit);
   const { data, error } = await query;

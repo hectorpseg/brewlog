@@ -56,3 +56,27 @@ export function deductAdjustment(
   const deducted = Math.round((recorded - returned + consumed) * 10) / 10;
   return { deducted, next: Math.round((remainingG - consumed + returned) * 10) / 10 };
 }
+
+// Depleted status is determined solely by remaining inventory. Unknown stock
+// (null) is treated as available so it stays visible until the user weighs it.
+export function isDepletedCoffee(remainingG: number | null | undefined): boolean {
+  return remainingG === 0;
+}
+
+export type CoffeeOption = { id: string; name: string; remaining_weight_g: number | null };
+
+// Group coffees for the brew-form selector: available choices first, depleted
+// choices separated so they are never silent defaults. Null stock counts as
+// available because the user has not marked it empty.
+export function partitionCoffeesForBrewSelect(coffees: CoffeeOption[]): {
+  available: CoffeeOption[];
+  depleted: CoffeeOption[];
+} {
+  const available: CoffeeOption[] = [];
+  const depleted: CoffeeOption[] = [];
+  for (const c of coffees) {
+    if (isDepletedCoffee(c.remaining_weight_g)) depleted.push(c);
+    else available.push(c);
+  }
+  return { available, depleted };
+}
