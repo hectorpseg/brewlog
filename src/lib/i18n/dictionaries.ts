@@ -238,6 +238,29 @@ const en = {
   // Copy summary.
   "copy.summary": "Copy summary",
 
+  // Summary labels (brew copy/share text). These label stored data, never
+  // translate coffee names, equipment, notes, or tasting vocabulary.
+  "summary.brewFallback": "Brew",
+  "summary.dose": "dose",
+  "summary.water": "water",
+  "summary.poured": "poured",
+  "summary.planned": "planned",
+  "summary.out": "out",
+  "summary.retained": "retained",
+  "summary.bypass": "bypass",
+  "summary.tds": "TDS",
+  "summary.ey": "EY",
+  "summary.session": "Session",
+  "summary.expected": "Expected",
+  "summary.tasting": "Tasting",
+  "summary.pours": "Pours",
+  "summary.pourCountOne": "pour",
+  "summary.pourCountMany": "pours",
+  "summary.overall": "Overall",
+  "summary.waterNotes": "Water notes",
+  "summary.brewNotes": "Brew notes",
+  "summary.switch": "Switch",
+
   // Brew time input.
   "brew.time.minutes": "Minutes",
   "brew.time.seconds": "Seconds",
@@ -653,6 +676,28 @@ const es: Record<TranslationKey, string> = {
   "save.localTooltip": "Guardado en este dispositivo, aún sin sincronizar",
 
   "copy.summary": "Copiar resumen",
+
+  // Summary labels (brew copy/share text).
+  "summary.brewFallback": "Extracción",
+  "summary.dose": "dosis",
+  "summary.water": "agua",
+  "summary.poured": "vertido",
+  "summary.planned": "planeado",
+  "summary.out": "salida",
+  "summary.retained": "retenido",
+  "summary.bypass": "bypass",
+  "summary.tds": "TDS",
+  "summary.ey": "EY",
+  "summary.session": "Sesión",
+  "summary.expected": "Esperado",
+  "summary.tasting": "Cata",
+  "summary.pours": "Vertidos",
+  "summary.pourCountOne": "vertido",
+  "summary.pourCountMany": "vertidos",
+  "summary.overall": "General",
+  "summary.waterNotes": "Notas del agua",
+  "summary.brewNotes": "Notas de la extracción",
+  "summary.switch": "Switch",
 
   "brew.time.minutes": "Minutos",
   "brew.time.seconds": "Segundos",

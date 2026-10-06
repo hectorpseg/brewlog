@@ -72,16 +72,20 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
     score,
     pours: poursFacts,
   });
-  const summary = formatBrewSummary({
-    brew: brew as Record<string, unknown>,
-    coffeeName: typeof coffeeName === "string" ? coffeeName : null,
-    sessionTitle: brewSession && typeof brewSession === "object" && "title" in brewSession
-      ? String((brewSession as { title: unknown }).title)
-      : null,
-    observation: obs as Record<string, unknown> | null,
-    tastings: tastings as { stage: unknown; attribute: unknown; value: unknown }[],
-    pours: poursFacts,
-  });
+  const summary = formatBrewSummary(
+    {
+      brew: brew as Record<string, unknown>,
+      coffeeName: typeof coffeeName === "string" ? coffeeName : null,
+      sessionTitle: brewSession && typeof brewSession === "object" && "title" in brewSession
+        ? String((brewSession as { title: unknown }).title)
+        : null,
+      observation: obs as Record<string, unknown> | null,
+      tastings: tastings as { stage: unknown; attribute: unknown; value: unknown }[],
+      pours: poursFacts,
+    },
+    t,
+    locale,
+  );
   return (
     <div className="flex flex-col gap-4">
       <div>
