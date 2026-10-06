@@ -49,7 +49,7 @@ export async function setLocale(locale: string): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-function nullish(v: FormDataEntryValue | null) {
+function nullish(v: unknown) {
   const s = v == null ? "" : String(v).trim();
   return s === "" ? undefined : s;
 }
@@ -87,37 +87,38 @@ export async function createCoffee(formData: FormData): Promise<void> {
   redirect(`/coffees/${data.id}`);
 }
 
-export async function updateCoffee(id: string, formData: FormData): Promise<void> {
+// Coffee edits autosave from the detail editor: every sync sends the full
+// desired state (same update semantics as before, minus the redirect that
+// would break debounced saves). Validation and DB failures return { error }
+// so the shared save-state badge can surface them with Retry.
+export async function updateCoffee(id: string, patch: Record<string, string | undefined>): Promise<{ error?: string }> {
   const parsed = coffeeSchema.safeParse({
-    name: nullish(formData.get("name")),
-    origin: nullish(formData.get("origin")),
-    process: nullish(formData.get("process")),
-    variety: nullish(formData.get("variety")),
-    producer: nullish(formData.get("producer")),
-    country: nullish(formData.get("country")),
-    region: nullish(formData.get("region")),
-    farm: nullish(formData.get("farm")),
-    altitude: nullish(formData.get("altitude")),
-    roastDate: nullish(formData.get("roastDate")),
-    receivedDate: nullish(formData.get("receivedDate")),
-    initialWeightG: nullish(formData.get("initialWeightG")),
-    remainingWeightG: nullish(formData.get("remainingWeightG")),
-    notes: nullish(formData.get("notes")),
+    name: nullish(patch.name),
+    origin: nullish(patch.origin),
+    process: nullish(patch.process),
+    variety: nullish(patch.variety),
+    producer: nullish(patch.producer),
+    country: nullish(patch.country),
+    region: nullish(patch.region),
+    farm: nullish(patch.farm),
+    altitude: nullish(patch.altitude),
+    receivedDate: nullish(patch.receivedDate),
+    remainingWeightG: nullish(patch.remainingWeightG),
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? msg("coffee.invalid") };
   const d = parsed.data;
   const db = await createClient();
   const { error } = await db.from("coffees").update({
     name: d.name, origin: d.origin, process: d.process,
     variety: d.variety, producer: d.producer, country: d.country,
     region: d.region, farm: d.farm, altitude: d.altitude,
-    roast_date: d.roastDate, received_date: d.receivedDate,
-    initial_weight_g: d.initialWeightG, remaining_weight_g: d.remainingWeightG,
-    notes: d.notes, updated_at: new Date().toISOString(),
+    received_date: d.receivedDate, remaining_weight_g: d.remainingWeightG,
+    updated_at: new Date().toISOString(),
   }).eq("id", id);
-  if (error) return;
+  if (error) return { error: saveErrorCode(error) };
   revalidatePath("/coffees");
-  redirect("/coffees");
+  revalidatePath(`/coffees/${id}`);
+  return {};
 }
 
 export async function createBrew(prev: unknown, formData: FormData): Promise<{ error?: string; id?: string }> {

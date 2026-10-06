@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getCoffee, listBrews, listCuppings, recordRecentView } from "@/lib/db/queries";
-import { deleteCoffee, deleteCupping, updateCoffee, updateCupping } from "@/app/actions";
+import { deleteCoffee, deleteCupping, updateCupping } from "@/app/actions";
 import { CoffeeEditor } from "@/components/coffee-editor";
 import { BackLink } from "@/components/back-link";
 import { CuppingForm, type CuppingRow } from "@/components/cupping-editor";
@@ -21,7 +21,7 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const t = await getT();
   const locale = await getLocale();
-  await requireUser(`/coffees/${id}`);
+  const user = await requireUser(`/coffees/${id}`);
   const coffee = await getCoffee(id).catch(() => null);
   if (!coffee) notFound();
   // independent reads, one round trip instead of two sequential ones
@@ -30,7 +30,6 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
     listCuppings(id).catch(() => []),
     recordRecentView("coffee", id),
   ]);
-  const update = updateCoffee.bind(null, id);
   const noted = brews.filter((b: { observations?: unknown }) => {
     const o = b.observations;
     return Array.isArray(o) ? o.length > 0 : o != null;
@@ -61,8 +60,8 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
           ~{coffee.remaining_weight_g ?? "?"} g {t("coffee.remainingMany")} · {t("coffee.receivedPrefix")} {formatReceived(coffee.received_date, locale)}
         </p>
         <CoffeeEditor
+          userId={user.id}
           coffee={coffee}
-          update={update}
           brewAgainHref={brews.length > 0 ? `/brews/new?coffee=${id}&copy=1` : `/brews/new?coffee=${id}`}
         />
       </div>
