@@ -113,4 +113,48 @@ describe("formatBrewSummary", () => {
     const text = formatBrewSummary({ brew, observation, tastings });
     expect(text).not.toContain("Experiments");
   });
+
+  it("includes water, technique and expected details when recorded", () => {
+    const text = formatBrewSummary({
+      brew: {
+        ...brew,
+        water_brand: "Third Wave Water",
+        water_ppm: 120,
+        water_description: "mineral profile",
+        water_notes: "Soft, slightly sweet.",
+        thermal_shock: "no thermal shock",
+        lilydrip: true,
+        melodrip: true,
+        hario_switch: true,
+        expected_text: "Brighter acidity",
+      },
+      coffeeName: "Competencia",
+    });
+    expect(text).toContain(
+      "Third Wave Water · 120 ppm · mineral profile · LilyDrip · MeloDrip · Hario Switch · no thermal shock",
+    );
+    expect(text).toContain("Expected: Brighter acidity");
+    expect(text).toContain("Water notes: Soft, slightly sweet.");
+  });
+
+  it("omits water, technique and expected details that were never recorded", () => {
+    const text = formatBrewSummary({ brew, observation, tastings });
+    expect(text).not.toContain("ppm");
+    expect(text).not.toContain("LilyDrip");
+    expect(text).not.toContain("MeloDrip");
+    expect(text).not.toContain("Hario Switch");
+    expect(text).not.toContain("Expected:");
+    expect(text).not.toContain("Water notes:");
+  });
+
+  it("carries per-pour MeloDrip and Switch state in pour order", () => {
+    const text = formatBrewSummary({
+      brew,
+      pours: [
+        { sequence: 2, amount_g: 60, timing_seconds: 45, bloom: false, pattern: "circular", melodrip: true, switch_state: "open" },
+        { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", melodrip: false, switch_state: null },
+      ],
+    });
+    expect(text).toContain("Pours: 1. 0:00 · 40 g · center · bloom; 2. 0:45 · 60 g · circular · MeloDrip · Switch open");
+  });
 });

@@ -14,7 +14,7 @@ export type SummaryTasting = { stage: unknown; attribute: unknown; value: unknow
 export type SummaryPour = {
   sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown;
   bloom?: unknown; pattern?: unknown; note?: unknown;
-  temp_c?: unknown;
+  temp_c?: unknown; melodrip?: unknown; switch_state?: unknown;
 };
 type SummaryInput = {
   brew: Record<string, unknown>;
@@ -83,6 +83,19 @@ export function formatBrewSummary(input: SummaryInput): string {
     const t = text(brew[key]);
     if (t) recipe.push(t);
   }
+  // water enrichment (0017): brand, metered ppm, free-text description
+  const waterBrand = text(brew.water_brand);
+  if (waterBrand) recipe.push(waterBrand);
+  const ppm = num(brew.water_ppm);
+  if (ppm != null) recipe.push(`${ppm} ppm`);
+  const waterDescription = text(brew.water_description);
+  if (waterDescription) recipe.push(waterDescription);
+  // technique tools & treatment (0017/0018), only when actually recorded
+  if (brew.lilydrip === true) recipe.push("LilyDrip");
+  if (brew.melodrip === true) recipe.push("MeloDrip");
+  if (brew.hario_switch === true) recipe.push("Hario Switch");
+  const thermalShock = text(brew.thermal_shock);
+  if (thermalShock) recipe.push(thermalShock);
   const pourCount = num(brew.pour_count);
   if (pourCount != null) recipe.push(`${pourCount} pours`);
   const time = formatDuration(
@@ -108,6 +121,8 @@ export function formatBrewSummary(input: SummaryInput): string {
 
   const session = sessionTitle?.trim() ? sessionTitle.trim() : null;
   if (session) lines.push(`Session: ${session}`);
+  const expected = text(brew.expected_text);
+  if (expected) lines.push(`Expected: ${expected}`);
 
   const perStage = new Map<string, string[]>();
   // Deterministic regardless of input order: stage in canonical Hot/Warm/Cold
@@ -154,6 +169,8 @@ export function formatBrewSummary(input: SummaryInput): string {
     const pourTemp = num(r.temp_c);
     if (pourTemp != null) parts.push(`${pourTemp}°C`);
     if (r.bloom === true) parts.push("bloom");
+    if (r.melodrip === true) parts.push("MeloDrip");
+    if (r.switch_state === "open" || r.switch_state === "closed") parts.push(`Switch ${r.switch_state}`);
     const note = text(r.note)?.replace(/\s+/g, " ");
     if (note) parts.push(note);
     segments.push(`${Number(r.sequence) || segments.length + 1}. ${parts.join(" · ")}`);
@@ -165,6 +182,8 @@ export function formatBrewSummary(input: SummaryInput): string {
     const t = text(obs[key]);
     if (t) lines.push(`${label}: ${t}`);
   }
+  const waterNotes = text(brew.water_notes);
+  if (waterNotes) lines.push(`Water notes: ${waterNotes}`);
   const processNotes = text(brew.notes);
   if (processNotes) lines.push(`Brew notes: ${processNotes}`);
 
