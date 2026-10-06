@@ -6,6 +6,7 @@ import { CuppingList, type CuppingCardData } from "@/components/cupping-card";
 import { EmptyState } from "@/components/states";
 import { Card } from "@/components/ui/controls";
 import { PAGE_SIZE, listHref, parseCuppingParams } from "@/lib/lists/params";
+import { errorText } from "@/lib/i18n/errors";
 import { getT } from "@/lib/i18n/server";
 
 type SP = Record<string, string | string[] | undefined>;
@@ -38,6 +39,11 @@ export default async function CuppingsPage({ searchParams }: { searchParams: Pro
           {t("cupping.add")}
         </Link>
       </div>
+      {sp.error ? (
+        <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
+          {errorText(typeof sp.error === "string" ? sp.error : null, t)}
+        </p>
+      ) : null}
       <ApplyListPrefs list="cuppings" base="/cuppings" params={params} explicit={explicit} />
       {cuppings === null ? (
         <Card><p className="text-sm">{t("list.unreachable")}</p></Card>

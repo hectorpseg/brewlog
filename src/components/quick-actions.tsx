@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Coffee, Copy } from "lucide-react";
 import { FavoriteButton } from "./favorite-button";
 import { copyNextBrewHref } from "@/lib/domain/quick-actions";
+import { useT } from "@/lib/i18n/client";
 
 // ponytail: visible quick actions, one shared row so list/detail surfaces
 // converge. Favorite reuses FavoriteButton (no duplicate logic); Copy reuses
@@ -24,13 +25,14 @@ export function BrewQuickActions({ brewId, coffeeId, isFavorite, toggle }: {
   isFavorite: boolean;
   toggle: () => Promise<void>;
 }) {
+  const t = useT();
   return (
     <div className="flex shrink-0 flex-col gap-2">
       <FavoriteButton isFavorite={isFavorite} toggle={toggle} />
       {coffeeId ? (
         <Link
           href={copyNextBrewHref(coffeeId, brewId)}
-          aria-label={`New from this brew ${brewId}`}
+          aria-label={t("brew.action.newFromThis")}
           className={iconBtn}
         >
           <Copy size={20} aria-hidden className="text-ink3" />
@@ -46,11 +48,13 @@ export function BrewCoffeeAction({ coffeeId, coffeeName }: {
   coffeeId: string;
   coffeeName: string;
 }) {
+  const t = useT();
+  const label = `${t("coffee.editor.brewAgain")}: ${coffeeName}`;
   return (
     <Link
       href={copyNextBrewHref(coffeeId)}
-      aria-label={`Brew ${coffeeName} again`}
-      title={`Brew ${coffeeName} again`}
+      aria-label={label}
+      title={label}
       className={iconBtn}
     >
       <Coffee size={20} aria-hidden className="text-ink3" />

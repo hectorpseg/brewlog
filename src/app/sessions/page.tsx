@@ -7,6 +7,7 @@ import { EntityCard } from "@/components/entity-card";
 import { Card } from "@/components/ui/controls";
 import { EmptyState } from "@/components/states";
 import { PAGE_SIZE, listHref, parseSessionParams } from "@/lib/lists/params";
+import { errorText } from "@/lib/i18n/errors";
 import { getT } from "@/lib/i18n/server";
 
 type SP = Record<string, string | string[] | undefined>;
@@ -33,6 +34,11 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
         <h1 className="font-display text-2xl">{t("nav.sessions")}</h1>
         <Link href="/sessions/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">{t("session.add")}</Link>
       </div>
+      {sp.error ? (
+        <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
+          {errorText(typeof sp.error === "string" ? sp.error : null, t)}
+        </p>
+      ) : null}
       <ApplyListPrefs list="sessions" base="/sessions" params={params} explicit={explicit} />
       {sessions === null ? (
         <Card><p className="text-sm">{t("list.unreachable")}</p></Card>

@@ -51,7 +51,7 @@ test("tasting attributes offer a native select with custom entry on mobile", asy
   await page.waitForLoadState("domcontentloaded");
   // Draft-only row: no server write until the form is submitted.
   await page.getByRole("button", { name: "+ Add attribute" }).first().click();
-  const select = page.locator('select[aria-label="Hot attribute name"]');
+  const select = page.locator('select[aria-label="Hot · attribute name"]');
   await expect(select).toBeVisible();
   // Touch target stays tappable at phone widths.
   const height = await select.evaluate((el) => el.getBoundingClientRect().height);
@@ -69,7 +69,7 @@ test("tasting attributes offer a native select with custom entry on mobile", asy
   await expect(select).toHaveValue("acidity");
   // Custom path swaps to a text input; the typed name is kept verbatim.
   await select.selectOption("__custom");
-  const custom = page.getByLabel("Hot custom attribute name");
+  const custom = page.getByLabel("Hot · custom attribute name");
   await expect(custom).toBeVisible();
   await custom.fill("bergamot");
   await expect(custom).toHaveValue("bergamot");
