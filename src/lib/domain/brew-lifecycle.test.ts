@@ -96,7 +96,7 @@ describe("describeDeletion", () => {
   });
   it("drops zero-count fragments and joins two survivors naturally", () => {
     const d = describeDeletion("brew", { observations: 0, tastings: 1, pours: 0 }, t);
-    expect(d.body).toBe("1 tasting entry will be permanently deleted. The dose is handed back to the coffee's remaining weight. This cannot be undone.");
+    expect(d.body).toBe("1 tasting entry will be permanently deleted. Any coffee grams this brew deducted are handed back to the remaining weight. This cannot be undone.");
   });
   it("shows only the generic warning when nothing else dies", () => {
     const d = describeDeletion("brew", { observations: 0, tastings: 0, pours: 0 }, t);

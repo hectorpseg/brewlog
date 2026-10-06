@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { brewRatio, formatRatio } from "@/lib/domain/ratio";
-import { applyInventoryDelta, cuppingDoseDelta, remainingAfter, restoredAfter, exceedsRemaining } from "@/lib/domain/inventory";
+import { applyInventoryDelta, cuppingDoseDelta, remainingAfter, restoredAfter, exceedsRemaining, deductedFor, deductAdjustment } from "@/lib/domain/inventory";
 import { diffBrews } from "@/lib/domain/compare";
 import { coffeeSchema, brewSchema } from "@/lib/validation/schemas";
 import { autosaveReducer } from "@/lib/drafts/store";
@@ -66,6 +66,34 @@ describe("cupping inventory", () => {
   it("delta application is exactly reversible (failed writes roll back cleanly)", () => {
     const after = applyInventoryDelta(185, -5);
     expect(applyInventoryDelta(after, 5)).toBe(185);
+  });
+});
+
+describe("recorded deduction", () => {
+  it("records what a recording truly deducts, never fabricating stock", () => {
+    expect(deductedFor(200, 15)).toBe(15);
+    expect(deductedFor(10, 15)).toBe(10); // clamp: only the real 10 g leave
+    expect(deductedFor(0, 15)).toBe(0); // empty bag deducts nothing
+  });
+  it("deletion restores exactly the recorded deduction, never more", () => {
+    // brew recorded against an empty bag: stored deduction 0, delete restores 0
+    const remaining = 0;
+    expect(restoredAfter(remaining, deductedFor(0, 15))).toBe(0);
+    // normal brew: full dose deducted and restored
+    expect(restoredAfter(185, deductedFor(200, 15))).toBe(200);
+  });
+  it("edits hand back at most what was deducted, consume at most the stock", () => {
+    // recorded 15 back when nothing was ever deducted: stock does not grow
+    expect(deductAdjustment(0, 5, 200)).toEqual({ deducted: 0, next: 200 });
+    // dose reduced, partially deducted: 2 of 5 returned
+    expect(deductAdjustment(2, 5, 185)).toEqual({ deducted: 0, next: 187 });
+    // dose increased, bag has room: consumption rises
+    expect(deductAdjustment(15, -5, 50)).toEqual({ deducted: 20, next: 45 });
+    // dose increased past stock: only the real grams leave
+    expect(deductAdjustment(15, -50, 2)).toEqual({ deducted: 17, next: 0 });
+    // legacy rows with unknown recorded deduction never gain grams either
+    expect(deductAdjustment(null, 5, 200)).toEqual({ deducted: 0, next: 200 });
+    expect(deductAdjustment(0, 0, 200)).toEqual({ deducted: 0, next: 200 });
   });
 });
 
