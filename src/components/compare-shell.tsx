@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { resolveCompareSelection } from "@/lib/domain/brew-diff";
 import { CardSkeleton } from "./states";
 import { CompareSelectors } from "./compare-selectors";
+import { useT } from "@/lib/i18n/client";
 
 // SLOT_PARAMS[i] is the URL param for slot i (?a=&b=&c=&d=).
 const SLOT_PARAMS = ["a", "b", "c", "d"];
@@ -30,13 +31,14 @@ export function CompareShell({
     });
   }
   const wanted = SLOT_PARAMS.map((p) => sp.get(p));
+  const t = useT();
   // Deep links may point at brews outside the latest-50 window: keep the URL
   // ids selectable (stub label) so the selector always agrees with the page.
   const known = new Set(brews.map((b) => b.id));
   const options = [...brews];
   for (const id of wanted) {
     if (id && !known.has(id)) {
-      options.push({ id, label: `Brew · ${id.slice(0, 8)}` });
+      options.push({ id, label: `${t("brew.titleFallback")} · ${id.slice(0, 8)}` });
       known.add(id);
     }
   }

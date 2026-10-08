@@ -59,7 +59,7 @@ export function CoffeeEditor({ userId, coffee, brewAgainHref }: {
       <div className="mt-3 flex gap-2">
         <Link
           href={brewAgainHref}
-          className="min-h-11 flex-1 rounded-[10px] bg-ember px-4 py-2 text-center font-medium text-white"
+          className="min-h-11 flex-1 rounded-[10px] bg-ember px-4 py-2.5 text-center font-medium text-white transition-transform active:scale-[0.98]"
         >
           {t("coffee.editor.brewAgain")}
         </Link>
@@ -68,26 +68,24 @@ export function CoffeeEditor({ userId, coffee, brewAgainHref }: {
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
       <Card className="mt-3">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col">
           <div><Label>{t("coffee.field.name")}</Label><Input value={form.name} onChange={(e) => set("name", e.target.value)} /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line pt-3">
             <div><Label>{t("coffee.field.origin")}</Label><Input value={form.origin} onChange={(e) => set("origin", e.target.value)} /></div>
             <div><Label>{t("coffee.field.process")}</Label><Input value={form.process} onChange={(e) => set("process", e.target.value)} /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
             <div><Label>{t("coffee.field.variety")}</Label><Input value={form.variety} onChange={(e) => set("variety", e.target.value)} /></div>
             <div><Label>{t("coffee.field.producer")}</Label><Input value={form.producer} onChange={(e) => set("producer", e.target.value)} /></div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line pt-3">
             <div><Label>{t("coffee.field.country")}</Label><Input value={form.country} onChange={(e) => set("country", e.target.value)} /></div>
             <div><Label>{t("coffee.field.region")}</Label><Input value={form.region} onChange={(e) => set("region", e.target.value)} /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
             <div><Label>{t("coffee.field.farm")}</Label><Input value={form.farm} onChange={(e) => set("farm", e.target.value)} /></div>
             <div><Label>{t("coffee.field.altitude")}</Label><Input value={form.altitude} onChange={(e) => set("altitude", e.target.value)} /></div>
           </div>
-          <div><Label>{t("coffee.field.remaining")}</Label><Input value={form.remainingWeightG} type="number" step="any" inputMode="decimal" onChange={(e) => set("remainingWeightG", e.target.value)} /></div>
-          <div className="min-w-0"><Label>{t("coffee.field.received")}</Label><Input value={form.receivedDate} type="date" max={defaultBrewedDate()} onChange={(e) => set("receivedDate", e.target.value)} /></div>
+          <div className="mt-3 grid grid-cols-2 gap-3 border-t border-line pt-3">
+            <div><Label>{t("coffee.field.remaining")}</Label><Input value={form.remainingWeightG} type="number" step="any" inputMode="decimal" className="tnum" onChange={(e) => set("remainingWeightG", e.target.value)} /></div>
+            <div className="min-w-0"><Label>{t("coffee.field.received")}</Label><Input value={form.receivedDate} type="date" max={defaultBrewedDate()} onChange={(e) => set("receivedDate", e.target.value)} /></div>
+          </div>
         </div>
       </Card>
     </div>

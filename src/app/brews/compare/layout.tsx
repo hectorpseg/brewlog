@@ -5,6 +5,7 @@ import { toCompareOption } from "@/lib/domain/brew-diff";
 import { BackLink } from "@/components/back-link";
 import { BackToTop } from "@/components/back-to-top";
 import { CompareShell } from "@/components/compare-shell";
+import { getT } from "@/lib/i18n/server";
 
 // ponytail: the selector dataset lives in the layout, which Next.js preserves
 // across ?a=&b= navigations. Changing a dropdown re-runs only the page
@@ -13,13 +14,14 @@ import { CompareShell } from "@/components/compare-shell";
 // per render, and anonymous deep links bounce to /login?next=… intact.
 export default async function CompareLayout({ children }: { children: React.ReactNode }) {
   await requireUser("/brews/compare");
+  const t = await getT();
   const rows = await listBrewOptions().catch(() => []);
   const brews = rows.map(toCompareOption);
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <BackLink href="/brews" label="Brews" />
-        <h1 className="font-display text-2xl">Compare brews</h1>
+        <BackLink href="/brews" label={t("nav.brews")} />
+        <h1 className="font-display text-2xl">{t("nav.compare")}</h1>
       </div>
       <Suspense fallback={null}>
         <CompareShell brews={brews}>{children}</CompareShell>

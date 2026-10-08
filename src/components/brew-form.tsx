@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { TriangleAlert } from "lucide-react";
 import { newBrewFormSchema, type NewBrewFormInput } from "@/lib/validation/schemas";
 import { splitSeconds } from "@/lib/domain/brew-time";
@@ -13,7 +14,7 @@ import { pourRowsFromJson, pourRowsToJson, completePourEntries, pourSequenceInva
 import { eyPercent, pouredTotalG, plannedDeltaG, retainedG } from "@/lib/domain/brew-water";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
-import { Button, Card, FieldError, Input, Label, SectionHeader, Select, Switch, Textarea } from "@/components/ui/controls";
+import { Button, FieldError, Input, Label, Select, Switch, Textarea } from "@/components/ui/controls";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
 import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
@@ -194,7 +195,7 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
         </div>
 
       </div>
-      {recipeFrom ? <Card><p className="text-sm text-ink2">{t("brew.copy.card")}</p></Card> : null}
+      {recipeFrom ? <div className="rounded-[10px] bg-note px-3 py-2 text-sm text-ink2">{t("brew.copy.card")}</div> : null}
       <SectionNav items={[
         { id: "sec-recipe", label: t("brew.section.recipe") },
         { id: "sec-equipment", label: t("brew.section.equipment") },
@@ -203,9 +204,12 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
         { id: "sec-result", label: t("brew.section.result") },
         { id: "sec-tasting", label: t("brew.section.tasting") },
       ]} />
-      <div>
-        <SectionHeader>{t("brew.section.recipe")}</SectionHeader>
-        <Card id="sec-recipe" className="mt-2 scroll-mt-14">
+      <details open id="sec-recipe" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.recipe")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
         <Label htmlFor="coffeeId">{t("brew.field.coffee")} *</Label>
         <Select id="coffeeId" error={!!form.formState.errors.coffeeId} className={inh("coffeeId")} {...form.register("coffeeId")}>
           <option value="">{t("brew.pickCoffee")}</option>
@@ -273,11 +277,14 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
             </Select>
           </div>
         ) : null}
-      </Card>
-      </div>
-      <details open id="sec-equipment" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.equipment")}</summary>
-        <Card>
+        </div>
+      </details>
+      <details open id="sec-equipment" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.equipment")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
           <div className="grid grid-cols-2 gap-3">
             <div><Label>{t("brew.field.grinder")}</Label><Input error={!!form.formState.errors.grinder} className={inh("grinder")} {...form.register("grinder")} /></div>
             <div><Label>{t("brew.field.dripper")}</Label><Input error={!!form.formState.errors.dripper} className={inh("dripper")} {...form.register("dripper")} /></div>
@@ -306,11 +313,14 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
               onToggle={() => form.setValue("harioSwitch", !(values.harioSwitch === true), { shouldDirty: true })}
             />
           </div>
-        </Card>
+        </div>
       </details>
-      <details open id="sec-pours" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.poursOptional")}</summary>
-        <Card>
+      <details open id="sec-pours" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.poursOptional")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
           <PourEditor
             rows={pourRowsFromJson(values.pours)}
             legacyCount={copyLegacyPours}
@@ -324,15 +334,24 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
               {plannedDelta != null && plannedDelta !== 0 ? ` · ${plannedDelta > 0 ? "+" : ""}${plannedDelta}${t("brew.pouredDelta.suffix")}` : ""}
             </p>
           ) : null}
-        </Card>
+        </div>
       </details>
-      <Card id="sec-expected" className="scroll-mt-14">
-        <Label htmlFor="expectedText">{t("brew.field.expected")}</Label>
-        <Textarea id="expectedText" rows={2} className="mt-1" placeholder={t("brew.field.expectedPlaceholder")} error={!!form.formState.errors.expectedText} {...form.register("expectedText")} />
-      </Card>
-      <details open id="sec-result" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.result")}</summary>
-        <Card>
+      <details open id="sec-expected" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.field.expected")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
+          <Label htmlFor="expectedText" className="sr-only">{t("brew.field.expected")}</Label>
+          <Textarea id="expectedText" rows={2} placeholder={t("brew.field.expectedPlaceholder")} error={!!form.formState.errors.expectedText} {...form.register("expectedText")} />
+        </div>
+      </details>
+      <details open id="sec-result" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.result")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>{t("brew.field.finalBeverage")}</Label>
@@ -355,11 +374,14 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
             </div>
           ) : null}
           <div className="mt-3"><Label>{t("brew.field.brewNotes")}</Label><Textarea rows={2} error={!!form.formState.errors.notes} {...form.register("notes")} /></div>
-        </Card>
+        </div>
       </details>
-      <details open id="sec-tasting" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.tasting")}</summary>
-        <Card>
+      <details open id="sec-tasting" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.tasting")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
           <TastingDisclaimer />
           <TastingEditor
             rows={tastingRowsFromJson(values.tastings)}
@@ -371,7 +393,7 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
             <h3 className="text-base font-medium">{t("brew.field.overallNotes")}</h3>
             <Textarea rows={2} className="mt-1" aria-label={t("brew.field.overallNotes")} error={!!form.formState.errors.freeformNotes} {...form.register("freeformNotes")} />
           </div>
-        </Card>
+        </div>
       </details>
       {submitError ? <p role="alert" className="text-sm text-ember">{submitError}</p> : null}
       <Button disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? t("brew.saving") : t("brew.save")}</Button>

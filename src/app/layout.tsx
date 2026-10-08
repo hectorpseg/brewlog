@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces } from "next/font/google";
+import { Source_Serif_4 } from "next/font/google";
 import { BottomNav } from "@/components/bottom-nav";
 import { DevRequestCount } from "@/components/dev-request-count";
 import { LaunchSplash } from "@/components/launch-splash";
@@ -7,7 +7,7 @@ import { LocaleProvider } from "@/lib/i18n/client";
 import { getLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
-const display = Fraunces({ variable: "--font-display", subsets: ["latin"] });
+const display = Source_Serif_4({ variable: "--font-display", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "BrewLog",

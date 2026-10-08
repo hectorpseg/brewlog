@@ -99,7 +99,7 @@ export function BrewCombobox({ id, label, brews, value, onSelect }: {
             id={listId}
             role="listbox"
             aria-label={label}
-            className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-[10px] border border-line bg-card p-1 shadow-lg"
+            className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-[10px] border border-line bg-card p-1 shadow-elev"
           >
             {options.length === 0 ? (
               <li className="px-3 py-2 text-sm text-ink2">No matching brews.</li>

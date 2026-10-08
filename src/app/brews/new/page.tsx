@@ -40,7 +40,7 @@ export default async function NewBrewPage({ searchParams }: { searchParams: Prom
   const lastActual = actualWaterG(last?.water_g, pouredTotalG(lastPours));
   return (
     <div>
-      <h1 className="mb-3 font-display text-2xl">{t("brew.new.title")}</h1>
+      <h1 className="mb-4 font-display text-2xl">{t("brew.new.title")}</h1>
       {last && lastCoffeeName ? (
         <Card className="mb-3">
           <p className="text-sm text-ink2">

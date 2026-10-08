@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GitCompare, Plus, Share2 } from "lucide-react";
+import { ChevronDown, GitCompare, Plus, Share2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getBrew, listSessionOptions, listTastings, listPours, recordRecentView } from "@/lib/db/queries";
@@ -102,7 +102,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
           </h1>
           <FavoriteButton isFavorite={isFavorite} toggle={favorite} />
         </div>
-        <p className="tnum mt-1 text-xs text-ink2">
+        <p className="tnum mt-1 text-xs font-medium text-ink2">
           {formatBrewDate(brew.brewed_at ?? brew.created_at, locale)} · {brew.dose_g ?? "?"} g → {actualWater ?? "?"} g
           {waterDiffers ? ` · ${Number(brew.water_g)}${t("brew.pouredLine.suffix")}` : ""}
           {" · "}{formatRatio(Number(brew.dose_g), actualWater ?? NaN)}
@@ -174,9 +174,10 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
         >
           <GitCompare size={16} aria-hidden /> {t("brew.compare")}
         </Link>
-        <details className="rounded-[10px] border border-line bg-card">
-          <summary className="flex min-h-11 cursor-pointer items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.98]">
+        <details className="group rounded-[10px] border border-line bg-card">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.98] [&::-webkit-details-marker]:hidden">
             <Share2 size={16} aria-hidden /> {t("brew.share")}
+            <ChevronDown size={16} aria-hidden className="ml-1 text-ink3 transition-transform duration-150 group-open:rotate-180" />
           </summary>
           <div className="flex flex-col gap-3 border-t border-line px-3 py-3">
             <ShareCardPreview card={shareCard} />

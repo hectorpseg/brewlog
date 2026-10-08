@@ -55,7 +55,7 @@ export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, 
   return (
     <div
       className={cn(
-        "relative cursor-pointer rounded-[10px] border border-line bg-card px-3 py-2 transition-transform hover:bg-paper active:scale-[0.99]",
+        "relative cursor-pointer rounded-[10px] border border-line bg-card px-4 py-3 transition-transform hover:bg-paper active:scale-[0.99]",
         isFavorite && "border-ember",
       )}
     >
@@ -67,18 +67,18 @@ export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, 
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="font-display text-base leading-snug text-ink line-clamp-1">{coffeeName || t("brew.untitled")}</div>
-          <div className="tnum mt-0.5 text-xs text-ink2 line-clamp-1">
+          <div className="tnum mt-1 text-xs text-ink2 line-clamp-1">
             {formatBrewDate(brew.brewed_at ?? brew.created_at, locale)}
             {" · "}
             {brew.dose_g ?? "?"} g → {actualWater ?? "?"} g
             {" · "}
             {formatRatio(Number(brew.dose_g), actualWater ?? NaN)}
           </div>
-          <div className="tnum text-[11px] text-ink3 line-clamp-1">
+          <div className="tnum mt-0.5 text-[11px] text-ink3 line-clamp-1">
             {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} {t("brew.clicks")}
             {brew.filter ? ` · ${brew.filter}` : ""}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink2">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-ink2">
             <span>{t(BREW_LIFECYCLE_KEY[status])}</span>
             {scored && (
               <span className="tnum shrink-0">· {formatBrewScore(score)}</span>
@@ -107,7 +107,7 @@ export function BrewCard({ brew, isFavorite, favoritePending, onFavoriteToggle, 
         )}
       </div>
       {action && (
-        <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-line pt-1.5">
+        <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-line pt-2">
           <div className="relative z-10">{action}</div>
           <ChevronRight size={16} aria-hidden className="shrink-0 text-ink3" />
         </div>

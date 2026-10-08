@@ -80,9 +80,9 @@ function DraggableStrip({ items }: { items: RecentItem[] }) {
         <Link
           key={`${i.type}:${i.id}`}
           href={i.href}
-          className="min-h-[42px] w-[132px] shrink-0 snap-start rounded-[6px] border border-line bg-card px-2 py-1 transition-transform duration-150 active:scale-[0.97]"
+          className="min-h-11 w-[132px] shrink-0 snap-start rounded-[10px] border border-line bg-card px-2.5 py-1.5 transition-transform duration-150 active:scale-[0.97]"
         >
-          <span className="block text-[9px] leading-tight text-ink3">{t(KIND_KEY[i.type])}</span>
+          <span className="block text-[10px] leading-tight text-ink3">{t(KIND_KEY[i.type])}</span>
           <span className="block truncate text-[11px] leading-tight font-medium text-ink2">{i.title}</span>
         </Link>
       ))}

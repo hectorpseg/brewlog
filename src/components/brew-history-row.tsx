@@ -46,12 +46,13 @@ export function BrewHistoryRow({ brew, coffeeName, brewScore }: {
     <EntityCard
       href={`/brews/${brew.id}`}
       label={`${t("brew.titleFallback")} ${ratio}`}
+      className="px-4 py-3"
     >
       <div className="tnum flex items-baseline justify-between gap-2 text-sm">
         <span className="font-display text-base">{ratio}</span>
         <span className="shrink-0 text-xs text-ink3">{formatBrewDate(brew.brewed_at ?? brew.created_at, locale)}</span>
       </div>
-      <div className="tnum mt-0.5 text-sm text-ink2">
+      <div className="tnum mt-1 text-sm text-ink2 line-clamp-2">
         {brew.dose_g ?? "?"} g / {actualWater ?? "?"} g · {brew.temp_c ?? "?"}°C · {brew.grind_clicks ?? "?"} {t("brew.clicks")}
         {formatDuration(brew.total_time_sec) ? ` · ${formatDuration(brew.total_time_sec)}` : ""}
         {brew.filter ? ` · ${brew.filter}` : ""}
@@ -59,12 +60,12 @@ export function BrewHistoryRow({ brew, coffeeName, brewScore }: {
         {brew.session ? ` · ${brew.session.title}` : ""}
       </div>
       {scored ? (
-        <div className="tnum mt-0.5 flex items-center gap-1 text-xs text-ink2">
-          <Star size={12} aria-hidden fill="currentColor" />
+        <div className="tnum mt-1 flex items-center gap-1 text-xs text-ink2">
+          <Star size={12} aria-hidden fill="currentColor" className="text-ink3" />
           <span>{t("brew.scoreLabel")} {formatBrewScore(score)}</span>
         </div>
       ) : null}
-      <div className={cn("mt-0.5 text-xs", status === "in-progress" ? "text-ember" : "text-ink2")}>
+      <div className={cn("mt-1 text-xs", status === "in-progress" ? "text-ember" : "text-ink2")}>
         {t(BREW_LIFECYCLE_KEY[status])}
         {warnings.length > 0 ? ` · ${warnings.join(" · ")}` : ""}
       </div>
