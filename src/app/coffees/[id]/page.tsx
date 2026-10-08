@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { requireUser } from "@/lib/supabase/require-user";
 import { getCoffee, listBrews, listCuppings, recordRecentView } from "@/lib/db/queries";
 import { deleteCoffee, deleteCupping, updateCupping } from "@/app/actions";
@@ -48,17 +49,17 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
       <div>
         <BackLink href="/coffees" label={t("nav.coffees")} />
         <h1 className="font-display text-2xl leading-snug text-ink">{coffee.name}</h1>
-        <p className="tnum mt-1 text-xs text-ink2">
+        <p className="tnum mt-1 text-xs font-medium text-ink2">
           {coffeeMetaLine(coffee, t)}
+        </p>
+        <p className="tnum mt-0.5 text-xs text-ink2">
+          ~{coffee.remaining_weight_g ?? "?"} g {t("coffee.remainingMany")} · {t("coffee.receivedPrefix")} {formatReceived(coffee.received_date, locale)}
         </p>
         {coffeeDetailLine(coffee) ? (
           <p className="mt-0.5 text-[11px] text-ink3">
             {coffeeDetailLine(coffee)}
           </p>
         ) : null}
-        <p className="tnum mt-0.5 text-[11px] text-ink3">
-          ~{coffee.remaining_weight_g ?? "?"} g {t("coffee.remainingMany")} · {t("coffee.receivedPrefix")} {formatReceived(coffee.received_date, locale)}
-        </p>
         <CoffeeEditor
           userId={user.id}
           coffee={coffee}
@@ -66,12 +67,13 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
         />
       </div>
       <div>
-        <details>
-          <summary className="min-h-11 cursor-pointer py-2 text-lg">
-            <span className="border-b border-line pb-1 font-display">{t("nav.brews")} ({brews.length})</span>
+        <details open className="group scroll-mt-14">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-line py-2 [&::-webkit-details-marker]:hidden">
+            <h2 className="font-display text-lg text-ink">{t("nav.brews")} ({brews.length})</h2>
+            <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
           </summary>
           {brews.length === 0 ? (
-            <div className="mt-2">
+            <div className="mt-3">
               <EmptyState
                 title={t("coffee.brews.emptyTitle")}
                 body={t("coffee.brews.emptyBody")}
@@ -81,7 +83,7 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
             </div>
           ) : (
             <>
-              <ul className="mt-2 flex flex-col gap-2">
+              <ul className="mt-3 flex flex-col gap-2.5">
                 {brews.map((b: {
                   id: string; dose_g: number; water_g: number; temp_c: number | null;
                   grind_clicks: number | null; total_time_sec: number | null;
@@ -100,11 +102,12 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
         </details>
       </div>
       <div>
-        <details>
-          <summary className="min-h-11 cursor-pointer py-2 text-lg">
-            <span className="border-b border-line pb-1 font-display">{t("nav.cuppings")} ({cuppings.length})</span>
+        <details open className="group scroll-mt-14">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-line py-2 [&::-webkit-details-marker]:hidden">
+            <h2 className="font-display text-lg text-ink">{t("nav.cuppings")} ({cuppings.length})</h2>
+            <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
           </summary>
-          <p className="mt-1 text-sm text-ink2">
+          <p className="mt-2 text-sm text-ink2">
             {t("coffee.taste.before")}{coffee.name}{t("coffee.taste.after")}
           </p>
           {cuppings.length === 0 ? (
@@ -118,7 +121,7 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
             </div>
           ) : (
             <>
-              <ul className="mt-2 flex flex-col gap-2">
+              <ul className="mt-2 flex flex-col gap-2.5">
               {(cuppings as CuppingRow[]).map((c) => {
                 const edit = updateCupping.bind(null, c.id, id);
                 const removeCupping = deleteCupping.bind(null, c.id, id);
@@ -130,7 +133,8 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
                           <span className="font-medium">
                             {c.dose_g ?? "?"} g / {c.water_g ?? "?"} g
                           </span>
-                          <span className="shrink-0 text-xs text-ink3">{formatBrewDate(c.cupped_at, locale)}</span>
+                          <span className="tnum shrink-0 text-xs text-ink3">{formatBrewDate(c.cupped_at, locale)}</span>
+                          <ChevronDown size={16} aria-hidden className="ml-auto shrink-0 self-center text-ink3 transition-transform duration-150 group-open:rotate-180" />
                         </>
                       }
                     >
