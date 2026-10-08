@@ -78,7 +78,7 @@ export default async function BrewsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div>
-      <div className="mb-3">
+      <div className="mb-4">
         <h1 className="font-display text-2xl">{t("nav.brews")}</h1>
       </div>
       <ApplyListPrefs list="brews" base="/brews" params={params} explicit={explicit} persist={BREWS_LIST_PREF_KEYS} />
