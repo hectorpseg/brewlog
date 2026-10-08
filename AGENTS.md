@@ -179,7 +179,7 @@ When proposing a new entity, identify the independent lifecycle, browsing/editin
 
 ### Color
 Use `globals.css` `@theme` tokens, never raw hex:
-`paper`, `card`, `ink`, `ink2`, `ink3`, `line`, `ember`.
+`paper`, `card`, `ink`, `ink2`, `ink3`, `line`, `ember`, plus semantic status tokens `ok` (muted success dot) and `note` (warm guidance surface). Floating overlays use the `shadow-elev` token; nothing else casts a shadow.
 `ember` is the deliberate accent for primary actions, active pills, focus rings and favorite/affordance highlights. Do not use it as decorative fill.
 
 ### Cards
