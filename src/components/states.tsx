@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { Card } from "./ui/controls";
+import { CollectionAction } from "./entity-card";
 
 // First-use empty state: teach + primary action, never bare "No data."
+// The action is the shared ember Link CTA (CollectionAction), so empty
+// states press like every other collection-level "create" action.
 export function EmptyState({ title, body, actionHref, actionLabel }: {
   title: string;
   body: string;
@@ -12,12 +15,9 @@ export function EmptyState({ title, body, actionHref, actionLabel }: {
     <Card>
       <p className="font-display text-lg">{title}</p>
       <p className="mt-1 text-sm text-ink2">{body}</p>
-      <Link
-        href={actionHref}
-        className="mt-3 inline-block min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white"
-      >
-        {actionLabel}
-      </Link>
+      <div className="mt-3">
+        <CollectionAction href={actionHref}>{actionLabel}</CollectionAction>
+      </div>
     </Card>
   );
 }
