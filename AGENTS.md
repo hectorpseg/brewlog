@@ -50,11 +50,7 @@ Do not implement unless explicitly requested: AI coach/LLM features, Whisper, We
 - Zod + React Hook Form
 - Tailwind v4 tokens
 - pnpm
-- Node 22
-
-Run Node commands with:
-`source ~/.nvm/nvm.sh && nvm use 22`
-The system Node 18 cannot build this project.
+ - Node 22 (nvm default — no version switching needed)
 
 ## Project map
 - Routes/pages: `src/app/`
