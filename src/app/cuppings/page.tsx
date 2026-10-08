@@ -33,9 +33,12 @@ export default async function CuppingsPage({ searchParams }: { searchParams: Pro
   }));
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl">{t("nav.cuppings")}</h1>
-        <Link href="/cuppings/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">
+        <Link
+          href="/cuppings/new"
+          className="inline-flex min-h-11 items-center rounded-[10px] bg-ember px-4 py-2 font-medium text-white transition-transform active:scale-[0.98]"
+        >
           {t("cupping.add")}
         </Link>
       </div>

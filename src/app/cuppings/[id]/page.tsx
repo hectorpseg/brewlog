@@ -45,7 +45,7 @@ export default async function CuppingDetail({ params }: { params: Promise<{ id: 
             coffeeName
           )}
         </h1>
-        <p className="tnum mt-1 text-xs text-ink2">
+        <p className="tnum mt-1 text-xs font-medium text-ink2">
           {cupping.dose_g ?? "?"} g / {cupping.water_g ?? "?"} g · {formatBrewDate(cupping.cupped_at, locale)}
         </p>
       </div>
