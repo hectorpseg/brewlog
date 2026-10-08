@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { updateBrew, upsertObservation, upsertPours, upsertTastings } from "@/app/actions";
 import { useAutosave } from "@/lib/drafts/useAutosave";
 import { draftKey } from "@/lib/drafts/local-store";
@@ -7,7 +8,7 @@ import { BREW_NOTE_KEYS, brewEditorDefaults, planBrewSync } from "@/lib/db/brew-
 import { completeTastingEntries, tastingRowsFromJson, tastingRowsToJson, tastingsUpdatedAt } from "@/lib/domain/tastings";
 import { pourRowsFromJson, pourRowsToJson, poursUpdatedAt, completePourEntries } from "@/lib/domain/pours";
 import { eyPercent, pouredTotalG, plannedDeltaG, retainedG } from "@/lib/domain/brew-water";
-import { Card, Input, Label, Select, Switch, Textarea } from "@/components/ui/controls";
+import { Input, Label, Select, Switch, Textarea } from "@/components/ui/controls";
 import { TastingEditor } from "@/components/tasting-editor";
 import { PourEditor } from "@/components/pour-editor";
 import { MinutesSecondsInput } from "@/components/brew-time-input";
@@ -130,14 +131,17 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-ink2">{t("brew.editor.hint")}</p>
         <SaveStateBadge state={state} onRetry={retry} />
       </div>
-      <details open id="sec-recipe" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.recipe")}</summary>
-        <Card>
+      <details open id="sec-recipe" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.recipe")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
           <Switch
             label={t("brew.field.selectedBeans")}
             pressed={form.selectedBeans === "true"}
@@ -169,11 +173,14 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
               </Select>
             </div>
           ) : null}
-        </Card>
+        </div>
       </details>
-      <details open id="sec-equipment" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.equipment")}</summary>
-        <Card>
+      <details open id="sec-equipment" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.equipment")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
           <div className="grid grid-cols-2 gap-3">
             <div><Label>{t("brew.field.grinder")}</Label><Input value={form.grinder ?? ""} onChange={(e) => set("grinder", e.target.value)} /></div>
             <div><Label>{t("brew.field.dripper")}</Label><Input value={form.dripper ?? ""} onChange={(e) => set("dripper", e.target.value)} /></div>
@@ -200,11 +207,14 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
               onToggle={() => set("harioSwitch", form.harioSwitch === "true" ? "false" : "true")}
             />
           </div>
-        </Card>
+        </div>
       </details>
-      <details open id="sec-pours" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.poursOptional")}</summary>
-        <Card>
+      <details open id="sec-pours" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.poursOptional")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
           <PourEditor
             rows={pourRowsFromJson(form.pours)}
             legacyCount={brew.pour_count != null && brew.pour_count !== "" ? Number(brew.pour_count) : null}
@@ -218,15 +228,24 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
               {plannedDelta != null && plannedDelta !== 0 ? ` · ${plannedDelta > 0 ? "+" : ""}${plannedDelta}${t("brew.pouredDelta.suffix")}` : ""}
             </p>
           ) : null}
-        </Card>
+        </div>
       </details>
-      <Card id="sec-expected" className="scroll-mt-14">
-        <Label htmlFor="brew-expected">{t("brew.field.expected")}</Label>
-        <Textarea id="brew-expected" rows={2} className="mt-1" placeholder={t("brew.field.expectedPlaceholder")} value={form.expectedText ?? ""} onChange={(e) => set("expectedText", e.target.value)} />
-      </Card>
-      <details open id="sec-result" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.result")}</summary>
-        <Card>
+      <details open id="sec-expected" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.field.expected")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
+          <Label htmlFor="brew-expected" className="sr-only">{t("brew.field.expected")}</Label>
+          <Textarea id="brew-expected" rows={2} placeholder={t("brew.field.expectedPlaceholder")} value={form.expectedText ?? ""} onChange={(e) => set("expectedText", e.target.value)} />
+        </div>
+      </details>
+      <details open id="sec-result" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.result")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
           <div className="grid grid-cols-2 gap-3">
             <div><Label>{t("brew.field.finalBeverage")}</Label><Input value={form.finalBeverageG ?? ""} inputMode="decimal" onChange={(e) => set("finalBeverageG", e.target.value)} /></div>
             <div>
@@ -246,11 +265,14 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
             </div>
           ) : null}
           <div className="mt-3"><Label>{t("brew.field.brewNotes")}</Label><Textarea rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} /></div>
-        </Card>
+        </div>
       </details>
-      <details open id="sec-tasting" className="scroll-mt-14">
-        <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">{t("brew.section.tasting")}</summary>
-        <Card>
+      <details open id="sec-tasting" className="group overflow-hidden rounded-[10px] border border-line bg-card scroll-mt-14">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 border-b border-transparent px-4 py-2.5 transition-colors hover:bg-paper active:bg-paper group-open:border-line [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg text-ink">{t("brew.section.tasting")}</h2>
+          <ChevronDown size={18} aria-hidden className="shrink-0 text-ink3 transition-transform duration-150 group-open:rotate-180" />
+        </summary>
+        <div className="p-4">
           <TastingDisclaimer />
           <div className="mt-2">
           <TastingEditor
@@ -265,7 +287,7 @@ export function BrewEditor({ userId, brew, observation, tastings, pours, session
             <Textarea id="obs-overall" rows={2} className="mt-1" value={form.freeformNotes ?? ""} onChange={(e) => set("freeformNotes", e.target.value)} />
           </div>
           </div>
-        </Card>
+        </div>
       </details>
     </div>
   );
