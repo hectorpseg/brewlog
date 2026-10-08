@@ -19,7 +19,7 @@ const STATE_KEY: Record<SaveState, TranslationKey> = {
 const DOT: Record<SaveState, string> = {
   editing: "bg-ink3",
   saving: "animate-pulse bg-ember",
-  saved: "bg-green-700",
+  saved: "bg-ok",
   "local-draft": "bg-ink3",
   error: "bg-ember",
 };
