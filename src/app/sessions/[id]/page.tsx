@@ -53,7 +53,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
       <div>
         <SectionHeader>{t("session.brews")} ({brews.length})</SectionHeader>
         {brews.length === 0 ? (
-          <div className="mt-2">
+          <div className="mt-3">
             <EmptyState
               title={t("session.brewsEmpty.title")}
               body={t("session.brewsEmpty.body")}
@@ -62,7 +62,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
             />
           </div>
         ) : (
-          <ul className="mt-2 flex flex-col gap-2">
+          <ul className="mt-3 flex flex-col gap-2.5">
             {(brews as BrewRow[]).map((b) => (
               <li key={b.id}>
                 <BrewCard
@@ -87,7 +87,7 @@ export default async function SessionDetail({ params }: { params: Promise<{ id: 
       {candidates.length > 0 ? (
         <div>
           <SectionHeader>{t("session.addExisting")}</SectionHeader>
-          <Card className="mt-2">
+          <Card className="mt-3">
             <form action={moveBrewToSession} className="flex flex-col gap-3">
               <input type="hidden" name="sessionId" value={id} />
               <div>
