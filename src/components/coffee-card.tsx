@@ -22,27 +22,25 @@ export function CoffeeCard({ coffee }: { coffee: CoffeeCardData }) {
   const remaining = coffee.remaining_weight_g;
   const depleted = remaining === 0;
   return (
-    <div className="relative rounded-[10px] border border-line bg-card px-3 py-2 transition-transform hover:bg-paper active:scale-[0.99]">
+    <div className="relative rounded-[10px] border border-line bg-card px-4 py-3 transition-transform hover:bg-paper active:scale-[0.99]">
       <a
         href={`/coffees/${coffee.id}`}
         aria-label={`${t("coffee.openAria")} ${coffee.name}`}
         className="absolute inset-0 rounded-[10px]"
       />
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="font-display text-base leading-snug text-ink line-clamp-1">{coffee.name}</div>
-          <div className={cn("tnum mt-0.5 text-xs line-clamp-1", depleted ? "text-ember" : "text-ink2")}>
-            {remaining != null
-              ? `~${remaining} g ${remaining === 1 ? t("coffee.remainingOne") : t("coffee.remainingMany")}`
-              : t("coffee.remainingUnknown")}
-            {depleted ? ` · ${t("coffee.depletedBadge")}` : null}
-          </div>
-          <div className="text-[11px] text-ink3 line-clamp-1">
-            {formatCoffeeListDate(coffee.received_date, coffee.created_at, t, locale)}
-          </div>
+      <div className="min-w-0">
+        <div className="font-display text-base leading-snug text-ink line-clamp-1">{coffee.name}</div>
+        <div className={cn("tnum mt-1 text-xs line-clamp-1", depleted ? "text-ember" : "text-ink2")}>
+          {remaining != null
+            ? `~${remaining} g ${remaining === 1 ? t("coffee.remainingOne") : t("coffee.remainingMany")}`
+            : t("coffee.remainingUnknown")}
+          {depleted ? ` · ${t("coffee.depletedBadge")}` : null}
+        </div>
+        <div className="mt-0.5 text-[11px] text-ink3 line-clamp-1">
+          {formatCoffeeListDate(coffee.received_date, coffee.created_at, t, locale)}
         </div>
       </div>
-      <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-line pt-1.5">
+      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-line pt-2">
         <div className="relative z-10">
           <BrewFromThis coffeeId={coffee.id} />
         </div>
@@ -80,13 +78,13 @@ function BrewFromThisLabel() {
 export function CoffeeListSkeleton() {
   const t = useT();
   return (
-    <div className="mt-3 flex flex-col gap-2" role="status" aria-label={t("coffee.loading")}>
+    <div className="mt-3 flex flex-col gap-2.5" role="status" aria-label={t("coffee.loading")}>
       {[0, 1, 2].map((i) => (
-        <div key={i} className="rounded-[10px] border border-line bg-card px-3 py-2">
+        <div key={i} className="rounded-[10px] border border-line bg-card px-4 py-3">
           <div className="skeleton h-4 w-2/5" />
-          <div className="skeleton mt-1.5 h-3 w-1/3" />
-          <div className="skeleton mt-1 h-3 w-1/2" />
-          <div className="mt-2 flex items-center justify-between border-t border-line pt-2">
+          <div className="skeleton mt-2 h-3 w-1/3" />
+          <div className="skeleton mt-1.5 h-3 w-1/2" />
+          <div className="mt-2.5 flex items-center justify-between border-t border-line pt-2">
             <div className="skeleton h-7 w-28 rounded-full" />
             <div className="skeleton h-4 w-4" />
           </div>

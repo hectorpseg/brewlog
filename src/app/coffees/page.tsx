@@ -28,9 +28,14 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   const devSeed = process.env.ALLOW_DEV_SEED === "true";
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl">{t("nav.coffees")}</h1>
-        <Link href="/coffees/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">{t("coffee.add")}</Link>
+        <Link
+          href="/coffees/new"
+          className="inline-flex min-h-11 items-center rounded-[10px] bg-ember px-4 py-2 font-medium text-white transition-transform active:scale-[0.98]"
+        >
+          {t("coffee.add")}
+        </Link>
       </div>
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
