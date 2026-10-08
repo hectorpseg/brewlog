@@ -46,10 +46,10 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     if (!selection) {
       return (
         <ErrorState
-          title="Need two brews"
-          body="Log at least two brews before comparing."
+          title={t("compare.needTwo.title")}
+          body={t("compare.needTwo.body")}
           backHref="/brews"
-          backLabel="Back to brews"
+          backLabel={t("nav.brews")}
         />
       );
     }
@@ -65,10 +65,10 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   if (ids.length < 2) {
     return (
       <ErrorState
-        title="Brews not found"
-        body="One of them may have been deleted."
+        title={t("compare.notFound.title")}
+        body={t("compare.notFound.body")}
         backHref="/brews"
-        backLabel="Back to brews"
+        backLabel={t("nav.brews")}
       />
     );
   }
@@ -88,7 +88,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   // pouredTotalG domain calc via the scalar map) and numeric bypass sit
   // directly above the per-pour rows. Planned water stays in the Recipe list.
   const waterRows: CompareRow[] = [
-    { label: "Poured water", values: scalars.map((s) => s.Poured ?? "-"), changed: valuesChanged(scalars.map((s) => s.Poured ?? "-")) },
+    { label: t("compare.pouredWater"), values: scalars.map((s) => s.Poured ?? "-"), changed: valuesChanged(scalars.map((s) => s.Poured ?? "-")) },
     { label: "Bypass (g)", values: scalars.map((s) => s["Bypass (g)"] ?? "-"), changed: valuesChanged(scalars.map((s) => s["Bypass (g)"] ?? "-")) },
   ].filter((r) => r.values.some((v) => v !== "-"));
   const pourRows: CompareRow[] = [
@@ -110,32 +110,32 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <p className="tnum mt-1 text-sm text-ink2">
+        <p className="tnum mt-1 text-sm font-medium text-ink2">
           {scalars[0].Coffee} · {scalars.map((s) => s.Ratio).join(" · ")}
-          {" · "}{changedCount} change{changedCount === 1 ? "" : "s"}
+          {" · "}{changedCount} {changedCount === 1 ? t("compare.meta.changesOne") : t("compare.meta.changesMany")}
         </p>
         <div className="mt-2">
           <CompareShareActions text={summary} />
         </div>
       </div>
       <div>
-        <SectionHeader>Recipe</SectionHeader>
+        <SectionHeader>{t("compare.section.recipe")}</SectionHeader>
         <Card className="mt-2">
           <CompareFieldTable rows={recipe} labels={labels} />
         </Card>
       </div>
       {pourRows.length > 0 ? (
         <div>
-          <SectionHeader>Pours &amp; water</SectionHeader>
+          <SectionHeader>{t("compare.section.pours")}</SectionHeader>
           <Card className="mt-2">
             <CompareFieldTable rows={pourRows} labels={labels} />
           </Card>
         </div>
       ) : null}
       <div>
-        <SectionHeader>Tasting</SectionHeader>
+        <SectionHeader>{t("compare.section.tasting")}</SectionHeader>
         {tastingRows.every((rows) => rows.length === 0) ? (
-          <p className="mt-2 text-sm text-ink2">No tasting entries yet - rate Hot, Warm, Cold on each brew.</p>
+          <p className="mt-2 text-sm text-ink2">{t("compare.empty.tasting")}</p>
         ) : (
           <Card className="mt-2">
             <TastingCompare labels={labels} stages={compareTastings(tastingRows)} />
@@ -143,9 +143,9 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
         )}
       </div>
       <div>
-        <SectionHeader>Notes</SectionHeader>
+        <SectionHeader>{t("compare.section.notes")}</SectionHeader>
         {notes.length === 0 ? (
-          <p className="mt-2 text-sm text-ink2">No notes on any brew.</p>
+          <p className="mt-2 text-sm text-ink2">{t("compare.empty.notes")}</p>
         ) : (
           <Card className="mt-2">
             <CompareFieldTable rows={notes} labels={labels} />

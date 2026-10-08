@@ -9,8 +9,13 @@
   --color-ink3: #a8a29e;
   --color-line: #e7e0d3;
   --color-ember: #b3401f;
-  --color-info-soft: #eaf3fb;
-  --font-display: "Fraunces", Georgia, serif;
+  /* Semantic status tokens, kept inside the warm system (V0 redesign). */
+  --color-ok: #4f7a5e;
+  --color-note: #f2ebe0;
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  /* Single elevation token for floating overlays (popovers, menus). */
+  --shadow-elev: 0 8px 24px rgba(28, 25, 23, 0.14), 0 2px 6px rgba(28, 25, 23, 0.08);
 }
 
 /* Color-scheme & base */
@@ -21,7 +26,7 @@
 body {
   background: var(--color-paper);
   color: var(--color-ink);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-family: var(--font-sans);
   min-height: 100dvh;
 }
 
@@ -38,11 +43,6 @@ body {
 /* tabular measurements so dose/water never jitter */
 .tnum {
   font-variant-numeric: tabular-nums;
-}
-
-/* Display headings are UI labels: keep "ff" in "Coffees" from joining. */
-.font-display {
-  font-variant-ligatures: none;
 }
 
 /* ember focus ring, never suppressed */

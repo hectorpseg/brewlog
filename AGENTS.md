@@ -50,11 +50,7 @@ Do not implement unless explicitly requested: AI coach/LLM features, Whisper, We
 - Zod + React Hook Form
 - Tailwind v4 tokens
 - pnpm
-- Node 22
-
-Run Node commands with:
-`source ~/.nvm/nvm.sh && nvm use 22`
-The system Node 18 cannot build this project.
+ - Node 22 (nvm default — no version switching needed)
 
 ## Project map
 - Routes/pages: `src/app/`
@@ -183,7 +179,7 @@ When proposing a new entity, identify the independent lifecycle, browsing/editin
 
 ### Color
 Use `globals.css` `@theme` tokens, never raw hex:
-`paper`, `card`, `ink`, `ink2`, `ink3`, `line`, `ember`.
+`paper`, `card`, `ink`, `ink2`, `ink3`, `line`, `ember`, plus semantic status tokens `ok` (muted success dot) and `note` (warm guidance surface). Floating overlays use the `shadow-elev` token; nothing else casts a shadow.
 `ember` is the deliberate accent for primary actions, active pills, focus rings and favorite/affordance highlights. Do not use it as decorative fill.
 
 ### Cards

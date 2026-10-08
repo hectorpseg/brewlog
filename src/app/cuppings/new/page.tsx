@@ -14,7 +14,7 @@ export default async function NewCuppingPage({ searchParams }: { searchParams: P
   return (
     <div>
       <BackLink href={sp.coffee ? `/coffees/${sp.coffee}` : "/cuppings"} label={sp.coffee ? t("cupping.fallbackName") : t("nav.cuppings")} />
-      <h1 className="mb-3 font-display text-2xl">{t("cupping.new.title")}</h1>
+      <h1 className="mb-4 font-display text-2xl">{t("cupping.new.title")}</h1>
       <CuppingForm
         action={createCupping}
         coffees={coffees.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))}

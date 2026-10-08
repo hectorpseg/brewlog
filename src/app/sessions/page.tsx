@@ -30,9 +30,14 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
   const rows = sessions?.rows ?? [];
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl">{t("nav.sessions")}</h1>
-        <Link href="/sessions/new" className="min-h-11 rounded-[10px] bg-ember px-4 py-2 font-medium text-white">{t("session.add")}</Link>
+        <Link
+          href="/sessions/new"
+          className="inline-flex min-h-11 items-center rounded-[10px] bg-ember px-4 py-2 font-medium text-white transition-transform active:scale-[0.98]"
+        >
+          {t("session.add")}
+        </Link>
       </div>
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
@@ -86,21 +91,21 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
               )}
             </div>
           ) : (
-            <ul className="mt-3 flex flex-col gap-2">
+            <ul className="mt-3 flex flex-col gap-2.5">
               {rows.map((s) => {
                 const n = Number(s.brew_count ?? 0);
                 return (
                   <li key={String(s.id)}>
-                    <EntityCard href={`/sessions/${String(s.id)}`} label={String(s.title)}>
+                    <EntityCard href={`/sessions/${String(s.id)}`} label={String(s.title)} className="px-4 py-3">
                       <div className="flex items-start gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="font-display text-base leading-snug text-ink line-clamp-1">{String(s.title)}</div>
                           {typeof s.notes === "string" && s.notes !== "" ? (
-                            <div className="mt-0.5 text-xs text-ink2 line-clamp-1">{s.notes}</div>
+                            <div className="mt-1 text-xs text-ink2 line-clamp-1">{s.notes}</div>
                           ) : null}
                           <div className="tnum mt-0.5 text-[11px] text-ink3">{n} {n === 1 ? t("session.brewsOne") : t("session.brewsMany")}</div>
                         </div>
-                        <ChevronRight size={16} aria-hidden className="mt-1 shrink-0 text-ink3" />
+                        <ChevronRight size={16} aria-hidden className="mt-0.5 shrink-0 text-ink3" />
                       </div>
                     </EntityCard>
                   </li>

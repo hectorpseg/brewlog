@@ -113,11 +113,11 @@ export function SectionNav({ items }: { items: { id: string; label: string }[] }
 }
 
 // One-line tasting semantics, shared by new-brew and editor so the wording
-// cannot drift between the two. Soft-blue card reads as guidance, never an error.
+// cannot drift between the two. Warm note token reads as guidance, never an error.
 export function TastingDisclaimer() {
   const t = useT();
   return (
-    <div className="rounded-[10px] bg-info-soft px-3 py-2 text-xs text-ink2 text-justify">
+    <div className="rounded-[10px] bg-note px-3 py-2 text-xs text-ink2 text-justify">
       {t("tasting.disclaimer")}
     </div>
   );

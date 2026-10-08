@@ -141,6 +141,36 @@ function ListSectionLabel({ children }: { children: React.ReactNode }) {
   return <div className="mb-0 text-[11px] font-medium tracking-wide text-ink3 uppercase">{children}</div>;
 }
 
+// ponytail: the one approved pill language, shared by sort pills, filter
+// chips, and the brews AND-filter bar. Optimistic state stays in each
+// caller — this is markup-only (classes/aria identical everywhere).
+function Pill({ label, active, disabled, onClick, ariaLabel }: {
+  label: string;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  ariaLabel?: string;
+}) {
+  return (
+    <button
+      key={label}
+      type="button"
+      aria-pressed={active}
+      aria-label={ariaLabel ?? label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96] disabled:opacity-60",
+        active
+          ? "bg-ember text-white"
+          : "border border-line bg-card text-ink2 hover:bg-paper"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
 // Compact sort pills for /brews: always visible, immediate optimistic active
 // state, and disabled while the list transition is pending.
 export function ListSortPills({ base, params, options, list, label }: {
@@ -161,10 +191,10 @@ export function ListSortPills({ base, params, options, list, label }: {
         {options.map((o) => {
           const on = optimisticSort === o.value;
           return (
-            <button
+            <Pill
               key={o.value}
-              type="button"
-              aria-pressed={on}
+              label={o.label}
+              active={on}
               disabled={isPending}
               onClick={() => {
                 if (on || isPending) return;
@@ -175,15 +205,7 @@ export function ListSortPills({ base, params, options, list, label }: {
                   navigate(listHref(base, { ...params, sort: o.value }, true));
                 });
               }}
-              className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96] disabled:opacity-60",
-                on
-                  ? "bg-ember text-white"
-                  : "border border-line bg-card text-ink2 hover:bg-paper"
-              )}
-            >
-              {o.label}
-            </button>
+            />
           );
         })}
       </div>
@@ -197,14 +219,14 @@ export type BrewListRow = BrewCardData & { coffee_id?: unknown; is_favorite?: un
 function BrewListSkeleton() {
   const t = useT();
   return (
-    <div className="mt-3 flex flex-col gap-2" role="status" aria-label={t("brews.loading")}>
+    <div className="mt-3 flex flex-col gap-2.5" role="status" aria-label={t("brews.loading")}>
       {[0, 1, 2].map((i) => (
-        <div key={i} className="rounded-[10px] border border-line bg-card px-3 py-2">
+        <div key={i} className="rounded-[10px] border border-line bg-card px-4 py-3">
           <div className="skeleton h-4 w-2/5" />
-          <div className="skeleton mt-1.5 h-3 w-3/5" />
-          <div className="skeleton mt-1 h-3 w-1/2" />
-          <div className="skeleton mt-1.5 h-3 w-2/5" />
-          <div className="mt-2 flex items-center justify-between border-t border-line pt-2">
+          <div className="skeleton mt-2 h-3 w-3/5" />
+          <div className="skeleton mt-1.5 h-3 w-1/2" />
+          <div className="skeleton mt-2 h-3 w-2/5" />
+          <div className="mt-2.5 flex items-center justify-between border-t border-line pt-2">
             <div className="skeleton h-7 w-28 rounded-full" />
             <div className="skeleton h-4 w-4" />
           </div>
@@ -219,7 +241,7 @@ export function BrewList({ rows, children }: { rows: BrewListRow[]; children?: R
   if (isPending) return <BrewListSkeleton />;
   if (rows.length === 0) return <div className="mt-2">{children}</div>;
   return (
-    <ul className="mt-3 flex flex-col gap-2">
+    <ul className="mt-3 flex flex-col gap-2.5">
       {rows.map((b) => (
         <BrewListItem key={String(b.id)} b={b} />
       ))}
@@ -232,7 +254,7 @@ export function CoffeeList({ rows, children }: { rows: CoffeeCardData[]; childre
   if (isPending) return <CoffeeListSkeleton />;
   if (rows.length === 0) return <div className="mt-2">{children}</div>;
   return (
-    <ul className="mt-3 flex flex-col gap-2">
+    <ul className="mt-3 flex flex-col gap-2.5">
       {rows.map((c) => (
         <li key={c.id}>
           <CoffeeCard coffee={c} />
@@ -368,10 +390,10 @@ export function FilterChips({ base, params, param, options, list }: {
           const on = optimisticActive === o.value;
           const next = on ? "all" : o.value;
           return (
-            <button
+            <Pill
               key={o.value}
-              type="button"
-              aria-pressed={on}
+              label={o.label}
+              active={on}
               disabled={isPending}
               onClick={() => {
                 if (isPending) return;
@@ -382,15 +404,7 @@ export function FilterChips({ base, params, param, options, list }: {
                   navigate(listHref(base, { ...params, [param]: next }, true));
                 });
               }}
-              className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96] disabled:opacity-60",
-                on
-                  ? "bg-ember text-white"
-                  : "border border-line bg-card text-ink2 hover:bg-paper"
-              )}
-            >
-              {o.label}
-            </button>
+            />
           );
         })}
       </div>
@@ -437,22 +451,7 @@ export function BrewFilterBar({ base, params }: {
   };
 
   const pill = (label: string, active: boolean, onClick: () => void, ariaLabel?: string) => (
-    <button
-      key={label}
-      type="button"
-      aria-pressed={active}
-      aria-label={ariaLabel ?? label}
-      disabled={isPending}
-      onClick={onClick}
-      className={cn(
-        "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 active:scale-[0.96] disabled:opacity-60",
-        active
-          ? "bg-ember text-white"
-          : "border border-line bg-card text-ink2 hover:bg-paper"
-      )}
-    >
-      {label}
-    </button>
+    <Pill key={label} label={label} active={active} disabled={isPending} onClick={onClick} ariaLabel={ariaLabel} />
   );
 
   return (
