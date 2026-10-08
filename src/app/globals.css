@@ -10,7 +10,7 @@
   --color-line: #e7e0d3;
   --color-ember: #b3401f;
   --color-info-soft: #eaf3fb;
-  --font-display: "Fraunces", Georgia, serif;
+  --font-display: "Source Serif 4", Georgia, serif;
 }
 
 /* Color-scheme & base */
@@ -38,11 +38,6 @@ body {
 /* tabular measurements so dose/water never jitter */
 .tnum {
   font-variant-numeric: tabular-nums;
-}
-
-/* Display headings are UI labels: keep "ff" in "Coffees" from joining. */
-.font-display {
-  font-variant-ligatures: none;
 }
 
 /* ember focus ring, never suppressed */
