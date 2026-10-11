@@ -33,6 +33,12 @@ Automated testing is the agent's responsibility. Manual/visual testing is the hu
 ### Completion
 Briefly report: what changed, automated checks/results, anything the human should manually verify, and unresolved issues/assumptions. Do not create `output.txt` unless explicitly requested.
 
+## Product roadmap
+
+`docs/ROADMAP.md` is the product-direction source of truth (current phase,
+phases A–O, product principles). Read it before proposing major product work;
+its status labels override any assumptions about what to build next.
+
 ## Project
 
 BrewLog is a private, mobile-first brew journal for coffee experimentation. It records brews, observations, sessions, cuppings and experiments, compares brews, helps avoid redundant experiments, and helps progressively converge on recipes.
