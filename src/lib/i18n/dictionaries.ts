@@ -137,6 +137,7 @@ const en = {
   // New Brew form (create). Reuses brew.field.* / brew.section.* from detail.
   "brew.field.coffee": "Coffee",
   "brew.pickCoffee": "Pick a coffee…",
+  "brew.createCoffee": "Create new coffee",
   "brew.copy.card": "Starting from the last recipe - change only what changed. Tinted fields are inherited; editing one returns it to normal.",
   "brew.new.title": "New brew",
   "brew.last": "Last brew",
@@ -632,6 +633,7 @@ const es: Record<TranslationKey, string> = {
 
   "brew.field.coffee": "Café",
   "brew.pickCoffee": "Elige un café…",
+  "brew.createCoffee": "Crear café nuevo",
   "brew.copy.card": "Parte de la última receta: cambia solo lo que cambió. Los campos heredados van tintados; al editar uno recupera su aspecto normal.",
   "brew.new.title": "Nueva extracción",
   "brew.last": "Última extracción",
@@ -773,6 +775,12 @@ const es: Record<TranslationKey, string> = {
   "summary.waterNotes": "Notas del agua",
   "summary.brewNotes": "Notas de la extracción",
   "summary.switch": "Switch",
+  "summary.waterSection": "Agua",
+  "summary.technique": "Técnica",
+  "summary.result": "Extracción",
+  "summary.selectedBeans": "Selección de granos",
+  "summary.thermalShock": "Choque térmico",
+  "summary.bypassText": "Bypass",
 
   "brew.time.minutes": "Minutos",
   "brew.time.seconds": "Segundos",
@@ -859,7 +867,8 @@ const es: Record<TranslationKey, string> = {
   "coffee.field.notes": "Notas",
   "coffee.placeholder.altitude": "p. ej. 1800-2000 msnm",
   "coffee.save": "Guardar café",
-  "coffee.editor.brewAgain": "Extraer de nuevo",
+  "coffee.editor.brewAgain": "Extraer este café",
+  "coffee.editor.cupThis": "Catar este café",
   "coffee.taste.before": "Cata ",
   "coffee.taste.after": " antes de gastar dosis de extracción: es la referencia de lo que sigue.",
   "coffee.taste.afterShort": " antes de gastar dosis de extracción.",

@@ -89,6 +89,12 @@ export async function createCoffee(formData: FormData): Promise<void> {
   }).select("id").single();
   if (error) redirect(`/coffees/new?error=${encodeURIComponent(saveErrorCode(error, msg("coffee.saveFailed")))}`);
   revalidatePath("/coffees");
+  const returnTo = nullish(formData.get("returnTo"));
+  if (returnTo && returnTo.startsWith("/")) {
+    const url = new URL(returnTo, "http://localhost");
+    url.searchParams.set("coffee", data.id);
+    redirect(`${url.pathname}${url.search}`);
+  }
   redirect(`/coffees/${data.id}`);
 }
 

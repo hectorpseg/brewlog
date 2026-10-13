@@ -34,13 +34,14 @@ function coffeeFormDefaults(coffee: Record<string, unknown>): CoffeeForm {
   };
 }
 
-export function CoffeeEditor({ userId, coffee, brewAgainHref }: {
+export function CoffeeEditor({ userId, coffee }: {
   userId: string;
   coffee: Record<string, unknown>;
-  brewAgainHref: string;
 }) {
   const t = useT();
   const id = String(coffee.id);
+  const brewHref = `/brews/new?coffee=${encodeURIComponent(id)}`;
+  const cupHref = `/cuppings/new?coffee=${encodeURIComponent(id)}`;
   const [form, setForm] = useState<CoffeeForm>(() => coffeeFormDefaults(coffee));
   const { state, retry } = useAutosave({
     key: draftKey(userId, "coffee-edit", id),
@@ -58,10 +59,16 @@ export function CoffeeEditor({ userId, coffee, brewAgainHref }: {
     <div>
       <div className="mt-3 flex gap-2">
         <Link
-          href={brewAgainHref}
+          href={brewHref}
           className="min-h-11 flex-1 rounded-[10px] bg-ember px-4 py-2.5 text-center font-medium text-white transition-transform active:scale-[0.98]"
         >
           {t("coffee.editor.brewAgain")}
+        </Link>
+        <Link
+          href={cupHref}
+          className="min-h-11 flex-1 rounded-[10px] border border-line bg-card px-4 py-2.5 text-center font-medium transition-transform active:scale-[0.98]"
+        >
+          {t("coffee.editor.cupThis")}
         </Link>
       </div>
       <div className="mt-3 flex justify-end">
