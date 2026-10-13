@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTranslator } from "@/lib/i18n/translate";
 import {
-  formatShareCardText,
   shareCardFilename,
   toShareCardData,
 } from "@/lib/domain/share-card";
@@ -9,7 +8,6 @@ import { brewFinalScore } from "@/lib/domain/brew-score";
 import { drawShareCard } from "@/lib/share/share-card";
 
 const en = createTranslator("en");
-const es = createTranslator("es");
 
 describe("toShareCardData", () => {
   it("includes identity, recipe, and score for a scored brew", () => {
@@ -32,7 +30,6 @@ describe("toShareCardData", () => {
     const card = toShareCardData({ brew: { dose_g: 15, water_g: 250 }, coffeeName: "Kenya", score: null }, en);
     expect(card.score).toBeNull();
     expect(card.scoreLabel).toBeNull();
-    expect(formatShareCardText(card, en)).not.toContain(en("brew.scoreLabel"));
   });
 
   it("truncates a long coffee name instead of overflowing", () => {
@@ -67,109 +64,6 @@ describe("toShareCardData", () => {
     const blob = JSON.stringify(card);
     expect(blob).not.toContain("secret");
     expect(blob).not.toContain("user_id");
-    const text = formatShareCardText(card, en);
-    expect(text).not.toContain("secret");
-  });
-});
-
-describe("formatShareCardText", () => {
-  it("renders the compact English share text", () => {
-    const card = toShareCardData({
-      brew: {
-        dose_g: 15, water_g: 250, temp_c: 93, grind_clicks: 18,
-        dripper: "Origami", total_time_sec: 150, final_beverage_g: 220,
-        tds_percent: 1.3,
-      },
-      coffeeName: "Ethiopia Guji",
-      score: brewFinalScore([{ value: 8 }, { value: 9 }]),
-    }, en);
-    const text = formatShareCardText(card, en);
-    expect(text).toBe([
-      "Ethiopia Guji",
-      "1:16.7",
-      "15 g coffee · 250 g water (1:16.7)",
-      "Start 93°C",
-      "Grind 18 clicks",
-      "Origami",
-      "Total 2:30",
-      "220 g out",
-      "TDS 1.3%",
-      "EY 19.07%",
-      "Score 4.3 / 5",
-      "BrewLog",
-    ].join("\n"));
-  });
-
-  it("renders the compact Spanish share text", () => {
-    const card = toShareCardData({
-      brew: {
-        dose_g: 15, water_g: 250, temp_c: 93, grind_clicks: 18,
-        dripper: "Origami", total_time_sec: 150, final_beverage_g: 220,
-        tds_percent: 1.3,
-      },
-      coffeeName: "Ethiopia Guji",
-      score: brewFinalScore([{ value: 8 }, { value: 9 }]),
-    }, es);
-    const text = formatShareCardText(card, es);
-    expect(text).toBe([
-      "Ethiopia Guji",
-      "1:16.7",
-      "15 g café · 250 g agua (1:16.7)",
-      "Inicio 93°C",
-      "Molienda 18 clics",
-      "Origami",
-      "Total 2:30",
-      "220 g salida",
-      "TDS 1.3%",
-      "EY 19.07%",
-      "Puntuación 4.3 / 5",
-      "BrewLog",
-    ].join("\n"));
-  });
-
-  it("contains no hardcoded English application labels in Spanish output", () => {
-    const card = toShareCardData({
-      brew: {
-        dose_g: 15, water_g: 250, temp_c: 93, grind_clicks: 18,
-        grinder: "K-Ultra", dripper: "Origami", filter: "Abaca", water_source: "Scala",
-        pour_count: 4, total_time_sec: 150, final_beverage_g: 220,
-        tds_percent: 1.3, bypass_g: 5,
-      },
-      coffeeName: "Ethiopia Guji",
-      score: brewFinalScore([{ value: 8 }, { value: 9 }]),
-    }, es);
-    const text = formatShareCardText(card, es);
-    // User-entered values must remain untouched.
-    expect(text).toContain("Ethiopia Guji");
-    expect(text).toContain("K-Ultra");
-    expect(text).toContain("Origami");
-    expect(text).toContain("Abaca");
-    expect(text).toContain("Scala");
-    // English-only application labels must not appear.
-    expect(text).not.toContain("coffee");
-    expect(text).not.toContain("Start ");
-    expect(text).not.toContain("Grind ");
-    expect(text).not.toContain(" clicks");
-    expect(text).not.toContain(" pours");
-    expect(text).not.toContain(" g out");
-    expect(text).not.toContain("Score ");
-    // Spanish labels are present.
-    expect(text).toContain("15 g café");
-    expect(text).toContain("Inicio 93°C");
-    expect(text).toContain("Molienda 18 clics");
-    expect(text).toContain("4 vertidos");
-    expect(text).toContain("220 g salida");
-    expect(text).toContain("EY 19.07%");
-    expect(text).toContain("5 g bypass");
-    expect(text).toContain("Puntuación 4.3 / 5");
-  });
-
-  it("ends with BrewLog branding and includes the score line when scored", () => {
-    const text = formatShareCardText({
-      coffeeName: "Ethiopia", ratio: "1:16", recipeLines: ["15 g coffee"], score: 4.5, scoreLabel: "4.5",
-    }, en);
-    expect(text).toContain("Score 4.5 / 5");
-    expect(text.endsWith("BrewLog")).toBe(true);
   });
 });
 

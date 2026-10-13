@@ -6,14 +6,15 @@ import { Button, Card, Input, Label, Textarea } from "@/components/ui/controls";
 import { getT } from "@/lib/i18n/server";
 import { errorText } from "@/lib/i18n/errors";
 
-export default async function NewCoffeePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  await requireUser("/coffees/new");
+export default async function NewCoffeePage({ searchParams }: { searchParams: Promise<{ error?: string; returnTo?: string }> }) {
+  const sp = await searchParams;
+  const returnTo = sp.returnTo ?? "";
+  await requireUser(`/coffees/new${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`);
   const t = await getT();
   const optional = t("coffee.optionalSuffix");
-  const sp = await searchParams;
   return (
     <div>
-      <BackLink href="/coffees" label={t("nav.coffees")} />
+      <BackLink href={returnTo && returnTo.startsWith("/") ? returnTo : "/coffees"} label={returnTo ? t("nav.newBrew") : t("nav.coffees")} />
       <h1 className="mb-3 font-display text-2xl">{t("coffee.new.title")}</h1>
       {sp.error ? (
         <p role="alert" className="mb-3 rounded-[10px] border border-ember px-3 py-2 text-sm text-ember">
@@ -22,6 +23,7 @@ export default async function NewCoffeePage({ searchParams }: { searchParams: Pr
       ) : null}
       <Card>
         <form action={createCoffee} className="flex flex-col gap-3">
+          {returnTo && returnTo.startsWith("/") ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
           <div><Label htmlFor="name">{t("coffee.field.name")} *</Label><Input id="name" name="name" required maxLength={120} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label htmlFor="origin">{t("coffee.field.origin")} {optional}</Label><Input id="origin" name="origin" /></div>

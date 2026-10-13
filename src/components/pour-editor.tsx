@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import { Input, Label, Select, Switch, Textarea, FieldError } from "@/components/ui/controls";
 import {
   POUR_PATTERNS, POUR_PATTERN_KEY, bloomAllowed, clearLaterBloom, emptyPourDraft, formatPourTime, formatPourTotal, normalizePourTime, parsePourTime,
-  pourCountAndTotal, pourSequenceInvalid, type PourDraftRow,
+  pourCountAndTotal, pourSequenceInvalid, pulseSpeedValid, type PourDraftRow,
 } from "@/lib/domain/pours";
 import { useT } from "@/lib/i18n/client";
 
@@ -180,6 +180,22 @@ export function PourEditor({ rows, legacyCount, switchOn = false, brewTemp = nul
                   onChange={(e) => updateAt(i, { temp: e.target.value })}
                   aria-invalid={!tempValid(r.temp)}
                 />
+              </div>
+              <div className="mt-2">
+                <Label htmlFor={`pour-${i}-pulse`}>{t("pours.pulseSpeed")}</Label>
+                <Input
+                  id={`pour-${i}-pulse`}
+                  inputMode="text"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="4, 3-4"
+                  value={r.pulseSpeed}
+                  onChange={(e) => updateAt(i, { pulseSpeed: e.target.value })}
+                  aria-invalid={!pulseSpeedValid(r.pulseSpeed)}
+                />
+                <p className="mt-0.5 text-[11px] text-ink3">{t("pours.pulseSpeedHint")}</p>
               </div>
               <div className="mt-2 flex min-h-11 items-center gap-2">
                 <Switch

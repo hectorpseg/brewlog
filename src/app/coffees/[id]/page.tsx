@@ -63,7 +63,6 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
         <CoffeeEditor
           userId={user.id}
           coffee={coffee}
-          brewAgainHref={brews.length > 0 ? `/brews/new?coffee=${id}&copy=1` : `/brews/new?coffee=${id}`}
         />
       </div>
       <div>
@@ -95,7 +94,7 @@ export default async function CoffeeDetail({ params }: { params: Promise<{ id: s
                 ))}
               </ul>
               <div className="mt-3">
-                <CollectionAction href={`/brews/new?coffee=${id}&copy=1`}>{t("brews.empty.action")}</CollectionAction>
+                <CollectionAction href={`/brews/new?coffee=${id}`}>{t("brews.empty.action")}</CollectionAction>
               </div>
             </>
           )}
