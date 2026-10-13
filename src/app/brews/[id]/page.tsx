@@ -82,6 +82,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
       observation: obs as Record<string, unknown> | null,
       tastings: tastings as { stage: unknown; attribute: unknown; value: unknown }[],
       pours: poursFacts,
+      score,
     },
     t,
     locale,
@@ -181,7 +182,7 @@ export default async function BrewDetail({ params }: { params: Promise<{ id: str
           </summary>
           <div className="flex flex-col gap-3 border-t border-line px-3 py-3">
             <ShareCardPreview card={shareCard} />
-            <ShareCardButtons card={shareCard} />
+            <ShareCardButtons card={shareCard} text={summary} />
           </div>
         </details>
       </div>

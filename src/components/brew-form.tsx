@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { TriangleAlert } from "lucide-react";
 import { newBrewFormSchema, type NewBrewFormInput } from "@/lib/validation/schemas";
@@ -99,6 +100,10 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
       }
       // legacy drafts predate the brew date: a new preparation starts today
       if (reset.brewedAt == null) reset.brewedAt = defaultBrewedDate();
+      // If the page was reached with an explicit coffee (e.g. returning from
+      // "Create new coffee"), prefer that selection over whatever the draft
+      // remembers; everything else the user already entered stays intact.
+      if (initialCoffeeId) reset.coffeeId = initialCoffeeId;
       form.reset(reset);
     },
   });
@@ -228,6 +233,12 @@ export function BrewForm({ userId, coffees, sessions, initialCoffeeId, recipeFro
           })()}
         </Select>
         <FieldError>{err("coffeeId")}</FieldError>
+        <Link
+          href="/coffees/new?returnTo=/brews/new"
+          className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-ember hover:underline"
+        >
+          {t("brew.createCoffee")}
+        </Link>
         {selectedCoffee ? (
           <>
           <p className="tnum mt-1 text-sm text-ink2">
