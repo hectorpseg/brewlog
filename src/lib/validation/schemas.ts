@@ -179,6 +179,13 @@ export const pourEntrySchema = z.object({
     z.boolean().nullish(),
   ),
   switch_state: z.enum(["open", "closed"]).nullish(),
+  pulse_min: optNum(z.coerce.number().positive().max(1000)),
+  pulse_max: optNum(z.coerce.number().positive().max(1000)),
+}).superRefine((data, ctx) => {
+  // A range is only valid when min is present and max is >= min.
+  if (data.pulse_max != null && (data.pulse_min == null || data.pulse_max < data.pulse_min)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pulse_max"], message: "Invalid pulse range" });
+  }
 });
 export type PourEntryInput = z.infer<typeof pourEntrySchema>;
 

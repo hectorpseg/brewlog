@@ -145,8 +145,8 @@ describe("recipeStartingValues", () => {
     ];
     const v = recipeStartingValues(previous, "coffee-1", serverPours);
     expect(pourRowsFromJson(v.pours)).toEqual([
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
-      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow", temp: "", melodrip: false, switchState: "" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "", pulseSpeed: "" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow", temp: "", melodrip: false, switchState: "", pulseSpeed: "" },
     ]);
     // tasting still never inherited alongside
     expect(v.tastings).toBeUndefined();

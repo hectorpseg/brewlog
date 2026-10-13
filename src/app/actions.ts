@@ -242,6 +242,8 @@ export async function createBrew(prev: unknown, formData: FormData): Promise<{ e
           temp_c: e.temp_c ?? null, melodrip: e.melodrip === true,
           // switch state only makes sense on a Switch-enabled brew
           switch_state: d.harioSwitch === true ? (e.switch_state ?? null) : null,
+          pulse_min: e.pulse_min ?? null,
+          pulse_max: e.pulse_max ?? null,
         })),
       );
       if (pourError) return { error: msg("brew.poursFailed") };
@@ -359,7 +361,7 @@ export async function upsertTastings(brewId: string, entries: { stage: string; a
 // Structured pours ride the brew editor autosave: the payload is the full
 // desired state, so pours removed in the editor are deleted here. The brews
 // row is untouched - this never reads or writes that table.
-export async function upsertPours(brewId: string, entries: { sequence: number; amount_g: number; timing_seconds: number; bloom: boolean; pattern: string; note?: string | null; temp_c?: number | null; melodrip?: boolean; switch_state?: "open" | "closed" | null }[]) {
+export async function upsertPours(brewId: string, entries: { sequence: number; amount_g: number; timing_seconds: number; bloom: boolean; pattern: string; note?: string | null; temp_c?: number | null; melodrip?: boolean; switch_state?: "open" | "closed" | null; pulse_min?: number | null; pulse_max?: number | null }[]) {
   const parsed = poursPayloadSchema.safeParse(entries);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? msg("pour.invalid") }
   const db = await createClient();
@@ -372,6 +374,8 @@ export async function upsertPours(brewId: string, entries: { sequence: number; a
     timing_seconds: e.timing_seconds, bloom: e.bloom, pattern: e.pattern, note: e.note,
     temp_c: e.temp_c ?? null, melodrip: e.melodrip === true,
     switch_state: switchOn ? (e.switch_state ?? null) : null,
+    pulse_min: e.pulse_min ?? null,
+    pulse_max: e.pulse_max ?? null,
     updated_at: new Date().toISOString(),
   }));
   if (rows.length > 0) {

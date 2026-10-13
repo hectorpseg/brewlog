@@ -43,6 +43,8 @@ export type PourEntry = {
   temp_c?: number | null;
   melodrip: boolean;
   switch_state?: "open" | "closed" | null;
+  pulse_min?: number | null;
+  pulse_max?: number | null;
 };
 
 export type PourSwitchState = "open" | "closed";
@@ -59,6 +61,7 @@ export type PourDraftRow = {
   temp: string;
   melodrip: boolean;
   switchState: string;
+  pulseSpeed?: string;
 };
 
 // Legacy drafts/rows lack the enrichment keys; they default safely.
@@ -78,6 +81,7 @@ export function emptyPourDraft(first: boolean, prev?: PourDraftRow): PourDraftRo
     temp: prev?.temp ?? "",
     melodrip: prev?.melodrip ?? false,
     switchState: prev?.switchState ?? "",
+    pulseSpeed: "",
   };
 }
 
@@ -132,6 +136,44 @@ export function normalizePourTime(v: string): string {
   return formatPourTime(secs) ?? t;
 }
 
+// Pulse speed: stored as min/max so a single value, decimal, or range can be
+// represented without loss. "4", "4.5", "3-4" and "3.5-3.7" all parse.
+// Invalid or empty input reads as null/null and is omitted.
+export function parsePulseSpeed(v: unknown): { min: number | null; max: number | null } {
+  if (typeof v !== "string") return { min: null, max: null };
+  const t = v.trim().replace(/,/g, ".");
+  if (t === "") return { min: null, max: null };
+  // Accept hyphen as the only range separator; whitespace around it is OK.
+  const parts = t.split(/\s*-\s*/);
+  if (parts.length === 2 && parts[0] !== "" && parts[1] !== "") {
+    const min = Number(parts[0]);
+    const max = Number(parts[1]);
+    if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max > 0 && min <= 1000 && max <= 1000 && max >= min) {
+      return { min, max };
+    }
+    return { min: null, max: null };
+  }
+  const n = Number(t);
+  if (Number.isFinite(n) && n > 0 && n <= 1000) {
+    return { min: n, max: null };
+  }
+  return { min: null, max: null };
+}
+
+export function pulseSpeedValid(v: unknown): boolean {
+  const { min } = parsePulseSpeed(v);
+  return (typeof v === "string" && v.trim() === "") || min != null;
+}
+
+// Display-normalized pulse speed: "4 g/s", "4.5 g/s", "3-4 g/s".
+export function formatPulseSpeed(min: number | null | undefined, max: number | null | undefined): string | null {
+  if (min == null || !Number.isFinite(min)) return null;
+  if (max != null && Number.isFinite(max) && max !== min) {
+    return `${min}-${max} g/s`;
+  }
+  return `${min} g/s`;
+}
+
 // Chronological rule: elapsed seconds must strictly increase pour over pour
 // ("0:00 → 0:45 → 1:20" valid, "1:10 → 0:40" not). One flag per row. A row
 // with an empty or unparseable time is a completeness/format problem, not a
@@ -157,6 +199,7 @@ function draftRow(v: unknown): PourDraftRow | null {
     temp: typeof r.temp === "string" ? r.temp : "",
     melodrip: r.melodrip === true,
     switchState: safeSwitch(r.switchState),
+    pulseSpeed: typeof r.pulseSpeed === "string" ? r.pulseSpeed : "",
   };
 }
 
@@ -185,7 +228,7 @@ export function pourRowsToJson(rows: PourDraftRow[]): string {
 // Server rows (numbers) into editor draft rows (strings). Legacy rows without
 // the enrichment columns read temp ""/melodrip false/switch "" — never drop.
 export function pourServerRowsToDraft(
-  rows: { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown; temp_c?: unknown; melodrip?: unknown; switch_state?: unknown }[] | null | undefined,
+  rows: { sequence?: unknown; amount_g?: unknown; timing_seconds?: unknown; bloom?: unknown; pattern?: unknown; note?: unknown; temp_c?: unknown; melodrip?: unknown; switch_state?: unknown; pulse_min?: unknown; pulse_max?: unknown }[] | null | undefined,
 ): PourDraftRow[] {
   if (!rows) return [];
   const sorted = [...rows].sort((a, b) => Number(a.sequence ?? 0) - Number(b.sequence ?? 0));
@@ -196,6 +239,8 @@ export function pourServerRowsToDraft(
     const time = typeof r.timing_seconds === "number" || typeof r.timing_seconds === "string" ? Number(r.timing_seconds) : NaN;
     if (!Number.isFinite(amount) || !Number.isFinite(time)) continue;
     const temp = typeof r.temp_c === "number" || typeof r.temp_c === "string" ? Number(r.temp_c) : NaN;
+    const pulseMin = typeof r.pulse_min === "number" || typeof r.pulse_min === "string" ? Number(r.pulse_min) : null;
+    const pulseMax = typeof r.pulse_max === "number" || typeof r.pulse_max === "string" ? Number(r.pulse_max) : null;
     out.push({
       time: formatPourTime(time) ?? "",
       amount: String(amount),
@@ -205,6 +250,7 @@ export function pourServerRowsToDraft(
       temp: Number.isFinite(temp) ? String(temp) : "",
       melodrip: r.melodrip === true,
       switchState: safeSwitch(r.switch_state),
+      pulseSpeed: formatPulseSpeed(pulseMin, pulseMax) ?? "",
     });
   }
   return out;
@@ -222,6 +268,7 @@ export function completePourEntries(rows: PourDraftRow[]): PourEntry[] {
     if (time == null) continue;
     if (!isPourPattern(r.pattern)) continue;
     const note = r.note.trim();
+    const pulse = parsePulseSpeed(r.pulseSpeed);
     out.push({
       sequence: out.length + 1,
       amount_g: amount,
@@ -238,6 +285,8 @@ export function completePourEntries(rows: PourDraftRow[]): PourEntry[] {
       })(),
       melodrip: r.melodrip === true,
       switch_state: safeSwitch(r.switchState) === "" ? null : safeSwitch(r.switchState) as PourSwitchState,
+      pulse_min: pulse.min,
+      pulse_max: pulse.max,
     });
   }
   return out;
@@ -283,6 +332,8 @@ export type PourFact = {
   temp_c?: unknown;
   melodrip?: unknown;
   switch_state?: unknown;
+  pulse_min?: unknown;
+  pulse_max?: unknown;
 };
 
 function factText(v: unknown): string | null {
@@ -310,6 +361,8 @@ function toEntry(f: PourFact | null | undefined): PourEntry | null {
   if (!Number.isFinite(amount) || !Number.isFinite(time)) return null;
   if (!isPourPattern(f.pattern)) return null;
   const temp = typeof f.temp_c === "number" || typeof f.temp_c === "string" ? Number(f.temp_c) : NaN;
+  const pulseMin = typeof f.pulse_min === "number" || typeof f.pulse_min === "string" ? Number(f.pulse_min) : null;
+  const pulseMax = typeof f.pulse_max === "number" || typeof f.pulse_max === "string" ? Number(f.pulse_max) : null;
   return {
     sequence: seq,
     amount_g: amount,
@@ -321,6 +374,8 @@ function toEntry(f: PourFact | null | undefined): PourEntry | null {
     temp_c: Number.isFinite(temp) && temp >= 50 && temp <= 100 ? temp : null,
     melodrip: f.melodrip === true,
     switch_state: f.switch_state === "open" || f.switch_state === "closed" ? f.switch_state : null,
+    pulse_min: pulseMin != null && Number.isFinite(pulseMin) && pulseMin > 0 && pulseMin <= 1000 ? pulseMin : null,
+    pulse_max: pulseMax != null && Number.isFinite(pulseMax) && pulseMax > 0 && pulseMax <= 1000 ? pulseMax : null,
   };
 }
 
@@ -333,7 +388,9 @@ function samePour(a: PourEntry, b: PourEntry): boolean {
     (a.note ?? null) === (b.note ?? null) &&
     (a.temp_c ?? null) === (b.temp_c ?? null) &&
     a.melodrip === b.melodrip &&
-    (a.switch_state ?? null) === (b.switch_state ?? null)
+    (a.switch_state ?? null) === (b.switch_state ?? null) &&
+    (a.pulse_min ?? null) === (b.pulse_min ?? null) &&
+    (a.pulse_max ?? null) === (b.pulse_max ?? null)
   );
 }
 
@@ -386,6 +443,7 @@ export function comparePourFields(
     const melodrip = (p: PourEntry | null) => (p ? (p.melodrip ? "Yes" : "No") : "-");
     const switchState = (p: PourEntry | null) => (p?.switch_state ?? "-");
     const note = (p: PourEntry | null) => (p?.note?.trim() ? p.note.trim() : "-");
+    const pulse = (p: PourEntry | null) => (p ? (formatPulseSpeed(p.pulse_min, p.pulse_max) ?? "-") : "-");
     const fields: string[][] = [
       [`Pour ${sequence} time`, ...values.map(time)],
       [`Pour ${sequence} amount`, ...values.map(amount)],
@@ -396,6 +454,7 @@ export function comparePourFields(
       ...(switchOn
         ? [[`Pour ${sequence} switch`, ...values.map(switchState)]]
         : []),
+      [`Pour ${sequence} pulse`, ...values.map(pulse)],
       [`Pour ${sequence} note`, ...values.map(note)],
     ];
     for (const [label, ...vals] of fields) {

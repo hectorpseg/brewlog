@@ -8,7 +8,9 @@ import {
   emptyPourDraft,
   formatPourTime,
   formatPourTotal,
+  formatPulseSpeed,
   normalizePourTime,
+  parsePulseSpeed,
   parsePourTime,
   pourCountAndTotal,
   pourRowsFromJson,
@@ -67,8 +69,8 @@ describe("formatPourTime", () => {
 describe("pour draft JSON", () => {
   it("round-trips editor rows and drops garbage", () => {
     const rows = [
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "open" },
-      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow", temp: "", melodrip: false, switchState: "" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "open", pulseSpeed: "" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "slow", temp: "", melodrip: false, switchState: "", pulseSpeed: "" },
     ];
     expect(pourRowsFromJson(pourRowsToJson(rows))).toEqual(rows);
     expect(pourRowsFromJson("")).toEqual([]);
@@ -79,7 +81,7 @@ describe("pour draft JSON", () => {
     expect(pourRowsFromJson(JSON.stringify([
       { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "" },
     ]))).toEqual([
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "", pulseSpeed: "" },
     ]);
   });
   it("converts server rows to drafts in sequence order", () => {
@@ -88,30 +90,37 @@ describe("pour draft JSON", () => {
       { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: "" },
     ]);
     expect(drafts).toEqual([
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" },
-      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "", temp: "", melodrip: false, switchState: "" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "", pulseSpeed: "" },
+      { time: "0:35", amount: "60", bloom: false, pattern: "circular", note: "", temp: "", melodrip: false, switchState: "", pulseSpeed: "" },
     ]);
     // new enrichment columns ride through when present
     const enriched = pourServerRowsToDraft([
       { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", temp_c: 92, melodrip: true, switch_state: "closed" },
     ]);
     expect(enriched).toEqual([
-      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "closed" },
+      { time: "0:00", amount: "40", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "closed", pulseSpeed: "" },
     ]);
     expect(pourServerRowsToDraft(null)).toEqual([]);
     expect(pourServerRowsToDraft([])).toEqual([]);
+  });
+  it("reconstructs pulse speed from stored min/max", () => {
+    const drafts = pourServerRowsToDraft([
+      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: false, pattern: "center", pulse_min: 3, pulse_max: 4 },
+      { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", pulse_min: 4.5, pulse_max: null },
+    ]);
+    expect(drafts.map((r) => r.pulseSpeed)).toEqual(["3-4 g/s", "4.5 g/s"]);
   });
 });
 
 describe("emptyPourDraft inheritance", () => {
   it("inherits temperature, MeloDrip, and Switch from the previous pour", () => {
-    expect(emptyPourDraft(true, { time: "", amount: "", bloom: true, pattern: "circle", note: "", temp: "92", melodrip: true, switchState: "closed" }))
-      .toEqual({ time: "", amount: "", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "closed" });
-    expect(emptyPourDraft(false, { time: "", amount: "", bloom: false, pattern: "pulse", note: "", temp: "90", melodrip: true, switchState: "open" }).temp)
+    expect(emptyPourDraft(true, { time: "", amount: "", bloom: true, pattern: "circle", note: "", temp: "92", melodrip: true, switchState: "closed", pulseSpeed: "" }))
+      .toEqual({ time: "", amount: "", bloom: true, pattern: "center", note: "", temp: "92", melodrip: true, switchState: "closed", pulseSpeed: "" });
+    expect(emptyPourDraft(false, { time: "", amount: "", bloom: false, pattern: "pulse", note: "", temp: "90", melodrip: true, switchState: "open", pulseSpeed: "" }).temp)
       .toBe("90");
   });
   it("falls back to safe defaults without a previous pour", () => {
-    expect(emptyPourDraft(true)).toEqual({ time: "", amount: "", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "" });
+    expect(emptyPourDraft(true)).toEqual({ time: "", amount: "", bloom: true, pattern: "center", note: "", temp: "", melodrip: false, switchState: "", pulseSpeed: "" });
   });
 });
 
@@ -148,6 +157,42 @@ describe("normalizePourTime", () => {
   });
 });
 
+describe("parsePulseSpeed / formatPulseSpeed", () => {
+  it("parses single integer, decimal, and range values", () => {
+    expect(parsePulseSpeed("4")).toEqual({ min: 4, max: null });
+    expect(parsePulseSpeed("4.5")).toEqual({ min: 4.5, max: null });
+    expect(parsePulseSpeed("3-4")).toEqual({ min: 3, max: 4 });
+    expect(parsePulseSpeed("3.5-3.7")).toEqual({ min: 3.5, max: 3.7 });
+    expect(parsePulseSpeed(" 4 ")).toEqual({ min: 4, max: null });
+    expect(parsePulseSpeed("3 - 4")).toEqual({ min: 3, max: 4 });
+  });
+  it("rejects zero, negatives, reversed ranges, and incomplete ranges", () => {
+    expect(parsePulseSpeed("")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("fast")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("0")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("-5")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("0-4")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("3-0")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("0-0")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("4-3")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("4-")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("3–4")).toEqual({ min: null, max: null });
+    expect(parsePulseSpeed("3.5–3.7")).toEqual({ min: null, max: null });
+  });
+  it("accepts positive decimals including those below 1", () => {
+    expect(parsePulseSpeed("0.5")).toEqual({ min: 0.5, max: null });
+    expect(parsePulseSpeed("0.5-0.7")).toEqual({ min: 0.5, max: 0.7 });
+  });
+  it("formats single values and ranges consistently", () => {
+    expect(formatPulseSpeed(4, null)).toBe("4 g/s");
+    expect(formatPulseSpeed(4.5, null)).toBe("4.5 g/s");
+    expect(formatPulseSpeed(3, 4)).toBe("3-4 g/s");
+    expect(formatPulseSpeed(3.5, 3.7)).toBe("3.5-3.7 g/s");
+    expect(formatPulseSpeed(4, 4)).toBe("4 g/s");
+    expect(formatPulseSpeed(null, null)).toBeNull();
+  });
+});
+
 describe("completePourEntries", () => {
   it("keeps complete rows, renumbered 1..n", () => {
     const out = completePourEntries([
@@ -158,8 +203,8 @@ describe("completePourEntries", () => {
       { time: "1:10", amount: "80", bloom: false, pattern: "pulse", note: "", temp: "", melodrip: false, switchState: "" },
     ]);
     expect(out).toEqual([
-      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: "bloom", temp_c: null, melodrip: false, switch_state: null },
-      { sequence: 2, amount_g: 80, timing_seconds: 70, bloom: false, pattern: "pulse", note: null, temp_c: null, melodrip: false, switch_state: null },
+      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: "bloom", temp_c: null, melodrip: false, switch_state: null, pulse_min: null, pulse_max: null },
+      { sequence: 2, amount_g: 80, timing_seconds: 70, bloom: false, pattern: "pulse", note: null, temp_c: null, melodrip: false, switch_state: null, pulse_min: null, pulse_max: null },
     ]);
   });
   it("rejects non-positive amounts", () => {
@@ -173,8 +218,8 @@ describe("completePourEntries", () => {
       { time: "76.7", amount: "60", bloom: false, pattern: "pulse", note: "", temp: "", melodrip: false, switchState: "" },
       { time: "1:05.5", amount: "60", bloom: false, pattern: "pulse", note: "", temp: "", melodrip: false, switchState: "" },
     ])).toEqual([
-      { sequence: 1, amount_g: 60, timing_seconds: 76, bloom: false, pattern: "pulse", note: null, temp_c: null, melodrip: false, switch_state: null },
-      { sequence: 2, amount_g: 60, timing_seconds: 65, bloom: false, pattern: "pulse", note: null, temp_c: null, melodrip: false, switch_state: null },
+      { sequence: 1, amount_g: 60, timing_seconds: 76, bloom: false, pattern: "pulse", note: null, temp_c: null, melodrip: false, switch_state: null, pulse_min: null, pulse_max: null },
+      { sequence: 2, amount_g: 60, timing_seconds: 65, bloom: false, pattern: "pulse", note: null, temp_c: null, melodrip: false, switch_state: null, pulse_min: null, pulse_max: null },
     ]);
   });
   it("carries in-range temperature, MeloDrip, and Switch; invalid values stay unknown", () => {
@@ -183,8 +228,20 @@ describe("completePourEntries", () => {
       { time: "0:05", amount: "50", bloom: false, pattern: "center", note: "", temp: "99.9", melodrip: false, switchState: "weird" },
     ]);
     expect(out).toEqual([
-      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: false, pattern: "center", note: null, temp_c: 93, melodrip: true, switch_state: "open" },
-      { sequence: 2, amount_g: 50, timing_seconds: 5, bloom: false, pattern: "center", note: null, temp_c: 99.9, melodrip: false, switch_state: null },
+      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: false, pattern: "center", note: null, temp_c: 93, melodrip: true, switch_state: "open", pulse_min: null, pulse_max: null },
+      { sequence: 2, amount_g: 50, timing_seconds: 5, bloom: false, pattern: "center", note: null, temp_c: 99.9, melodrip: false, switch_state: null, pulse_min: null, pulse_max: null },
+    ]);
+  });
+  it("carries valid pulse speeds and drops invalid ones", () => {
+    const out = completePourEntries([
+      { time: "0:00", amount: "40", bloom: false, pattern: "center", note: "", temp: "", melodrip: false, switchState: "", pulseSpeed: "4.5" },
+      { time: "0:10", amount: "50", bloom: false, pattern: "center", note: "", temp: "", melodrip: false, switchState: "", pulseSpeed: "3-4" },
+      { time: "0:20", amount: "60", bloom: false, pattern: "center", note: "", temp: "", melodrip: false, switchState: "", pulseSpeed: "fast" },
+    ]);
+    expect(out).toEqual([
+      { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: false, pattern: "center", note: null, temp_c: null, melodrip: false, switch_state: null, pulse_min: 4.5, pulse_max: null },
+      { sequence: 2, amount_g: 50, timing_seconds: 10, bloom: false, pattern: "center", note: null, temp_c: null, melodrip: false, switch_state: null, pulse_min: 3, pulse_max: 4 },
+      { sequence: 3, amount_g: 60, timing_seconds: 20, bloom: false, pattern: "center", note: null, temp_c: null, melodrip: false, switch_state: null, pulse_min: null, pulse_max: null },
     ]);
   });
 });
@@ -219,8 +276,8 @@ describe("poursUpdatedAt", () => {
   });
 });
 
-const pourA1 = { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null, temp_c: null, melodrip: false, switch_state: null };
-const pourA2 = { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "slow", temp_c: null, melodrip: false, switch_state: null };
+const pourA1 = { sequence: 1, amount_g: 40, timing_seconds: 0, bloom: true, pattern: "center", note: null, temp_c: null, melodrip: false, switch_state: null, pulse_min: null, pulse_max: null };
+const pourA2 = { sequence: 2, amount_g: 60, timing_seconds: 35, bloom: false, pattern: "circular", note: "slow", temp_c: null, melodrip: false, switch_state: null, pulse_min: null, pulse_max: null };
 
 describe("comparePours", () => {
   it("flags changed, unchanged, and missing pours", () => {
@@ -300,6 +357,11 @@ describe("comparePourFields", () => {
     expect(rows.some((r) => r.label.includes("switch"))).toBe(false);
     // temperature rows still appear (enrichment compares regardless of Switch)
     expect(rows.some((r) => r.label.endsWith("melodrip"))).toBe(true);
+  });
+  it("compares pulse speed when present", () => {
+    const rows = comparePourFields([[pourA1], [{ ...pourA1, pulse_min: 4.5, pulse_max: null }]]);
+    const byLabel = Object.fromEntries(rows.map((r) => [r.label, r]));
+    expect(byLabel["Pour 1 pulse"]).toMatchObject({ values: ["-", "4.5 g/s"], changed: true });
   });
 });
 
