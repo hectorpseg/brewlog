@@ -287,6 +287,12 @@ const en = {
   "summary.waterNotes": "Water notes",
   "summary.brewNotes": "Brew notes",
   "summary.switch": "Switch",
+  "summary.waterSection": "Water",
+  "summary.technique": "Technique",
+  "summary.result": "Brew",
+  "summary.selectedBeans": "Selected beans",
+  "summary.thermalShock": "Thermal shock",
+  "summary.bypassText": "Bypass",
 
   // Brew time input.
   "brew.time.minutes": "Minutes",
@@ -380,7 +386,8 @@ const en = {
   "coffee.field.notes": "Notes",
   "coffee.placeholder.altitude": "e.g. 1800-2000 masl",
   "coffee.save": "Save coffee",
-  "coffee.editor.brewAgain": "Brew again",
+  "coffee.editor.brewAgain": "Brew this coffee",
+  "coffee.editor.cupThis": "Cup this coffee",
   "coffee.taste.before": "Taste ",
   "coffee.taste.after": " before spending brew doses - a baseline for what follows.",
   "coffee.taste.afterShort": " before spending brew doses.",

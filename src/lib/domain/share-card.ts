@@ -4,10 +4,11 @@ import { eyPercent, pouredTotalG } from "@/lib/domain/brew-water";
 import { formatDuration } from "@/lib/domain/brew-time";
 import { formatBrewScore } from "@/lib/domain/brew-score";
 
-// ponytail: privacy-safe recipe/result snapshot for the share card. Only the
-// fields listed here ever reach the image or clipboard text: coffee identity,
-// recipe parameters, derived score. Notes, observations, tastings detail,
-// sessions, and IDs never enter this type by construction.
+// ponytail: privacy-safe recipe/result snapshot for the share card image.
+// Only the fields listed here reach the PNG: coffee identity, recipe
+// parameters, derived score. Notes, observations, tastings detail, sessions,
+// and IDs never enter this type by construction. Share as Text uses the
+// canonical brew summary instead.
 
 type Translator = (key: TranslationKey) => string;
 
@@ -99,16 +100,6 @@ export function toShareCardData(input: ShareCardInput, t: Translator): ShareCard
     score,
     scoreLabel: score === null ? null : formatBrewScore(score),
   };
-}
-
-// Clipboard fallback: same privacy-safe fields as the image, plain text.
-export function formatShareCardText(card: ShareCardData, t: Translator): string {
-  const lines = [card.coffeeName];
-  if (card.ratio) lines.push(card.ratio);
-  lines.push(...card.recipeLines);
-  if (card.scoreLabel != null) lines.push(`${t("brew.scoreLabel")} ${card.scoreLabel} / 5`);
-  lines.push("BrewLog");
-  return lines.join("\n");
 }
 
 // PNG filename from the coffee name, filesystem-safe.

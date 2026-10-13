@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { ShareCardData } from "@/lib/domain/share-card";
-import { formatShareCardText, shareCardFilename } from "@/lib/domain/share-card";
+import { shareCardFilename } from "@/lib/domain/share-card";
 import {
   canNativeShareImage,
   copyShareText,
@@ -56,13 +56,12 @@ const STATUS_KEY: Record<Exclude<Status, "idle">, TranslationKey> = {
 
 // Reusable actions: native share when supported, PNG download fallback,
 // clipboard text fallback. Unsupported APIs degrade to the next option.
-export function ShareCardButtons({ card }: { card: ShareCardData }) {
+export function ShareCardButtons({ card, text }: { card: ShareCardData; text: string }) {
   const t = useT();
   const [status, setStatus] = useState<Status>("idle");
   // Lazy initializer (no effect): server renders false, client evaluates
   // capability on first render. canNativeShareImage guards SSR itself.
   const [nativeOk] = useState(() => canNativeShareImage());
-  const text = formatShareCardText(card, t);
   const filename = shareCardFilename(card.coffeeName);
 
   function done(s: Status) {
